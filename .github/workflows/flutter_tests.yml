@@ -3,7 +3,7 @@ name: Flutter Tests
 # Run on every push and pull request to main
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
 
