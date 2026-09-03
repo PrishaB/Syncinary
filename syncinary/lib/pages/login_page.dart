@@ -9,7 +9,11 @@ import 'signup_page.dart';
 /// Uses the "Midnight Voyage" design system.
 /// ─────────────────────────────────────────────────────────
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.auth});
+
+  /// Optional [FirebaseAuth] instance for dependency injection (testing).
+  /// Falls back to [FirebaseAuth.instance] when null.
+  final FirebaseAuth? auth;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -66,7 +70,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await (widget.auth ?? FirebaseAuth.instance).signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );

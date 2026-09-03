@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import 'itinerary_builder.dart';
-import 'signup_page.dart';
 
 /// ─────────────────────────────────────────────────────────
 /// SignUpPage — Email / Password authentication via Firebase
 /// Uses the "Midnight Voyage" design system.
 /// ─────────────────────────────────────────────────────────
 class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key});
+  const SignUpPage({super.key, this.auth});
+
+  /// Optional [FirebaseAuth] instance for dependency injection (testing).
+  /// Falls back to [FirebaseAuth.instance] when null.
+  final FirebaseAuth? auth;
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
@@ -67,7 +70,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
     });
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      await (widget.auth ?? FirebaseAuth.instance).createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
