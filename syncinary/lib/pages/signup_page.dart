@@ -5,20 +5,21 @@ import 'itinerary_builder.dart';
 import 'signup_page.dart';
 
 /// ─────────────────────────────────────────────────────────
-/// LoginPage — Email / Password authentication via Firebase
+/// SignUpPage — Email / Password authentication via Firebase
 /// Uses the "Midnight Voyage" design system.
 /// ─────────────────────────────────────────────────────────
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateMixin{
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
@@ -56,8 +57,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     super.dispose();
   }
 
-  // ── Firebase sign-in ────────────────────────────────────
-  Future<void> _signIn() async {
+  // ── Firebase sign-up ────────────────────────────────────
+  Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -66,7 +67,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
@@ -89,32 +90,21 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     }
   }
 
-  void _signUp() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const SignUpPage()),
-    );
-  }
-
   String _friendlyError(String code) {
     switch (code) {
-      case 'user-not-found':
-        return 'No account found with this email.';
-      case 'wrong-password':
-        return 'Incorrect password. Please try again.';
+      case 'weak-password':
+        return 'The password is too weak. Use at least 8 characters.';
+      case 'email-already-in-use':
+        return 'This email address is already registered.';
       case 'invalid-email':
         return 'Please enter a valid email address.';
-      case 'user-disabled':
-        return 'This account has been disabled.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
-      case 'invalid-credential':
-        return 'Invalid email or password.';
       default:
-        return 'Sign-in failed. Please check your credentials.';
+        return 'Sign-up failed. Please try again.';
     }
   }
 
-  // ── UI ──────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -216,13 +206,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             children: [
               // Title
               const Text(
-                'Welcome back',
+                'Welcome!',
                 style: AppTextStyles.title,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
-                'Sign in to continue',
+                'Sign up to continue',
                 style: AppTextStyles.caption.copyWith(fontSize: 13),
                 textAlign: TextAlign.center,
               ),
@@ -233,6 +223,25 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 _buildErrorBanner(),
                 const SizedBox(height: 16),
               ],
+
+              // ── Name field ────────────────────
+              TextFormField(
+                controller: _nameController,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                style: AppTextStyles.body,
+                decoration: AppDecorations.inputDecoration(
+                  label: 'Name',
+                  prefixIcon: Icons.person_outline_rounded,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
 
               // ── Email field ────────────────────
               TextFormField(
@@ -286,23 +295,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   }
                   return null;
                 },
-                onFieldSubmitted: (_) => _signIn(),
+                onFieldSubmitted: (_) => _signUp(),
               ),
               const SizedBox(height: 28),
 
-              // ── Sign In button ─────────────────
-              GradientButton(
-                onPressed: _isLoading ? null : _signIn,
-                label: 'Sign In',
-                icon: Icons.login_rounded,
-                isLoading: _isLoading,
-              ),
-
-              const SizedBox(height: 20),
-
+              // ── Sign Up button ─────────────────
               GradientButton(
                 onPressed: _isLoading ? null : _signUp,
                 label: 'Sign Up',
+                icon: Icons.login_rounded,
                 isLoading: _isLoading,
               ),
             ],
@@ -344,3 +345,5 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 }
+
+
