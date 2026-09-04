@@ -230,12 +230,8 @@ class GradientButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             child: isLoading
                 ? const SizedBox(
-                    width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: AppColors.textPrimary,
-                    ),
+                    child: _ThreeDotsLoading(),
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
@@ -250,6 +246,77 @@ class GradientButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Animated three-dot loading indicator
+// ─────────────────────────────────────────────────────────
+class _ThreeDotsLoading extends StatefulWidget {
+  const _ThreeDotsLoading();
+
+  @override
+  State<_ThreeDotsLoading> createState() => _ThreeDotsLoadingState();
+}
+
+class _ThreeDotsLoadingState extends State<_ThreeDotsLoading>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (index) {
+            // Stagger each dot by ~0.2 of the animation cycle
+            final delay = index * 0.2;
+            final t = (_controller.value - delay) % 1.0;
+            // Bounce: scale up then back down in the first half of each dot's cycle
+            final scale = t < 0.5
+                ? 0.5 + (t * 2.0) * 0.5   // 0.5 → 1.0
+                : 0.5 + ((1.0 - t) * 2.0) * 0.5; // 1.0 → 0.5
+            final opacity = scale; // tie opacity to scale for a pulsing effect
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: Opacity(
+                opacity: opacity.clamp(0.3, 1.0),
+                child: Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.textPrimary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

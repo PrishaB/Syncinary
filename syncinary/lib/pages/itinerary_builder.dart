@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'amadeus_service.dart';
 import 'flight_search.dart';
+import 'login_page.dart';
 import '../theme/app_theme.dart';
 
 class itinerary_builder extends StatefulWidget {
@@ -219,6 +221,22 @@ class _itineraryState extends State<itinerary_builder> {
             );
           }).toList(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
+            tooltip: 'Log out',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
 
       body: Container(
