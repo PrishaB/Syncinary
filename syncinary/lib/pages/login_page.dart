@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import 'itinerary_builder.dart';
+import 'signup_page.dart';
 
 /// ─────────────────────────────────────────────────────────
 /// LoginPage — Email / Password authentication via Firebase
 /// Uses the "Midnight Voyage" design system.
 /// ─────────────────────────────────────────────────────────
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.auth});
+
+  /// Optional [FirebaseAuth] instance for dependency injection (testing).
+  /// Falls back to [FirebaseAuth.instance] when null.
+  final FirebaseAuth? auth;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -65,7 +70,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await (widget.auth ?? FirebaseAuth.instance).signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
@@ -86,6 +91,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _signUp() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const SignUpPage()),
+    );
   }
 
   String _friendlyError(String code) {
@@ -288,6 +299,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 onPressed: _isLoading ? null : _signIn,
                 label: 'Sign In',
                 icon: Icons.login_rounded,
+                isLoading: _isLoading,
+              ),
+
+              const SizedBox(height: 20),
+
+              GradientButton(
+                onPressed: _isLoading ? null : _signUp,
+                label: 'Sign Up',
                 isLoading: _isLoading,
               ),
             ],
