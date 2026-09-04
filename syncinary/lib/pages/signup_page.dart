@@ -234,7 +234,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                 textInputAction: TextInputAction.next,
                 style: AppTextStyles.body,
                 decoration: AppDecorations.inputDecoration(
-                  label: 'Name',
+                  label: 'Full Name',
                   prefixIcon: Icons.person_outline_rounded,
                 ),
                 validator: (value) {
