@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'amadeus_service.dart';
 import 'flight_search.dart';
 import 'login_page.dart';
+import 'groups/my_groups_page.dart';
 import '../theme/app_theme.dart';
 
 class itinerary_builder extends StatefulWidget {
@@ -222,6 +223,16 @@ class _itineraryState extends State<itinerary_builder> {
           }).toList(),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.groups_rounded, color: AppColors.textMuted),
+            tooltip: 'My Groups',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyGroupsPage()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
             tooltip: 'Log out',
