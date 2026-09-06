@@ -17,6 +17,7 @@ Syncinary/
       ├── android/ # Android Build
       ├── ios/ # iOS Build
       ├── lib/ # Source Files
+            ├── models/ # Data model classes for grouping feature
             ├── pages/ # Individual page files for the application
             ├── theme/ # Style Sheet and Custom Widgets
             └── main.dart # Main file for project
