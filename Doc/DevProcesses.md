@@ -53,3 +53,5 @@ In order for code to be pushed to main, two things are required:
 - First, there must be a full code review by at least one team member who did not contribute to that branch. The reviewer should leave comments. These comments must be addressed by the User creating the PR before it can be integrated into the main branch.
 - Second, the code must pass all of the test cases currently in the repository and run automatically by GitHub Actions. If there is a case where a test fails and the User believes the test itself needs to change then, it will be a team discussion.
 Every two weeks, there will be a Sprint Review where the PRs from the past two weeks will be reviewed a second time.
+
+Pull Requests should be given a short title summarizing the bulk of the changes. The description should have finer details on changes made. Issues resolved should be noted at the bottom of the request in the form "Closes #ISSUE_ID"
