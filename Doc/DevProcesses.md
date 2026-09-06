@@ -14,10 +14,24 @@ Syncinary/
       ├── package.json
       └── server.js
 ├── syncinary/ # Root of our Flutter Application
-      ├── node_modules/
-      ├── package-lock.json
-      ├── package.json
-      └── server.js
+      ├── android/ # Android Build
+      ├── ios/ # iOS Build
+      ├── lib/ # Source Files
+            ├── pages/ # Individual page files for the application
+            ├── theme/ # Style Sheet and Custom Widgets
+            └── main.dart # Main file for project
+      ├── linux/ # Linux Build
+      ├── macos/ # macOS Build
+      ├── test/ # Test Suite
+      ├── web/ # Web Build
+      ├── windows/ # Windows Build
+      ├── .gitignore
+      ├── .metadata
+      ├── README.md
+      ├── analysis_options.yaml
+      ├── firebase.json
+      ├── pubspec.lock
+      └── pubspec.yaml
 └── README.md
 ```
 Branching  / Workflow Model 
