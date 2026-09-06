@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import 'itinerary_builder.dart';
@@ -70,10 +71,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      await (widget.auth ?? FirebaseAuth.instance).signInWithEmailAndPassword(
+      final credential = await (widget.auth ?? FirebaseAuth.instance)
+          .signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      final user = credential.user;
+      if (user != null) await _ensureUserProfile(user);
 
       if (!mounted) return;
 
@@ -90,6 +94,29 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Backfills the `users/{uid}` profile doc for accounts created before it
+  /// existed (e.g. seeded directly in the Firebase Auth console) — without
+  /// it, the Group flow can't find this account when someone invites them
+  /// by email. Leaves an existing doc untouched.
+  Future<void> _ensureUserProfile(User user) async {
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final doc = await ref.get();
+      if (doc.exists) return;
+      final email = (user.email ?? '').trim().toLowerCase();
+      await ref.set({
+        'username': user.displayName?.trim().isNotEmpty == true
+            ? user.displayName!.trim()
+            : email.split('@').first,
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Non-fatal: worst case the invite-by-email lookup won't find this
+      // account until they sign up fresh or an admin adds the doc manually.
     }
   }
 

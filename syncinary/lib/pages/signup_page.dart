@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import 'itinerary_builder.dart';
@@ -70,10 +71,20 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
     });
 
     try {
-      await (widget.auth ?? FirebaseAuth.instance).createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      final name = _nameController.text.trim();
+      final email = _emailController.text.trim();
+
+      final credential = await (widget.auth ?? FirebaseAuth.instance)
+          .createUserWithEmailAndPassword(email: email, password: _passwordController.text);
+      final user = credential.user;
+      if (user != null) {
+        await user.updateDisplayName(name);
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'username': name,
+          'email': email.toLowerCase(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       if (!mounted) return;
 
