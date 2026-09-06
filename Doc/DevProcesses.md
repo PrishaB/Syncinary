@@ -1,8 +1,25 @@
 Repository Architecture 
-Develop your repository architecture.
-Include a "tree" type view of the structure in addition to textual descriptions.
-Provide references to standards / documentation about how projects like yours should be structured.
-
+```text
+Syncinary/
+├── .github/
+      └── workflows/ # Where the .yml files for GitHub Actions automated tests will go
+            └── flutter_tests.yml
+├── Doc/ # Where our project documents live
+      ├── Design Document.pdf
+      ├── DevProcesses.md
+      └── Final SDP.md
+├── proxy/ # Files relating to the API requests
+      ├── node_modules/
+      ├── package-lock.json
+      ├── package.json
+      └── server.js
+├── syncinary/ # Root of our Flutter Application
+      ├── node_modules/
+      ├── package-lock.json
+      ├── package.json
+      └── server.js
+└── README.md
+```
 Branching  / Workflow Model 
 Develop and describe the branching model your team will use.
 - Branch for each feature and you can't commit directly to main.
