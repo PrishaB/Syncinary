@@ -34,6 +34,9 @@ Syncinary/
       └── pubspec.yaml
 └── README.md
 ```
+
+This website has good information and standards for maintaining a good repository structure: [Good Standards](https://dev.to/pwd9000/github-repository-best-practices-23ck)
+
 Branching  / Workflow Model 
 Develop and describe the branching model your team will use.
 - The main branch will be locked from direct commits. Branches will be made for new features. Branches can be made off of other branches for the purpose of testing new sub features. 
