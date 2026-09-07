@@ -55,3 +55,11 @@ In order for code to be pushed to main, two things are required:
 Every two weeks, there will be a Sprint Review where the PRs from the past two weeks will be reviewed a second time.
 
 Pull Requests should be given a short title summarizing the bulk of the changes. The description should have finer details on changes made. Issues resolved should be noted at the bottom of the request in the form "Closes #ISSUE_ID"
+
+Closing Out 2-week Chunk of Work
+
+At the end of the 2-weeks chunk of work, our team will have a review and planning meeting. During the meeting, the team will collectively review the completed issues and confirm that the completion meets the criteria we discussed at the beginning. We will close those completed issues and update their status in the GitHub Project. Then, we will review the unfinished issues and discuss what were the blockers and how we should proceed on completing that. The unfinished issues may be broken into smaller tasks or taken up by someone else more experienced in completing the issue.
+
+Refreshing Our Views
+
+We will review update the roadmap and the 2-weeks view at the end of the 2-week cycle meeting. The second half of the meeting will focus on planning the issues we want to prioritize for the next 2 weeks. We will check that all the dependencies or blockers for those issues have been resolved to ensure that doesn't set us back. Finally, we will ensure that the roadmap reflects the team's current development priorities and there were no changes we made to our sdp.
