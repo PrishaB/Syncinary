@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import 'itinerary_builder.dart';
+import 'signup_page.dart';
 import 'signup_page.dart';
 
 /// ─────────────────────────────────────────────────────────
@@ -9,6 +11,11 @@ import 'signup_page.dart';
 /// Uses the "Midnight Voyage" design system.
 /// ─────────────────────────────────────────────────────────
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key, this.auth});
+
+  /// Optional [FirebaseAuth] instance for dependency injection (testing).
+  /// Falls back to [FirebaseAuth.instance] when null.
+  final FirebaseAuth? auth;
   const LoginPage({super.key, this.auth});
 
   /// Optional [FirebaseAuth] instance for dependency injection (testing).
@@ -74,6 +81,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      final user = credential.user;
+      if (user != null) await _ensureUserProfile(user);
 
       if (!mounted) return;
 
