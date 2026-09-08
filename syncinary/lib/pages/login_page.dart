@@ -126,6 +126,61 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 
+  // ── Firebase password reset ─────────────────────────────
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      setState(() {
+        _errorMessage = 'Please enter a valid email address to reset your password.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await (widget.auth ?? FirebaseAuth.instance)
+          .sendPasswordResetEmail(email: email);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Password reset link sent! Check your email.'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = _friendlyResetError(e.code);
+      });
+    } catch (_) {
+      setState(() {
+        _errorMessage = 'An unexpected error occurred. Please try again.';
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _friendlyResetError(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      default:
+        return 'Failed to send reset email. Please try again.';
+    }
+  }
+
   String _friendlyError(String code) {
     switch (code) {
       case 'user-not-found':
@@ -319,7 +374,29 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 },
                 onFieldSubmitted: (_) => _signIn(),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 8),
+
+              // ── Forgot Password link ────────────
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _isLoading ? null : _resetPassword,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'Forgot Password?',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.accentEnd,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
 
               // ── Sign In button ─────────────────
               GradientButton(
