@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import 'itinerary_builder.dart';
 import 'signup_page.dart';
+import 'verify_email_page.dart';
 
 /// ─────────────────────────────────────────────────────────
 /// LoginPage — Email / Password authentication via Firebase
@@ -82,13 +83,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const itinerary_builder()),
+        MaterialPageRoute(builder: (_) => user?.emailVerified == true
+            ? const itinerary_builder()
+            : VerifyEmailPage(auth: widget.auth)),
       );
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = _friendlyError(e.code);
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'An unexpected error occurred. Please try again.';
       });
@@ -115,6 +120,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {
+      if (!mounted) return;
       // Non-fatal: worst case the invite-by-email lookup won't find this
       // account until they sign up fresh or an admin adds the doc manually.
     }
@@ -156,10 +162,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         ),
       );
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = _friendlyResetError(e.code);
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'An unexpected error occurred. Please try again.';
       });
