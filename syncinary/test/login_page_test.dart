@@ -209,4 +209,54 @@ void main() {
       expect(find.byIcon(Icons.error_outline_rounded), findsNothing);
     });
   });
+
+  group('Forgot Password', () {
+    testWidgets('Renders Forgot Password link', (tester) async {
+      await tester.pumpWidget(makeTestableWidget(const LoginPage()));
+      await tester.pumpAndSettle();
+      expect(find.text('Forgot Password?'), findsOneWidget);
+    });
+
+    testWidgets('Shows error when email is empty and Forgot Password is tapped',
+        (tester) async {
+      await tester.pumpWidget(makeTestableWidget(const LoginPage()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Forgot Password?'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Please enter a valid email address to reset your password.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Shows error when email is invalid and Forgot Password is tapped',
+        (tester) async {
+      await tester.pumpWidget(makeTestableWidget(const LoginPage()));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(0), 'not-an-email');
+      await tester.tap(find.text('Forgot Password?'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Please enter a valid email address to reset your password.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Shows success SnackBar when reset email is sent',
+        (tester) async {
+      final mockAuth = MockFirebaseAuth(
+        mockUser: MockUser(uid: 'uid', email: 'test@test.com'),
+      );
+      await tester.pumpWidget(makeTestableWidget(LoginPage(auth: mockAuth)));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byType(TextFormField).at(0), 'test@test.com');
+      await tester.tap(find.text('Forgot Password?'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Password reset link sent! Check your email.'),
+        findsOneWidget,
+      );
+    });
+  });
 }
