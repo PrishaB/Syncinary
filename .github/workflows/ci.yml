@@ -1,0 +1,60 @@
+name: CI
+
+# Run on every push, and on pull requests targeting main or dev
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  flutter:
+    name: Flutter (syncinary) - test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: syncinary
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+  proxy:
+    name: Proxy (Node/Express) - lint & test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: proxy
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
