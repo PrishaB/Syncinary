@@ -8,9 +8,16 @@ directory (`proxy/`).
 ## Setup / run
 
 ```bash
-npm install          # rarely needed — see below
-node server.js       # listens on http://localhost:3000
+npm install                    # rarely needed — see below
+cp .env.example .env           # fill in SERPAPI_KEY, once
+node --env-file=.env server.js # listens on http://localhost:3000
 ```
+
+`server.js` reads `SERPAPI_KEY` from the environment and exits immediately if
+it's unset — get a key at https://serpapi.com. Node 20.6+ can load `.env`
+itself via `--env-file`; on older Node 18, export the var another way
+(`export SERPAPI_KEY=...` or a tool like `dotenv-cli`). `.env` is gitignored;
+never commit it.
 
 Node 18+ (CommonJS, `require`). Dependencies: `express`, `cors`, and
 `node-fetch@2` — v2 is deliberate, it's the last CommonJS release of the
@@ -37,9 +44,10 @@ testing, use Node's built-in runner: files named `*.test.js` beside the module,
 
 ## Security
 
-- **Known issue:** `server.js` contains a hardcoded live `SERPAPI_KEY`. Don't
-  copy that pattern and don't add more secrets to source — read them from
-  `process.env` (e.g. `node --env-file=.env server.js`, Node 20.6+). Moving the
-  existing key to an env var and rotating it is its own task.
+- `SERPAPI_KEY` is read from `process.env` (see Setup / run above) — never
+  hardcode a key in source again. The key that used to be hardcoded here is
+  still live in this repo's git history (removing it from `server.js` doesn't
+  erase old commits) — **rotate it in the SerpApi dashboard** and use the new
+  value locally / in deployment secrets.
 - Never forward the SerpApi key to the client, and don't log full upstream
   responses that may carry it.
