@@ -26,7 +26,7 @@ work.
 | `syncinary/` | Flutter app — see `syncinary/AGENTS.md` |
 | `proxy/` | Express/SerpApi proxy — see `proxy/AGENTS.md` |
 | `Doc/` | Course deliverables (`DevProcesses.md`, `Final SDP.md`, Design Document PDF). Not engineering docs — don't edit them to record implementation notes, and don't auto-generate summary files here. |
-| `.github/workflows/flutter_tests.yml` | CI (see below) |
+| `.github/workflows/ci.yml` | CI (see below) |
 
 Which file to read next: editing `.dart` → `syncinary/AGENTS.md`; editing
 `proxy/*.js` → `proxy/AGENTS.md`.
@@ -45,7 +45,14 @@ Full policy is in `Doc/DevProcesses.md`. Essentials:
 
 ## CI
 
-`.github/workflows/flutter_tests.yml` runs `flutter pub get` + `flutter test`
-in `syncinary/` on Flutter 3.47.2 (stable) — for every push on any branch and
-every PR to `main`. It does **not** run `flutter analyze` and does **not**
-touch `proxy/`; run those checks yourself before pushing.
+`.github/workflows/ci.yml` runs two jobs on every push (any branch) and every
+PR targeting `main` or `dev`:
+
+- **`flutter`** — `flutter pub get` + `flutter test` in `syncinary/` on
+  Flutter 3.47.2 (stable). It does **not** run `flutter analyze`: `lib/main.dart`
+  imports the gitignored `lib/firebase_options.dart` (contains API keys, never
+  committed), so `flutter analyze` fails outside a machine that has run
+  `flutterfire configure`. Run `flutter analyze` yourself before pushing.
+- **`proxy`** — `npm install`, `npm run lint` (ESLint, flat config in
+  `proxy/eslint.config.cjs`), then `npm test` (`node --test`; currently a
+  no-op since `proxy/` has no `*.test.js` files yet — see `proxy/AGENTS.md`).

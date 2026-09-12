@@ -16,20 +16,25 @@ Node 18+ (CommonJS, `require`). Dependencies: `express`, `cors`, and
 `node-fetch@2` — v2 is deliberate, it's the last CommonJS release of the
 package.
 
-`node_modules/` is **committed** (~650 files) on purpose: there's no build step
-and CI doesn't install here. Adding a dependency means committing it too, so
-add one only if you genuinely need it.
+`node_modules/` is **committed** (~650 files) on purpose so `node server.js`
+works without an `npm install` step. That's about the runtime
+`dependencies` only — CI (`.github/workflows/ci.yml`) now runs `npm install`
+fresh in this directory for every push/PR, which is also how the `eslint` /
+`@eslint/js` / `globals` devDependencies are resolved (not committed).
+Adding a runtime dependency still means committing `node_modules` too, so add
+one only if you genuinely need it.
 
-## Test
+## Lint & test
 
-There is no test suite and no `test` script yet. If you add logic worth
-testing, use Node's built-in runner: files named `*.test.js` beside the module,
-`node --test` to run them, and add `"scripts": { "test": "node --test" }` to
-`package.json` so CI can pick it up later.
+CI runs `npm run lint` (ESLint 9, flat config in `eslint.config.cjs`) and
+`npm test` (`node --test`) on every push/PR. There is no test suite yet — `npm
+test` currently passes trivially (0 tests found). If you add logic worth
+testing, drop files named `*.test.js` beside the module; `node --test` picks
+them up automatically.
 
 ## Conventions
 
-- Keep it CommonJS and dependency-light.
+- Keep runtime code CommonJS and dependency-light.
 - The Flutter client calls
   `GET /flights?origin=&destination=&departureDate=&adults=` and expects a JSON
   array back. Don't change that contract without updating
