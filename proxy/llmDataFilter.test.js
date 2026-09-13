@@ -5,8 +5,6 @@ const assert = require('node:assert/strict');
 const {
   buildRecommendationPayload,
   ALLOWED_PREFERENCE_FIELDS,
-  ALLOWED_BUDGET_FIELDS,
-  ALLOWED_DATE_RANGE_FIELDS,
   ALLOWED_TRAVEL_RESULT_FIELDS,
 } = require('./llmDataFilter');
 
