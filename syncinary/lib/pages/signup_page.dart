@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
-import 'itinerary_builder.dart';
+import 'verify_email_page.dart';
 
 /// ─────────────────────────────────────────────────────────
 /// SignUpPage — Email / Password authentication via Firebase
@@ -57,13 +57,14 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
   void dispose() {
     _fadeController.dispose();
     _emailController.dispose();
+    _nameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   // ── Firebase sign-up ────────────────────────────────────
   Future<void> _signUp() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isLoading || !_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
@@ -89,13 +90,15 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const itinerary_builder()),
+        MaterialPageRoute(builder: (_) => VerifyEmailPage(auth: widget.auth, sendOnOpen: true)),
       );
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = _friendlyError(e.code);
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'An unexpected error occurred. Please try again.';
       });

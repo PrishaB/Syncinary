@@ -5,7 +5,13 @@ const fetch = require('node-fetch');
 const app = express();
 app.use(cors());
 
-const SERPAPI_KEY = '61032da7f9b9d14c67f7baf091d2fb3660a75d5df1f638b1f440343a1459da56';
+const SERPAPI_KEY = process.env.SERPAPI_KEY;
+if (!SERPAPI_KEY) {
+  console.error(
+    'Missing SERPAPI_KEY. Set it in the environment (see proxy/.env.example) before starting the proxy.'
+  );
+  process.exit(1);
+}
 
 app.get('/flights', async (req, res) => {
   const { origin, destination, departureDate, adults } = req.query;

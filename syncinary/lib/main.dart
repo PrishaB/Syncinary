@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pages/itinerary_builder.dart';
 import 'pages/login_page.dart';
+import 'pages/verify_email_page.dart';
 import 'theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -47,7 +48,9 @@ class AuthGate extends StatelessWidget {
 
         // If user is logged in, go to itinerary builder
         if (snapshot.hasData) {
-          return const itinerary_builder();
+          return snapshot.data!.emailVerified
+              ? const itinerary_builder()
+              : const VerifyEmailPage();
         }
 
         // Otherwise, go to login page
