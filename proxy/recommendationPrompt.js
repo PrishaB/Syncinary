@@ -4,16 +4,12 @@
  * Builds the instruction text sent to Gemini ahead of the JSON payload for a
  * travel recommendation request (FR-104 / SYS 109).
  *
- * `geminiClient.generateRecommendation` sends
- * `${prompt}\n\n${JSON.stringify(payload)}` — the payload is appended after
- * this prompt, never embedded inside it. Accordingly, this module never
- * writes a payload *value* into the prompt text: it only reasons about which
- * top-level sections of `payload` (from `llmDataFilter.buildRecommendationPayload`)
- * are present or absent, plus validated `options`. Every user-controlled
- * string therefore reaches Gemini solely inside the appended JSON, framed by
- * the trust-boundary instruction below — see the "Prompt injection" risk
- * noted in issue #45's plan and tracked further in #81. Parsing Gemini's
- * reply is a separate, later module.
+ * `geminiClient.generateRecommendation` appends the payload after this prompt
+ * rather than embedding it, so this module never writes a payload *value*
+ * into the prompt text — it only reasons about which top-level sections of
+ * `payload` are present or absent, plus validated `options`. Every
+ * user-controlled string therefore reaches Gemini solely inside the appended
+ * JSON, framed by the trust-boundary instruction below.
  */
 
 const PROMPT_ERRORS = Object.freeze({
