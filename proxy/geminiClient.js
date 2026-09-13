@@ -94,7 +94,15 @@ function createGeminiClient(options) {
     const url = `${baseUrl}/v1beta/models/${model}:generateContent`;
     const text = `${prompt}\n\n${JSON.stringify(payload)}`;
     const body = JSON.stringify({ contents: [{ role: 'user', parts: [{ text }] }] });
-    const signal = callerSignal || AbortSignal.timeout(callTimeoutMs || timeoutMs);
+    // A plain setTimeout (ref'd, unlike AbortSignal.timeout()'s internal timer) so the
+    // timeout reliably fires instead of racing the event loop on a busy/CI machine.
+    let timeoutHandle;
+    let signal = callerSignal;
+    if (!signal) {
+      const timeoutController = new AbortController();
+      timeoutHandle = setTimeout(() => timeoutController.abort(), callTimeoutMs || timeoutMs);
+      signal = timeoutController.signal;
+    }
 
     let response;
     try {
@@ -115,6 +123,8 @@ function createGeminiClient(options) {
         message: redact(String((err && err.message) || err), apiKey),
         latencyMs: latency(),
       };
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
     }
 
     if (response.status === 429) {
