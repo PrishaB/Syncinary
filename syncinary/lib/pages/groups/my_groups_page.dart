@@ -118,15 +118,7 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const GradientAppBar(
-        title: 'My Groups',
-        actions: [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.account_circle_outlined, color: AppColors.textMuted),
-          ),
-        ],
-      ),
+      appBar: const GradientAppBar(title: 'My Groups'),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
