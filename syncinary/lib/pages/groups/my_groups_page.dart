@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/group.dart';
 import '../../services/group_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/confirmation_dialog.dart';
 import '../../widgets/gradient_app_bar.dart';
+import '../login_page.dart';
 import 'group_detail_page.dart';
 import 'join_group_page.dart';
 
@@ -118,12 +120,21 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const GradientAppBar(
+      appBar: GradientAppBar(
         title: 'My Groups',
         actions: [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.account_circle_outlined, color: AppColors.textMuted),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
+            tooltip: 'Log out',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
           ),
         ],
       ),
