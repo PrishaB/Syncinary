@@ -43,6 +43,37 @@ out of every error message — it's never logged or thrown. See
 [`GEMINI_METRICS.md`](./GEMINI_METRICS.md) for the `latencyMs`/`usage` fields
 every result carries.
 
+## `recommendationPrompt.js`
+
+Builds the instruction text that goes ahead of the JSON payload in a Gemini
+request (FR-104 / SYS 109). Sits between the other two modules: it turns the
+payload from `llmDataFilter.js` into the `prompt` string `geminiClient.js`
+expects, and asks Gemini to return recommendations in a fixed JSON shape the
+UI can render as destination / activity / itinerary cards.
+
+```js
+const { buildRecommendationPayload } = require('./llmDataFilter');
+const { buildRecommendationPrompt } = require('./recommendationPrompt');
+const { createGeminiClient } = require('./geminiClient');
+
+const filterResult = buildRecommendationPayload(requestContext, rawData);
+if (!filterResult.allowed) throw new Error(filterResult.reason);
+
+const promptResult = buildRecommendationPrompt(filterResult.payload);
+if (!promptResult.ok) throw new Error(promptResult.error); // 'invalid_input' | 'empty_payload'
+
+const client = createGeminiClient();
+const result = await client.generateRecommendation({ payload: filterResult.payload, prompt: promptResult.prompt });
+```
+
+Like the other two modules, it never throws — it returns `{ok: false, error, message}`
+for a malformed or all-empty payload. It also never writes a payload *value*
+into the prompt text: the prompt only names which top-level sections (budget,
+dates, preferences, etc.) are present or absent, and every user-controlled
+string reaches Gemini solely inside the appended JSON. `RECOMMENDATION_OUTPUT_SCHEMA`
+is exported as the single source of truth for the response shape, for a
+future response-parsing module to validate against.
+
 ### Local setup
 
 Copy `.env.example` to `.env` and fill in `GEMINI_API_KEY`, then run:
