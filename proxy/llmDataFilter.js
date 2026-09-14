@@ -74,9 +74,8 @@ function buildRecommendationPayload(requestContext, rawData) {
 
   const users = isPlainObject(rawData.users) ? rawData.users : {};
 
-  // Group-derived fields default to empty — the same shape `pickAllowed` and the
-  // array filters below already produce for absent data, so a groupless payload is
-  // structurally identical to a group one and needs no special-casing downstream.
+  // Group-only fields default to empty — the same shape `pickAllowed` already
+  // produces for absent data — so a groupless payload matches the group-case shape.
   let groupPreferences = {};
   let memberPreferences = {};
   let budgetConstraints = {};
