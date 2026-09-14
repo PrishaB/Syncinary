@@ -5,10 +5,13 @@ Small Express backend. `server.js` proxies flight search to SerpApi.
 ## `llmDataFilter.js`
 
 Filters and assembles the payload sent to the LLM recommendation agent
-(FR-104 / SYS 109). Given a requesting user + group id and a raw data bundle
-(user records, group records, previous searches, travel results), it:
+(FR-104 / SYS 109). Given a requesting user + an optional group id and a raw
+data bundle (user records, group records, previous searches, travel results),
+it:
 
-- Enforces that the requester is a member of the target group.
+- Enforces that the requester is a member of the target group, when a group
+  id is given. Without one, it returns a personal payload built solely from
+  the requester's own preferences, with every group-derived field empty.
 - Returns only allowlisted fields — preferences, budget, dates, previous
   searches, and travel results — never credentials, tokens, payment info, or
   data belonging to other users/groups.
