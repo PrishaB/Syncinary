@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'flight_search.dart';
 import 'login_page.dart';
 import 'groups/my_groups_page.dart';
+import 'amadeus_service.dart';
 import '../theme/app_theme.dart';
  
 enum SearchType { flights, hotels }
@@ -238,34 +239,7 @@ class _itineraryState extends State<itinerary_builder> {
             ),
             const SizedBox(height: 28),
             GradientButton(
-              onPressed: _loading
-                  ? null
-                  : () async {
-                      if (_startController.text.isEmpty ||
-                          _endController.text.isEmpty ||
-                          _departureDate == null) {
-                        return;
-                      }
-                      setState(() => _loading = true);
-                      //haven't wired serpapi yet so just shows the empty
-                      //results state on the search screen for now.
-                      await Future<void>.delayed(
-                          const Duration(milliseconds: 400));
-                      if (context.mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => flight_search(
-                              title: _searchType == SearchType.flights
-                                  ? 'Flight Results'
-                                  : 'Hotel Results',
-                              initialResults: const [],
-                            ),
-                          ),
-                        );
-                      }
-                      if (context.mounted) setState(() => _loading = false);
-                    },
+              onPressed: _loading ? null : _handleSearch,
               label: _searchType == SearchType.flights
                   ? 'Search Flights'
                   : 'Search Hotels',
@@ -399,6 +373,88 @@ class _itineraryState extends State<itinerary_builder> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+ 
+  /// Formats a DateTime as the YYYY-MM-DD string SerpApi expects.
+  String _formatDate(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+ 
+  Future<void> _handleSearch() async {
+    if (_startController.text.isEmpty ||
+        _endController.text.isEmpty ||
+        _departureDate == null) {
+      return;
+    }
+ 
+    if (_searchType == SearchType.hotels) {
+      // Hotel search isn't wired to a backend yet.
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => flight_search(
+            title: 'Hotel Results',
+            initialResults: const [],
+            origin: _startController.text.trim(),
+            destination: _endController.text.trim(),
+            departureDate: _formatDate(_departureDate!),
+          ),
+        ),
+      );
+      return;
+    }
+ 
+    setState(() => _loading = true);
+ 
+    final origin = _startController.text.trim();
+    final destination = _endController.text.trim();
+    final departureDateStr = _formatDate(_departureDate!);
+    final returnDateStr =
+        _returnDate != null ? _formatDate(_returnDate!) : null;
+ 
+    List<dynamic> results = const [];
+    String? errorMessage;
+    try {
+      results = await AmadeusService().searchFlights(
+        origin: origin,
+        destination: destination,
+        departureDate: departureDateStr,
+        adults: _passengers,
+        returnDate: returnDateStr,
+      );
+    } catch (e) {
+      errorMessage = 'Flight search failed: $e';
+    }
+ 
+    if (!mounted) return;
+    setState(() => _loading = false);
+ 
+    if (errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
+      return;
+    }
+ 
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => flight_search(
+          title: returnDateStr != null
+              ? 'Select Outbound Flight'
+              : 'Flight Results',
+          initialResults: results,
+          origin: origin,
+          destination: destination,
+          departureDate: departureDateStr,
+          returnDate: returnDateStr,
+          adults: _passengers,
         ),
       ),
     );
