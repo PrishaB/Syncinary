@@ -210,3 +210,72 @@ test('does not mutate its inputs', () => {
   buildRecommendationPayload(ctx, rawData);
   assert.deepEqual(rawData, snapshot);
 });
+
+// --- Groupless / personal requests ---
+
+const personalCtx = { requestingUserId: 'u1' };
+
+test('groupless request is allowed and returns the requester preferences', () => {
+  const { allowed, payload } = buildRecommendationPayload(personalCtx, baseRawData());
+  assert.equal(allowed, true);
+  assert.deepEqual(payload.requestingUserPreferences, {
+    activities: ['hiking', 'museums'],
+    preferredDestinations: ['Japan'],
+  });
+});
+
+test('groupless payload has empty group-derived fields, same key set as a group payload', () => {
+  const { payload: personalPayload } = buildRecommendationPayload(personalCtx, baseRawData());
+  const { payload: groupPayload } = buildRecommendationPayload(ctx, baseRawData());
+
+  assert.deepEqual(personalPayload.groupPreferences, {});
+  assert.deepEqual(personalPayload.memberPreferences, {});
+  assert.deepEqual(personalPayload.budgetConstraints, {});
+  assert.deepEqual(personalPayload.availableDates, {});
+  assert.deepEqual(personalPayload.previousSearches, []);
+  assert.deepEqual(personalPayload.travelResults, []);
+  assert.deepEqual(Object.keys(personalPayload).sort(), Object.keys(groupPayload).sort());
+});
+
+test('groupless payload never leaks group data or credentials', () => {
+  const { payload } = buildRecommendationPayload(personalCtx, baseRawData());
+  const text = serialized(payload);
+  for (const sentinel of Object.values(LEAKS)) {
+    assert.ok(!text.includes(sentinel));
+  }
+  assert.ok(!text.includes('Portugal')); // group's sharedPreferences.preferredDestinations
+  assert.ok(!text.includes('Lisbon')); // group's previous search
+});
+
+test('groupless request ignores rawData.groups entirely, even if malformed', () => {
+  for (const groups of [undefined, null, 'nope', [], { g1: baseGroup() }]) {
+    const rawData = baseRawData({ groups });
+    const result = buildRecommendationPayload(personalCtx, rawData);
+    assert.equal(result.allowed, true);
+    assert.deepEqual(result.payload.groupPreferences, {});
+  }
+});
+
+test('missing requestingUserId with no groupId still returns invalid_input', () => {
+  const result = buildRecommendationPayload({}, baseRawData());
+  assert.deepEqual(result, { allowed: false, reason: 'invalid_input' });
+});
+
+test('empty-string groupId takes the groupless path, not unknown_group', () => {
+  const result = buildRecommendationPayload({ requestingUserId: 'u1', groupId: '' }, baseRawData());
+  assert.equal(result.allowed, true);
+  assert.deepEqual(result.payload.groupPreferences, {});
+});
+
+test('groupless request for a user with no record returns empty preferences without throwing', () => {
+  const result = buildRecommendationPayload({ requestingUserId: 'ghost' }, baseRawData());
+  assert.equal(result.allowed, true);
+  assert.deepEqual(result.payload.requestingUserPreferences, {});
+});
+
+test('groupless request does not mutate its inputs', () => {
+  const rawData = baseRawData();
+  const snapshot = JSON.parse(JSON.stringify(rawData));
+  buildRecommendationPayload(personalCtx, rawData);
+  assert.deepEqual(rawData, snapshot);
+});
