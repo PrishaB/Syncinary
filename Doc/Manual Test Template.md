@@ -30,7 +30,7 @@ List anything that must be true before performing the test.
 | Platform | Web |
 | Browser | |
 | Operating System | |
-| Application Version / Branch | |
+| Application Version / Branch | branch name from (git branch --show-current) @ commit number from (git rev-parse --short HEAD) |
 
 ## Test Steps
 
@@ -88,7 +88,7 @@ Provide a brief description of the problem.
 | Platform | Web |
 | Browser | |
 | Operating System | |
-| Application Version / Branch | |
+| Application Version / Branch | branch name from (git branch --show-current) @ commit number from (git rev-parse --short HEAD) |
 
 ## Preconditions
 
