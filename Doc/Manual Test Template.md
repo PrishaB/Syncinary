@@ -6,7 +6,8 @@
 | --- | --- |
 | Test ID | MT-XXX |
 | Test Name | |
-| Feature / Module | |
+| Requirement ID(s) | |
+| Test Level | |
 | Tester | |
 | Date | |
 | Priority | High / Medium / Low |
