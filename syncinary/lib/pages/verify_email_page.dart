@@ -2,15 +2,25 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/group_service.dart';
 import '../theme/app_theme.dart';
-import 'itinerary_builder.dart';
+import 'groups/my_groups_page.dart';
 import 'login_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
-  const VerifyEmailPage({super.key, this.auth, this.sendOnOpen = false});
+  const VerifyEmailPage({
+    super.key,
+    this.auth,
+    this.sendOnOpen = false,
+    this.groupService,
+  });
 
   final FirebaseAuth? auth;
   final bool sendOnOpen;
+
+  /// Passed through to [MyGroupsPage] once verification succeeds, so tests
+  /// can supply a fake instead of the real Firestore/Auth singletons.
+  final GroupService? groupService;
 
   @override
   State<VerifyEmailPage> createState() => _VerifyEmailPageState();
@@ -81,7 +91,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         await user.getIdToken(true);
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const itinerary_builder()),
+          MaterialPageRoute(builder: (_) => MyGroupsPage(service: widget.groupService)),
           (_) => false,
         );
       } else if (mounted) {
