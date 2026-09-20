@@ -11,7 +11,7 @@
 | Tester | Prisha Boreddy |
 | Date | 09/20/2026 |
 | Priority | Medium |
-| Application Version / Branch | 1670877 |
+| Application Version / Branch | group_updates @ 1670877 |
 
 ## Objective
 
@@ -84,7 +84,7 @@ When the device loses network connectivity, Syncinary does not provide the user 
 | Platform | Web |
 | Browser | Chrome |
 | Operating System | Windows |
-| Application Version / Branch | 1670877 |
+| Application Version / Branch | group_updates @ 1670877 |
 
 ## Preconditions
 
