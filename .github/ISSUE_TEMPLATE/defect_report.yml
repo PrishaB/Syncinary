@@ -1,0 +1,156 @@
+name: Defect report
+description: Report a bug found by a verification test (or by hand) in the Flutter app, the proxy, or the CI setup.
+title: "[Defect] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Write this so a teammate who has never seen the bug can reproduce and fix it without asking you questions.
+        Tie it to the requirement it breaks and the test that found it; this is what keeps the Verification Test Inventory and the RVTM traceable.
+
+        **Never paste secrets** (API keys, `.env` contents, real user emails or tokens). Redact them.
+        For an exploitable security hole, describe the class of problem and the impact; keep working exploit payloads to what is needed to reproduce.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences. What is wrong, and where?
+      placeholder: "e.g. The recommendation pipeline forwards unbounded, unvalidated user text to Gemini."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Judge by impact on users and on our requirements, not by how hard the fix is.
+      options:
+        - "Critical: security or data-loss/data-exposure issue, or a Must Have requirement is unusable"
+        - "High: a core workflow is broken or gives wrong results, no reasonable workaround"
+        - "Medium: feature partly broken or wrong, a workaround exists"
+        - "Low: cosmetic or minor; lightweight note is enough"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - "Flutter app: authentication (login, sign-up, email verification)"
+        - "Flutter app: groups, invites, roles"
+        - "Flutter app: itinerary / flight search UI"
+        - "Firebase / Firestore data or security rules"
+        - "Proxy: flight search (SerpApi)"
+        - "Proxy: LLM recommendations (filter, prompt, Gemini client)"
+        - "CI / tooling"
+        - "Documentation"
+        - "Other"
+    validations:
+      required: true
+
+  - type: input
+    id: requirement
+    attributes:
+      label: Requirement(s) affected
+      description: Requirement IDs from the SDP (FR-### / NFR-###). Write "none" if it does not map to a requirement; that may mean we are missing one.
+      placeholder: "FR-104, FR-502"
+    validations:
+      required: true
+
+  - type: input
+    id: found-by
+    attributes:
+      label: Found by (test case ID)
+      description: Test Case ID from the Verification Test Inventory (e.g. UT-13, IT-07), or "exploratory / manual" / "code review".
+      placeholder: "UT-20"
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: Branch and commit
+      description: Where you saw it. Output of `git rev-parse --short HEAD`, plus the branch or PR. Say if it is not yet on `main`.
+      placeholder: "work-issue-45-recommendation-prompt-template @ 2026a06 (PR #82)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Only what matters for reproducing it (OS, Flutter/Node version, device or emulator, Firebase project or emulator, whether the proxy was running).
+      placeholder: |
+        - OS: Windows 11
+        - Node 20.x, `node --test`
+        - Gemini and SerpApi mocked, no network
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered and exact. Include inputs, accounts/roles used, and a script or failing test if you have one.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen, ideally quoting the requirement text or the documented behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens. Reproducibility (always / sometimes / once) too.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Failing test output, log lines, stack trace, screenshots, or a link to the failing GitHub Actions run.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact and workaround
+      description: Who is affected and how badly? Is there a workaround?
+    validations:
+      required: true
+
+  - type: textarea
+    id: cause
+    attributes:
+      label: Suspected cause or pointers (optional)
+      description: File and line, related issues or PRs, anything you already ruled out. Mark guesses as guesses.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: done
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched open issues and this is not a duplicate.
+          required: true
+        - label: I removed any secrets, keys, or real personal data from this report.
+          required: true
+        - label: "I have linked (or will link) the fix PR with `Closes #<this issue>`, and it adds a regression test that fails without the fix."
+          required: false
