@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'flight_search.dart';
+import 'hotel_search.dart';
 import 'login_page.dart';
 import 'groups/my_groups_page.dart';
 import 'amadeus_service.dart';
@@ -392,21 +393,53 @@ class _itineraryState extends State<itinerary_builder> {
         _departureDate == null) {
       return;
     }
- 
+
+    // Hotel search
     if (_searchType == SearchType.hotels) {
-      // Hotel search isn't wired to a backend yet.
+      if (_returnDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a check-out date.'),
+          ),
+        );
+        return;
+      }
+
+      setState(() => _loading = true);
+
+      List<dynamic> results = const [];
+      String? errorMessage;
+
+      try {
+        results = await AmadeusService().searchHotels(
+          location: _endController.text.trim(),
+          checkInDate: _formatDate(_departureDate!),
+          checkOutDate: _formatDate(_returnDate!),
+          adults: _passengers,
+        );
+      } catch (e) {
+        errorMessage = 'Hotel search failed: $e';
+      }
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+        return;
+      }
+
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => flight_search(
-            title: 'Hotel Results',
-            initialResults: const [],
-            origin: _startController.text.trim(),
-            destination: _endController.text.trim(),
-            departureDate: _formatDate(_departureDate!),
+          builder: (_) => HotelSearch(
+            initialResults: results,
           ),
         ),
       );
+
       return;
     }
  
