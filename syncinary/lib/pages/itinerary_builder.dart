@@ -168,6 +168,71 @@ class _itineraryState extends State<itinerary_builder> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Departure date
+            _DatePickerTile(
+              icon: Icons.event_rounded,
+              label: _departureDate == null
+                  ? 'No departure date selected'
+                  : 'Departure: ${_departureDate!.toLocal().toString().split(' ')[0]}',
+              isSet: _departureDate != null,
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) {
+                  setState(() {
+                    _departureDate = picked;
+                    // Keep return date valid relative to the new departure date.
+                    if (_returnDate != null && _returnDate!.isBefore(picked)) {
+                      _returnDate = null;
+                    }
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            // Return / arrival date
+            _DatePickerTile(
+              icon: Icons.event_available_rounded,
+              label: _returnDate == null
+                  ? 'No return date selected'
+                  : 'Return: ${_returnDate!.toLocal().toString().split(' ')[0]}',
+              isSet: _returnDate != null,
+              onTap: () async {
+                final firstAvailable = _departureDate ?? DateTime.now();
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: firstAvailable,
+                  firstDate: firstAvailable,
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) setState(() => _returnDate = picked);
+              },
+            ),
+            const SizedBox(height: 28),
+            GradientButton(
+              onPressed: () => updateDisplay(3),
+              label: 'Continue',
+              icon: Icons.arrow_forward_rounded,
+            ),
+          ],
+        ),
+      ),
+ 
+      //Enter # travellers and want to search for hotel or flight
+      _buildStepBody(
+        icon: Icons.group_rounded,
+        heading: 'Who\'s traveling?',
+        subtitle: 'Set passenger count and what you\'re searching for',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             //only allow user to enter # passengers with step counter
             //might consider adding adults/children diffrentiator later
             Container(
@@ -440,6 +505,21 @@ class _itineraryState extends State<itinerary_builder> {
         ),
       );
 
+ 
+    if (_searchType == SearchType.hotels) {
+      // Hotel search isn't wired to a backend yet.
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => flight_search(
+            title: 'Hotel Results',
+            initialResults: const [],
+            origin: _startController.text.trim(),
+            destination: _endController.text.trim(),
+            departureDate: _formatDate(_departureDate!),
+          ),
+        ),
+      );
       return;
     }
  

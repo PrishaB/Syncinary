@@ -78,6 +78,39 @@ app.get('/flights/return', async (req, res) => {
   }
 });
  
+// GET /flights/return?origin=&destination=&departureDate=&returnDate=&adults=&departureToken=
+// Round trips are a two-step search in SerpApi: once the user picks an
+// outbound offer from /flights, its `departure_token` is sent here (along
+// with the same original search params) to get that offer's matching
+// return-leg options.
+app.get('/flights/return', async (req, res) => {
+  const { origin, destination, departureDate, returnDate, adults, departureToken } =
+    req.query;
+ 
+  if (!departureToken) {
+    return res.status(400).json({ error: 'departureToken is required' });
+  }
+ 
+  const url = new URL('https://serpapi.com/search');
+  url.searchParams.set('engine', 'google_flights');
+  url.searchParams.set('departure_id', origin);
+  url.searchParams.set('arrival_id', destination);
+  url.searchParams.set('outbound_date', departureDate);
+  url.searchParams.set('return_date', returnDate);
+  url.searchParams.set('adults', adults ?? '1');
+  url.searchParams.set('type', '1');
+  url.searchParams.set('departure_token', departureToken);
+  url.searchParams.set('api_key', SERPAPI_KEY);
+ 
+  try {
+    const response = await fetch(url.toString());
+    const data = await response.json();
+    res.json(data['best_flights'] ?? data['other_flights'] ?? []);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+ 
 // GET /flights/booking?origin=&destination=&departureDate=&adults=&returnDate=&bookingToken=
 // Booking links aren't included on the initial search — SerpApi requires a
 // second lookup with the offer's `booking_token` plus the same original
