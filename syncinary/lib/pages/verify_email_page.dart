@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import 'itinerary_builder.dart';
+import 'onboarding_page.dart';
 import 'login_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
@@ -81,7 +81,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         await user.getIdToken(true);
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const itinerary_builder()),
+          MaterialPageRoute(builder: (_) => const OnboardingPage()),
           (_) => false,
         );
       } else if (mounted) {
