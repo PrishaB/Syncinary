@@ -2,6 +2,7 @@ import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncinary/pages/login_page.dart';
+import 'package:syncinary/pages/onboarding_page.dart';
 import 'package:syncinary/pages/verify_email_page.dart';
 
 void main() {
@@ -40,6 +41,25 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(VerifyEmailPage), findsOneWidget);
+    expect(find.byType(OnboardingPage), findsNothing);
+  });
+
+  testWidgets('Verified account continues to onboarding', (tester) async {
+    final auth = MockFirebaseAuth(
+      signedIn: true,
+      mockUser: MockUser(email: 'new@example.com', isEmailVerified: true),
+    );
+    await tester.pumpWidget(MaterialApp(home: VerifyEmailPage(auth: auth)));
+    await tester.tap(find.text('Check verification'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OnboardingPage), findsOneWidget);
+    expect(find.text('Onboarding 1'), findsOneWidget);
+    expect(find.byType(VerifyEmailPage, skipOffstage: false), findsNothing);
+    expect(
+      Navigator.of(tester.element(find.byType(OnboardingPage))).canPop(),
+      isFalse,
+    );
   });
 
   testWidgets('Back to sign in signs out the unverified account', (
