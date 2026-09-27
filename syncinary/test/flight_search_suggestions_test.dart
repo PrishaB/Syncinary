@@ -24,7 +24,8 @@ final _sampleFlights = [
   },
 ];
 
-const _context = SearchContext(origin: 'JFK', destination: 'LAX', departureDate: '2026-10-01');
+const _context =
+    SearchContext(origin: 'JFK', destination: 'LAX', departureDate: '2026-10-01', groupId: 'g1');
 
 Map<String, dynamic> _successBody() => {
       'ok': true,
