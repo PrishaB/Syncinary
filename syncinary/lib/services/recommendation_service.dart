@@ -48,21 +48,22 @@ class RecommendationFailure extends RecommendationResult {
 }
 
 /// What an FR-104 suggestion request is grounded in for one search: the
-/// travel results already fetched, plus the trip's group (optional — see
-/// [RecommendationService] doc).
+/// travel results already fetched, plus the trip's group. Every request is
+/// on behalf of a group — there is no personal/groupless recommendation
+/// (the team decided against building that path; see issue #87).
 class SearchContext {
   const SearchContext({
     required this.origin,
     required this.destination,
     required this.departureDate,
-    this.groupId,
+    required this.groupId,
     this.travelResults = const [],
   });
 
   final String origin;
   final String destination;
   final String departureDate;
-  final String? groupId;
+  final String groupId;
   final List<dynamic> travelResults;
 }
 
@@ -80,12 +81,10 @@ class SearchContext {
 /// supplies the current search and its own travel results, matching the
 /// `search`/`travelResults` fields `llmDataFilter.js` allows through.
 ///
-/// [SearchContext.groupId] is sent through as-is, including `null` for a
-/// personal (groupless) request. Note: on this branch, `buildRecommendationPayload`
-/// still requires a group (the groupless path from issue #87 / PR #88 hasn't
-/// merged into this stack yet), so a `null` groupId will come back as
-/// `invalid_input` until #88 lands — that's a forward-looking contract on the
-/// client side, not a bug here.
+/// [SearchContext.groupId] is required, matching `buildRecommendationPayload`,
+/// which rejects a request with no group. A caller with no group to attach
+/// (e.g. `itinerary_builder.dart` today) should not build a `SearchContext`
+/// at all rather than invent one.
 ///
 /// `client`, `baseUrl` and `idTokenProvider` are all injectable so tests can
 /// supply a `MockClient` and a fake token without touching Firebase.

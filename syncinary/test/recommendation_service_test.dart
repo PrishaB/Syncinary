@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:syncinary/services/recommendation_service.dart';
 
-SearchContext _context({String? groupId, List<dynamic> travelResults = const []}) =>
+SearchContext _context({String groupId = 'g1', List<dynamic> travelResults = const []}) =>
     SearchContext(
       origin: 'JFK',
       destination: 'LAX',
@@ -60,7 +60,7 @@ void main() {
       expect(body['search']['startDate'], '2026-10-01');
     });
 
-    test('sends a null groupId as-is for a personal (groupless) request', () async {
+    test('omits the Authorization header when there is no token', () async {
       http.Request? captured;
       final client = MockClient((request) async {
         captured = request;
@@ -70,9 +70,6 @@ void main() {
 
       await service.fetchRecommendations(_context());
 
-      final body = jsonDecode(captured!.body) as Map<String, dynamic>;
-      expect(body.containsKey('groupId'), isTrue);
-      expect(body['groupId'], isNull);
       expect(captured!.headers.containsKey('Authorization'), isFalse);
     });
 
