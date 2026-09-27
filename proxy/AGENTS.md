@@ -43,6 +43,12 @@ any known vulnerability in `package-lock.json`, dev dependencies included, and
 `codeql` scans the JavaScript here. Add tests as `*.test.js`
 beside the module; `node --test` picks them up automatically.
 
+`recommendationVariance.test.js` (FR-104 / #47) has a live sub-test that calls
+the real Gemini API — it's skipped unless **both** `GEMINI_API_KEY` and
+`RUN_GEMINI_LIVE_TESTS=1` are set, so `npm test` never makes a billed network
+call by accident, and CI (which has neither) always skips it. See
+`README.md` for the command to run it deliberately.
+
 ## Conventions
 
 - Keep runtime code CommonJS and dependency-light.

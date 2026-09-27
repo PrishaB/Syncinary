@@ -117,3 +117,20 @@ Without `--env-file`, `GEMINI_API_KEY` is simply unset and calls return
 `missing_api_key`.
 
 Run tests with `npm test` (uses Node's built-in `node --test`, no extra deps).
+
+### FR-104 variance test
+
+`recommendationVariance.test.js` (#47) builds three synthetic user profiles
+with different preferences, budgets, and search history, and checks that
+`llmDataFilter.js`/`recommendationPrompt.js`/`geminiClient.js` build a
+distinct, correctly targeted request per profile — this part always runs, no
+key needed. It also has one live sub-test that calls the real Gemini API and
+checks the *actual* recommendations vary and fit each profile's budget/dates/
+preferences; that one is skipped by default and only runs with both of:
+
+```
+GEMINI_API_KEY=<your key> RUN_GEMINI_LIVE_TESTS=1 node --env-file=.env --test recommendationVariance.test.js
+```
+
+It makes three billed Gemini calls, so run it deliberately, not as part of
+routine `npm test`.
