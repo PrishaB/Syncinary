@@ -15,8 +15,19 @@ Filters and assembles the payload sent to the LLM recommendation agent
 
 It's a pure function: no Firebase, no network. `requestingUserId` is assumed
 to already be verified (e.g. from a checked session token) by the caller — this
-module checks group *membership*, not identity. Wiring it to real Firebase
-reads and an authenticated route is a follow-up issue.
+module checks group *membership*, not identity (see #86). Wiring it to real
+Firebase reads and an authenticated route is a follow-up issue.
+
+Every allowlisted field also has a declared type (string, number, or array of
+strings) — a value of the wrong shape (a nested object, a number where a
+string is expected, a non-string array item) is dropped rather than forwarded,
+and strings/arrays are truncated to `MAX_STRING_LENGTH`/`MAX_ARRAY_ITEMS`. If
+the sanitized payload is still over `MAX_PAYLOAD_BYTES` overall (e.g. a large
+group), `buildRecommendationPayload` returns `{allowed: false, reason:
+'payload_too_large'}` instead of sending it. This bounds how much adversarial
+or oversized text a request can smuggle to Gemini (#91) — it does not attempt
+to detect or strip instruction-like *content*, which is `recommendationPrompt.js`'s
+untrusted-data framing and `parseRecommendationResponse()`'s job.
 
 ## `geminiClient.js`
 
@@ -70,9 +81,27 @@ Like the other two modules, it never throws — it returns `{ok: false, error, m
 for a malformed or all-empty payload. It also never writes a payload *value*
 into the prompt text: the prompt only names which top-level sections (budget,
 dates, preferences, etc.) are present or absent, and every user-controlled
-string reaches Gemini solely inside the appended JSON. `RECOMMENDATION_OUTPUT_SCHEMA`
-is exported as the single source of truth for the response shape, for a
-future response-parsing module to validate against.
+string reaches Gemini solely inside the appended JSON.
+
+`RECOMMENDATION_OUTPUT_SCHEMA` is the single source of truth for the response
+shape, and `parseRecommendationResponse(text)` validates a Gemini reply's
+`text` against it (#91 / #81):
+
+```js
+const geminiResult = await client.generateRecommendation({ payload: filterResult.payload, prompt: promptResult.prompt });
+if (!geminiResult.ok) throw new Error(geminiResult.error);
+
+const parsed = parseRecommendationResponse(geminiResult.text);
+if (!parsed.ok) throw new Error(parsed.error); // 'invalid_json' | 'schema_mismatch'
+// parsed.data is now safe to render — never show geminiResult.text directly.
+```
+
+A reply that isn't valid JSON, is missing a required key, has the wrong type
+for a field, or uses a value outside a fixed enum (e.g. `timeOfDay`) comes back
+as `{ok: false, error: 'schema_mismatch' | 'invalid_json'}` rather than being
+passed through — this is what actually closes the gap `geminiClient.js`'s
+`generationConfig.responseMimeType` only makes less likely, since a model
+reply is never trusted just because Gemini returned `ok: true`.
 
 ### Local setup
 
