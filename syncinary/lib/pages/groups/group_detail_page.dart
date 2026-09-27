@@ -6,7 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/confirmation_dialog.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/success_overlay.dart';
-import '../itinerary_builder.dart';
+import '../schedule_builder_page.dart';
 import '../login_page.dart';
 import '../trip_expenses_page.dart';
 import 'invite_members_dialog.dart';
@@ -119,7 +119,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   }
 
   void _planItinerary() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const itinerary_builder()));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => PlanItineraryPage(group: widget.group)));
   }
 
   void _trackCosts(Group group) {
