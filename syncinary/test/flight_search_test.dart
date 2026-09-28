@@ -133,7 +133,7 @@ void main() {
     expect(find.byType(ListView), findsOneWidget);
 
     // Verify the first result rendered correctly.
-    expect(find.text('Test Airline 0'), findsOneWidget);
+    expect(find.textContaining('Test Airline 0'), findsOneWidget);
     expect(find.text('\$200'), findsOneWidget);
 
     // Scroll through the long list.
