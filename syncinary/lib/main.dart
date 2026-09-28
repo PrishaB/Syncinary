@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'pages/itinerary_builder.dart';
+import 'pages/groups/my_groups_page.dart';
 import 'pages/login_page.dart';
 import 'pages/verify_email_page.dart';
 import 'theme/app_theme.dart';
@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Routes to LoginPage or itinerary_builder based on auth state.
+/// Routes to LoginPage or MyGroupsPage based on auth state.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -46,10 +46,10 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        // If user is logged in, go to itinerary builder
+        // If user is logged in, go to My Groups
         if (snapshot.hasData) {
           return snapshot.data!.emailVerified
-              ? const itinerary_builder()
+              ? const MyGroupsPage()
               : const VerifyEmailPage();
         }
 

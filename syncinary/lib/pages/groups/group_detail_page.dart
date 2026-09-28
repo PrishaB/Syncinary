@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/group.dart';
 import '../../services/group_service.dart';
@@ -6,6 +7,8 @@ import '../../widgets/confirmation_dialog.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/success_overlay.dart';
 import '../itinerary_builder.dart';
+import '../login_page.dart';
+import '../trip_expenses_page.dart';
 import 'invite_members_dialog.dart';
 import 'transfer_admin_dialog.dart';
 
@@ -119,17 +122,32 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const itinerary_builder()));
   }
 
-  void _trackCosts() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Track Costs — coming soon')),
-    );
+  void _trackCosts(Group group) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => TripExpensesPage(group: group)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const GradientAppBar(title: ''),
+      appBar: GradientAppBar(
+        title: '',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
+            tooltip: 'Log out',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
+      ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
@@ -214,7 +232,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                     ),
                     const SizedBox(height: 12),
                     GradientButton(
-                      onPressed: _trackCosts,
+                      onPressed: () => _trackCosts(group),
                       label: 'Track Costs',
                       icon: Icons.payments_outlined,
                     ),
