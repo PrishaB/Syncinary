@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/group_service.dart';
 import '../theme/app_theme.dart';
-import 'itinerary_builder.dart';
+import 'groups/my_groups_page.dart';
 import 'signup_page.dart';
 import 'verify_email_page.dart';
 
@@ -11,11 +12,15 @@ import 'verify_email_page.dart';
 /// Uses the "Midnight Voyage" design system.
 /// ─────────────────────────────────────────────────────────
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.auth});
+  const LoginPage({super.key, this.auth, this.groupService});
 
   /// Optional [FirebaseAuth] instance for dependency injection (testing).
   /// Falls back to [FirebaseAuth.instance] when null.
   final FirebaseAuth? auth;
+
+  /// Passed through to [MyGroupsPage] on successful sign-in, so tests can
+  /// supply a fake instead of the real Firestore/Auth singletons.
+  final GroupService? groupService;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -84,7 +89,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => user?.emailVerified == true
-            ? const itinerary_builder()
+            ? MyGroupsPage(service: widget.groupService)
             : VerifyEmailPage(auth: widget.auth)),
       );
     } on FirebaseAuthException catch (e) {
