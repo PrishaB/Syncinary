@@ -1,3 +1,4 @@
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mock_exceptions/mock_exceptions.dart';
 
 import 'package:syncinary/pages/login_page.dart';
+import 'package:syncinary/services/group_service.dart';
 
 /// Helper to wrap any widget in a MaterialApp for testing.
 Widget makeTestableWidget(Widget child) {
@@ -80,7 +82,10 @@ void main() {
     testWidgets('Successful sign-in authenticates and navigates',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
-      await tester.pumpWidget(makeTestableWidget(LoginPage(auth: mockAuth)));
+      final groupService = GroupService(firestore: FakeFirebaseFirestore(), auth: mockAuth);
+      await tester.pumpWidget(makeTestableWidget(
+        LoginPage(auth: mockAuth, groupService: groupService),
+      ));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'test@test.com');
       await tester.enterText(find.byType(TextFormField).at(1), 'password123');
@@ -199,7 +204,10 @@ void main() {
     testWidgets('No error banner shown after successful sign-in',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
-      await tester.pumpWidget(makeTestableWidget(LoginPage(auth: mockAuth)));
+      final groupService = GroupService(firestore: FakeFirebaseFirestore(), auth: mockAuth);
+      await tester.pumpWidget(makeTestableWidget(
+        LoginPage(auth: mockAuth, groupService: groupService),
+      ));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'test@test.com');
       await tester.enterText(find.byType(TextFormField).at(1), 'password123');
