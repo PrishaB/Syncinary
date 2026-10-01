@@ -57,7 +57,8 @@ beside the module; `node --test` picks them up automatically.
   hardcode a key in source again. The key that used to be hardcoded here is
   still live in this repo's git history (removing it from `server.js` doesn't
   erase old commits) — **rotate it in the SerpApi dashboard** and use the new
-  value locally / in deployment secrets (#20). CI's gitleaks job allowlists
-  that one finding in `.gitleaksignore`.
+  value locally / in deployment secrets (#20). CI's gitleaks job detects
+  SerpApi keys with a custom `serpapi-key` rule and allowlists only that old
+  commit's finding in `.gitleaksignore`.
 - Never forward the SerpApi key to the client, and don't log full upstream
   responses that may carry it.

@@ -1,3 +1,17 @@
-# Uses the default gitleaks rules; ignored fingerprints are in .gitleaksignore.
+# Default gitleaks rules plus a SerpApi key rule; ignored fingerprints are in .gitleaksignore.
 [extend]
 useDefault = true
+
+# Matches a 64-hex SerpApi key assigned to a serpapi-named variable.
+[[rules]]
+id = "serpapi-key"
+description = "SerpApi API key"
+regex = '''(?i)serp_?api[\w.-]{0,20}['"]?\s*[:=]\s*['"]?([a-f0-9]{64})\b'''
+secretGroup = 1
+keywords = ["serpapi", "serp_api"]
+
+# Exact fake key used in proxy/geminiClient.test.js.
+[[allowlists]]
+description = "Fake key in proxy tests"
+regexTarget = "match"
+regexes = ['''test-key-abc123''']

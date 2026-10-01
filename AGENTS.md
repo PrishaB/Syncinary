@@ -56,8 +56,10 @@ base) and manual `workflow_dispatch`. Jobs:
 - **`proxy`** — `npm ci`, `npm run lint`, `npm test`, and `npm audit --omit=dev
   --audit-level=high` (see `proxy/AGENTS.md`).
 - **`security`** (`Security - gitleaks`) — gitleaks CLI over the commits new in
-  the push or PR. A manual dispatch scans the full history. Known finding:
-  the old SerpApi key (#20), allowlisted by fingerprint in `.gitleaksignore`.
+  the push or PR. A manual dispatch scans the full history. `.gitleaks.toml`
+  adds a `serpapi-key` rule to the defaults and allowlists the exact fake key
+  in `proxy/geminiClient.test.js`. Known finding: the old SerpApi key (#20),
+  allowlisted by fingerprint in `.gitleaksignore`.
   On a finding, remove the secret and **rotate it**; don't allowlist it.
 - **`osv`** (`Security - OSV-Scanner`) — checks `syncinary/pubspec.lock` and
   `proxy/package-lock.json` (dev dependencies included) against OSV.dev and
