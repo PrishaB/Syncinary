@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     # Cancels this job's previous run on the same PR or branch, except on main.
     concurrency:
-      group: ${{ github.workflow }}-${{ github.job }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      group: ${{ github.workflow }}-flutter-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
     defaults:
@@ -70,7 +70,7 @@ jobs:
     name: Proxy (Node/Express) - lint, test & audit
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ github.job }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      group: ${{ github.workflow }}-proxy-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
     defaults:
@@ -157,7 +157,7 @@ jobs:
     name: Security - OSV-Scanner
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ github.job }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      group: ${{ github.workflow }}-osv-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
     steps:
@@ -180,7 +180,7 @@ jobs:
     name: Security - CodeQL (${{ matrix.language }})
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ github.job }}-${{ matrix.language }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      group: ${{ github.workflow }}-codeql-${{ matrix.language }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     permissions:
       contents: read
