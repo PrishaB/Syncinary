@@ -1,0 +1,4 @@
+# Default gitleaks rules. The one known finding (#20, SerpApi key in history)
+# is allowlisted by fingerprint in .gitleaksignore.
+[extend]
+useDefault = true

@@ -25,19 +25,20 @@ package.
 
 `node_modules/` is **committed** (~650 files) on purpose so `node server.js`
 works without an `npm install` step. That's about the runtime
-`dependencies` only — CI (`.github/workflows/ci.yml`) now runs `npm install`
-fresh in this directory for every push/PR, which is also how the `eslint` /
+`dependencies` only — CI (`.github/workflows/ci.yml`) runs `npm ci` fresh in
+this directory for every push/PR, which is also how the `eslint` /
 `@eslint/js` / `globals` devDependencies are resolved (not committed).
 Adding a runtime dependency still means committing `node_modules` too, so add
-one only if you genuinely need it.
+one only if you genuinely need it. Dependabot npm PRs update only
+`package*.json`: before merging one, run `npm ci --omit=dev` and commit the
+refreshed `node_modules`.
 
 ## Lint & test
 
-CI runs `npm run lint` (ESLint 9, flat config in `eslint.config.cjs`) and
-`npm test` (`node --test`) on every push/PR. There is no test suite yet — `npm
-test` currently passes trivially (0 tests found). If you add logic worth
-testing, drop files named `*.test.js` beside the module; `node --test` picks
-them up automatically.
+CI runs `npm run lint` (ESLint 9, flat config in `eslint.config.cjs`),
+`npm test` (`node --test`, e.g. `llmDataFilter.test.js`) and `npm audit
+--omit=dev --audit-level=high` on every push/PR. Add tests as `*.test.js`
+beside the module; `node --test` picks them up automatically.
 
 ## Conventions
 
@@ -53,6 +54,7 @@ them up automatically.
   hardcode a key in source again. The key that used to be hardcoded here is
   still live in this repo's git history (removing it from `server.js` doesn't
   erase old commits) — **rotate it in the SerpApi dashboard** and use the new
-  value locally / in deployment secrets.
+  value locally / in deployment secrets (#20). CI's gitleaks job allowlists
+  that one finding in `.gitleaksignore`.
 - Never forward the SerpApi key to the client, and don't log full upstream
   responses that may carry it.

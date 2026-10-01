@@ -21,7 +21,7 @@ class AmadeusService {
         'destination': destination,
         'departureDate': departureDate,
         'adults': adults.toString(),
-        if (returnDate != null) 'returnDate': returnDate,
+        'returnDate': ?returnDate,
       },
     );
     final res = await http.get(uri);
@@ -78,7 +78,7 @@ class AmadeusService {
         'departureDate': departureDate,
         'adults': adults.toString(),
         'bookingToken': bookingToken,
-        if (returnDate != null) 'returnDate': returnDate,
+        'returnDate': ?returnDate,
       },
     );
     final res = await http.get(uri);

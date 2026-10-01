@@ -1,16 +1,25 @@
 name: CI
 
-# Run on every push, and on pull requests targeting main or dev
+# Push on every branch; PRs on any base so stacked PRs are tested too.
+# workflow_dispatch runs a full-history secret scan.
 on:
   push:
     branches: ['**']
   pull_request:
-    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   flutter:
-    name: Flutter (syncinary) - test
+    name: Flutter (syncinary) - analyze & test
     runs-on: ubuntu-latest
+    # Per job: security must never be cancelled (see below). The event name
+    # keeps the push and PR runs of one commit from cancelling each other.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.job }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
     defaults:
       run:
@@ -18,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -27,15 +36,45 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # lib/firebase_options.dart is gitignored (real keys); analyze needs a
+      # stand-in. Placeholder values only.
+      - name: Stub firebase_options.dart
+        run: |
+          cat > lib/firebase_options.dart <<'DART'
+          import 'package:firebase_core/firebase_core.dart';
+
+          class DefaultFirebaseOptions {
+            static const FirebaseOptions currentPlatform = FirebaseOptions(
+              apiKey: 'ci-stub',
+              appId: 'ci-stub',
+              messagingSenderId: 'ci-stub',
+              projectId: 'ci-stub',
+            );
+          }
+          DART
+
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Run tests
-        run: flutter test
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests with coverage
+        run: flutter test --coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: flutter-coverage
+          path: syncinary/coverage/lcov.info
+          if-no-files-found: error
 
   proxy:
-    name: Proxy (Node/Express) - lint & test
+    name: Proxy (Node/Express) - lint, test & audit
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.job }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
     defaults:
       run:
@@ -43,10 +82,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
 
@@ -58,3 +97,63 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  security:
+    name: Security - gitleaks
+    runs-on: ubuntu-latest
+    # Deliberately not cancellable: push scans cover only before..sha, so a
+    # cancelled run would leave those commits unscanned.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # CLI instead of gitleaks-action, whose PR scan skips commits past the
+      # first 30 and which skips pushes with an empty commit list.
+      - name: Install gitleaks
+        run: |
+          v=8.30.1
+          curl -sSfL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${v}/gitleaks_${v}_linux_x64.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+
+      - name: Scan
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          case "$EVENT" in
+            pull_request)
+              range="$PR_BASE..$PR_HEAD" ;;
+            push)
+              if [ "$PUSH_BEFORE" != 0000000000000000000000000000000000000000 ] \
+                 && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+                range="$PUSH_BEFORE..$SHA"
+              else
+                # New branch or force-push: commits not on any other remote branch.
+                range="$SHA --not --exclude=origin/$GITHUB_REF_NAME --remotes=origin"
+              fi ;;
+            *)
+              range="" ;;  # full history
+          esac
+          echo "Scanning: ${range:-full history}"
+          ./gitleaks git --redact --verbose --exit-code 1 \
+            --report-format sarif --report-path gitleaks.sarif \
+            ${range:+--log-opts="$range"} .
+
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gitleaks-report
+          path: gitleaks.sarif
+          if-no-files-found: ignore
