@@ -31,13 +31,16 @@ this directory for every push/PR, which is also how the `eslint` /
 Adding a runtime dependency still means committing `node_modules` too, so add
 one only if you genuinely need it. Dependabot npm PRs update only
 `package*.json`: before merging one, run `npm ci --omit=dev` and commit the
-refreshed `node_modules`.
+refreshed `node_modules`. A later plain `npm install` rewrites the committed
+`node_modules/.package-lock.json` to list dev dependencies; don't commit that.
 
 ## Lint & test
 
 CI runs `npm run lint` (ESLint 9, flat config in `eslint.config.cjs`),
 `npm test` (`node --test`, e.g. `llmDataFilter.test.js`) and `npm audit
---omit=dev --audit-level=high` on every push/PR. Add tests as `*.test.js`
+--omit=dev --audit-level=high` on every push/PR. The `osv` job also fails on
+any known vulnerability in `package-lock.json`, dev dependencies included, and
+`codeql` scans the JavaScript here. Add tests as `*.test.js`
 beside the module; `node --test` picks them up automatically.
 
 ## Conventions

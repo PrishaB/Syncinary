@@ -1,3 +1,2 @@
-# #20: SerpApi key hardcoded in proxy/server.js (47e8a41, removed in 76ab979).
-# Still public in history and must be rotated in the SerpApi dashboard.
+# #20: SerpApi key in proxy/server.js at 47e8a41 (not yet rotated).
 47e8a4140d7512036e68235e09cc7f7f0895b48c:proxy/server.js:generic-api-key:8

@@ -1,7 +1,6 @@
 name: CI
 
-# Push on every branch; PRs on any base so stacked PRs are tested too.
-# workflow_dispatch runs a full-history secret scan.
+# Runs on pushes to any branch, PRs into any base, and manual dispatch.
 on:
   push:
     branches: ['**']
@@ -15,8 +14,7 @@ jobs:
   flutter:
     name: Flutter (syncinary) - analyze & test
     runs-on: ubuntu-latest
-    # Per job: security must never be cancelled (see below). The event name
-    # keeps the push and PR runs of one commit from cancelling each other.
+    # Cancels this job's previous run on the same PR or branch, except on main.
     concurrency:
       group: ${{ github.workflow }}-${{ github.job }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -36,8 +34,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # lib/firebase_options.dart is gitignored (real keys); analyze needs a
-      # stand-in. Placeholder values only.
+      # Writes a placeholder lib/firebase_options.dart (no real keys).
       - name: Stub firebase_options.dart
         run: |
           cat > lib/firebase_options.dart <<'DART'
@@ -104,8 +101,7 @@ jobs:
   security:
     name: Security - gitleaks
     runs-on: ubuntu-latest
-    # Deliberately not cancellable: push scans cover only before..sha, so a
-    # cancelled run would leave those commits unscanned.
+    # No concurrency group: runs are never cancelled.
 
     steps:
       - name: Checkout repository
@@ -113,8 +109,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # CLI instead of gitleaks-action, whose PR scan skips commits past the
-      # first 30 and which skips pushes with an empty commit list.
+      # Downloads the gitleaks CLI and verifies its SHA-256.
       - name: Install gitleaks
         run: |
           v=8.30.1
@@ -139,7 +134,7 @@ jobs:
                  && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
                 range="$PUSH_BEFORE..$SHA"
               else
-                # New branch or force-push: commits not on any other remote branch.
+                # New branch or force-push: scans commits not on any other remote branch.
                 range="$SHA --not --exclude=origin/$GITHUB_REF_NAME --remotes=origin"
               fi ;;
             *)
@@ -157,3 +152,70 @@ jobs:
           name: gitleaks-report
           path: gitleaks.sarif
           if-no-files-found: ignore
+
+  osv:
+    name: Security - OSV-Scanner
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.job }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Downloads the OSV-Scanner CLI and verifies its SHA-256.
+      - name: Install OSV-Scanner
+        run: |
+          v=2.6.0
+          curl -sSfL -o osv-scanner "https://github.com/google/osv-scanner/releases/download/v${v}/osv-scanner_linux_amd64"
+          echo "ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108  osv-scanner" | sha256sum -c -
+          chmod +x osv-scanner
+
+      # Fails on any known vulnerability in either lockfile, dev dependencies included.
+      - name: Scan lockfiles
+        run: ./osv-scanner scan source -L syncinary/pubspec.lock -L proxy/package-lock.json
+
+  codeql:
+    name: Security - CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.job }}-${{ matrix.language }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config: |
+            paths-ignore:
+              - proxy/node_modules
+
+      # Uploads results to the Security tab and keeps a local SARIF copy.
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+          output: ${{ runner.temp }}/codeql
+
+      # Fails the job if CodeQL reported any finding.
+      - name: Check for findings
+        env:
+          SARIF_DIR: ${{ runner.temp }}/codeql
+        run: |
+          jq -r '.runs[].results[] | "\(.ruleId)  \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)  \(.message.text)"' "$SARIF_DIR"/*.sarif
+          n=$(jq -s '[.[].runs[].results[]] | length' "$SARIF_DIR"/*.sarif)
+          echo "CodeQL findings: $n"
+          [ "$n" -eq 0 ]

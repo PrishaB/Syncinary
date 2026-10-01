@@ -58,9 +58,16 @@ base) and manual `workflow_dispatch`. Jobs:
 - **`security`** (`Security - gitleaks`) — gitleaks CLI over the commits new in
   the push or PR. A manual dispatch scans the full history. Known finding:
   the old SerpApi key (#20), allowlisted by fingerprint in `.gitleaksignore`.
-  On a finding, remove the secret and **rotate it**; don't allowlist it. This
-  job is not cancelled by newer pushes; `flutter` and `proxy` are, except on
-  `main`.
+  On a finding, remove the secret and **rotate it**; don't allowlist it.
+- **`osv`** (`Security - OSV-Scanner`) — checks `syncinary/pubspec.lock` and
+  `proxy/package-lock.json` (dev dependencies included) against OSV.dev and
+  fails on any known vulnerability. Fix by upgrading the package.
+- **`codeql`** (`Security - CodeQL`) — CodeQL default security queries for the
+  proxy's JavaScript and for the workflow files (`actions`); Dart isn't
+  supported. Fails on any finding; results also appear in the Security tab.
+
+`security` is never cancelled by newer pushes; the other jobs are, except on
+`main`.
 
 Dependabot (`.github/dependabot.yml`) opens weekly grouped updates for npm,
 pub and GitHub Actions.
