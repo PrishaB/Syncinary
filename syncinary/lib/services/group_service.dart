@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/group.dart';
+import 'schedule_service.dart';
 
 /// Thrown by [GroupService.inviteMemberByEmail] when nobody has a `users`
 /// profile document for the given email — i.e. they haven't signed up yet.
@@ -26,6 +27,11 @@ class GroupService {
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+
+  /// Keep navigation and related services on the same backend/session.
+  FirebaseAuth get auth => _auth;
+  ScheduleService get scheduleService =>
+      ScheduleService(firestore: _firestore, auth: _auth);
 
   String get currentUserId => _auth.currentUser!.uid;
   String get currentUserEmail => (_auth.currentUser?.email ?? '').trim().toLowerCase();
