@@ -2,9 +2,11 @@
 // ignore_for_file: camel_case_types
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/suggestions_section.dart';
 import 'amadeus_service.dart';
- 
+
 class flight_search extends StatefulWidget {
   const flight_search({
     super.key,
@@ -16,8 +18,10 @@ class flight_search extends StatefulWidget {
     this.returnDate,
     this.adults = 1,
     this.isReturnLeg = false,
+    this.recommendationService,
+    this.searchContext,
   });
- 
+
   final String title;
   final List<dynamic> initialResults;
   final String origin;
@@ -25,19 +29,25 @@ class flight_search extends StatefulWidget {
   final String departureDate;
   final String? returnDate;
   final int adults;
- 
+
   /// True when this screen is showing return-leg options for a round trip
   /// (as opposed to the initial outbound-leg list). Tapping a card here
   /// goes straight to booking instead of fetching another leg.
   final bool isReturnLeg;
- 
+
+  // Both optional and only meaningful together (FR-104): when a caller
+  // supplies neither, the suggestions section is omitted entirely and this
+  // page behaves exactly as it did before that feature existed.
+  final RecommendationService? recommendationService;
+  final SearchContext? searchContext;
+
   @override
   State<flight_search> createState() => _flightSearchState();
 }
- 
+
 class _flightSearchState extends State<flight_search> {
   bool _busy = false;
- 
+
   String _formatDuration(int? minutes) {
     if (minutes == null) return '';
     final h = minutes ~/ 60;
@@ -46,14 +56,14 @@ class _flightSearchState extends State<flight_search> {
     if (m == 0) return '${h}h';
     return '${h}h ${m}m';
   }
- 
+
   bool get _isRoundTripOutbound =>
       widget.returnDate != null && !widget.isReturnLeg;
- 
+
   Future<void> _handleOfferTap(dynamic offer) async {
     if (_busy) return;
     setState(() => _busy = true);
- 
+
     try {
       if (_isRoundTripOutbound) {
         final departureToken = offer['departure_token'] as String?;
@@ -87,7 +97,7 @@ class _flightSearchState extends State<flight_search> {
         );
         return;
       }
- 
+
       // Final leg (one-way, or the return leg of a round trip) — go to booking.
       final bookingToken = offer['booking_token'] as String?;
       if (bookingToken == null) {
@@ -107,12 +117,10 @@ class _flightSearchState extends State<flight_search> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
- 
+
   void _showBookingSheet(List<dynamic> bookingOptions) {
     showModalBottomSheet(
       context: context,
@@ -127,8 +135,10 @@ class _flightSearchState extends State<flight_search> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('No booking options returned.',
-                    style: AppTextStyles.subtitle),
+                Text(
+                  'No booking options returned.',
+                  style: AppTextStyles.subtitle,
+                ),
                 const SizedBox(height: 16),
                 GradientButton(
                   onPressed: () => Navigator.pop(sheetContext),
@@ -139,7 +149,7 @@ class _flightSearchState extends State<flight_search> {
             ),
           );
         }
- 
+
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
@@ -149,11 +159,13 @@ class _flightSearchState extends State<flight_search> {
               children: [
                 Text('Book this flight', style: AppTextStyles.title),
                 const SizedBox(height: 16),
-                ...bookingOptions.map((raw) => _BookingOptionTile(
-                      option: raw,
-                      origin: widget.origin,
-                      destination: widget.destination,
-                    )),
+                ...bookingOptions.map(
+                  (raw) => _BookingOptionTile(
+                    option: raw,
+                    origin: widget.origin,
+                    destination: widget.destination,
+                  ),
+                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -162,9 +174,13 @@ class _flightSearchState extends State<flight_search> {
       },
     );
   }
- 
+
   @override
   Widget build(BuildContext context) {
+    final service = widget.recommendationService;
+    final searchCtx = widget.searchContext;
+    final showSuggestions = service != null && searchCtx != null;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -190,113 +206,160 @@ class _flightSearchState extends State<flight_search> {
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: Stack(
           children: [
-            widget.initialResults.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.flight_outlined,
-                            size: 64,
-                            color: AppColors.textMuted.withValues(alpha: 0.5)),
-                        const SizedBox(height: 16),
-                        Text('No flights found.',
-                            style: AppTextStyles.subtitle
-                                .copyWith(color: AppColors.textMuted)),
-                      ],
+            Column(
+              children: [
+                // Suggestions sit above the flight list (or the empty message)
+                // and load independently, so a slow/failed recommendation never
+                // blocks the flights the user already searched for.
+                if (showSuggestions)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 100, 16, 0),
+                    child: SuggestionsSection(
+                      service: service,
+                      searchContext: searchCtx,
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 100, 16, 24),
-                    itemCount: widget.initialResults.length,
-                    itemBuilder: (_, i) {
-                      final offer = widget.initialResults[i];
-                      final flights = offer['flights'] as List<dynamic>;
-                      final first = flights.first;
-                      final dep = first['departure_airport']['id'];
-                      final arr = flights.last['arrival_airport']['id'];
-                      final time = first['departure_airport']['time'];
-                      final price = offer['price'];
-                      final airline = first['airline'] as String?;
-                      final stops = flights.length - 1;
-                      final duration =
-                          _formatDuration(offer['total_duration'] as int?);
- 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: GestureDetector(
-                          onTap: () => _handleOfferTap(offer),
-                          child: Container(
-                            decoration: AppDecorations.glassCard(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      gradient: AppColors.brandGradient,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(Icons.flight_rounded,
-                                        color: Colors.white, size: 22),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                  ),
+                Expanded(
+                  child: widget.initialResults.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.flight_outlined,
+                                size: 64,
+                                color: AppColors.textMuted.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No flights found.',
+                                style: AppTextStyles.subtitle.copyWith(
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            showSuggestions ? 12 : 100,
+                            16,
+                            24,
+                          ),
+                          itemCount: widget.initialResults.length,
+                          itemBuilder: (_, i) {
+                            final offer = widget.initialResults[i];
+                            final flights = offer['flights'] as List<dynamic>;
+                            final first = flights.first;
+                            final dep = first['departure_airport']['id'];
+                            final arr = flights.last['arrival_airport']['id'];
+                            final time = first['departure_airport']['time'];
+                            final price = offer['price'];
+                            final airline = first['airline'] as String?;
+                            final stops = flights.length - 1;
+                            final duration = _formatDuration(
+                              offer['total_duration'] as int?,
+                            );
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: GestureDetector(
+                                onTap: () => _handleOfferTap(offer),
+                                child: Container(
+                                  decoration: AppDecorations.glassCard(),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Row(
                                       children: [
-                                        Text('$dep  →  $arr',
-                                            style: AppTextStyles.title
-                                                .copyWith(fontSize: 17)),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          [
-                                            if (airline != null &&
-                                                airline.isNotEmpty)
-                                              airline,
-                                            'Departs $time',
-                                          ].join(' · '),
-                                          style: AppTextStyles.caption,
+                                        Container(
+                                          width: 48,
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            gradient: AppColors.brandGradient,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.flight_rounded,
+                                            color: Colors.white,
+                                            size: 22,
+                                          ),
                                         ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          [
-                                            if (duration.isNotEmpty) duration,
-                                            stops == 0
-                                                ? 'Nonstop'
-                                                : '$stops ${stops == 1 ? 'stop' : 'stops'}',
-                                          ].join(' · '),
-                                          style: AppTextStyles.caption
-                                              .copyWith(
-                                                  color: AppColors.textMuted),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                '$dep  →  $arr',
+                                                style: AppTextStyles.title
+                                                    .copyWith(fontSize: 17),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                [
+                                                  if (airline != null &&
+                                                      airline.isNotEmpty)
+                                                    airline,
+                                                  'Departs $time',
+                                                ].join(' · '),
+                                                style: AppTextStyles.caption,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                [
+                                                  if (duration.isNotEmpty)
+                                                    duration,
+                                                  stops == 0
+                                                      ? 'Nonstop'
+                                                      : '$stops ${stops == 1 ? 'stop' : 'stops'}',
+                                                ].join(' · '),
+                                                style: AppTextStyles.caption
+                                                    .copyWith(
+                                                      color:
+                                                          AppColors.textMuted,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.accentStart
+                                                .withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '\$$price',
+                                            style: AppTextStyles.button
+                                                .copyWith(
+                                                  color: AppColors.accentEnd,
+                                                  fontSize: 15,
+                                                ),
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accentStart
-                                          .withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text('\$$price',
-                                        style: AppTextStyles.button.copyWith(
-                                          color: AppColors.accentEnd,
-                                          fontSize: 15,
-                                        )),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
+                ),
+              ],
+            ),
             if (_busy)
               Container(
                 color: Colors.black.withValues(alpha: 0.4),
@@ -308,7 +371,7 @@ class _flightSearchState extends State<flight_search> {
     );
   }
 }
- 
+
 /// One row in the booking bottom sheet. Handles both booking-option shapes:
 /// a direct `url` you can open right away, and a `booking_request` that
 /// needs a POST (which the app can't just open as a link) — that case
@@ -319,11 +382,11 @@ class _BookingOptionTile extends StatelessWidget {
     required this.origin,
     required this.destination,
   });
- 
+
   final dynamic option;
   final String origin;
   final String destination;
- 
+
   @override
   Widget build(BuildContext context) {
     // SerpApi nests round-trip booking info under "together"; one-way
@@ -331,12 +394,12 @@ class _BookingOptionTile extends StatelessWidget {
     final data = (option is Map && option['together'] != null)
         ? option['together']
         : option;
- 
+
     final bookWith = data?['book_with'] as String? ?? 'Unknown provider';
     final price = data?['price'];
     final directUrl = data?['booking_request']?['url'] as String?;
     final hasPostData = data?['booking_request']?['post_data'] != null;
- 
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
@@ -345,31 +408,30 @@ class _BookingOptionTile extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: ListTile(
-          title: Text(bookWith, style: AppTextStyles.body),
-          subtitle: price != null
-              ? Text('\$$price', style: AppTextStyles.caption)
-              : null,
-          trailing: const Icon(Icons.open_in_new_rounded, size: 18),
-          onTap: () async {
-            Uri? uri;
-            if (directUrl != null && !hasPostData) {
-              uri = Uri.tryParse(directUrl);
-            } else {
-              // Fallback: this booking option needs a POST checkout flow we
-              // can't open directly, so send the user to a Google Flights
-              // search instead.
-              uri = Uri.parse(
-                'https://www.google.com/travel/flights?q=flights%20from%20$origin%20to%20$destination',
-              );
-            }
-            if (uri != null && await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          },
+            title: Text(bookWith, style: AppTextStyles.body),
+            subtitle: price != null
+                ? Text('\$$price', style: AppTextStyles.caption)
+                : null,
+            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+            onTap: () async {
+              Uri? uri;
+              if (directUrl != null && !hasPostData) {
+                uri = Uri.tryParse(directUrl);
+              } else {
+                // Fallback: this booking option needs a POST checkout flow we
+                // can't open directly, so send the user to a Google Flights
+                // search instead.
+                uri = Uri.parse(
+                  'https://www.google.com/travel/flights?q=flights%20from%20$origin%20to%20$destination',
+                );
+              }
+              if (uri != null && await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
           ),
         ),
       ),
     );
   }
 }
- 
