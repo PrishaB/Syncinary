@@ -56,6 +56,22 @@ gcloud secrets add-iam-policy-binding SERPAPI_KEY --project="$PROJECT" \
   --member="serviceAccount:$RUNTIME" --role=roles/secretmanager.secretAccessor
 ```
 
+Airport name/city search also requires **Places API (New)** enabled in the
+Google Cloud project that owns the Maps key. Create a Secret Manager secret
+named `GOOGLE_MAPS_API_KEY` in `syncinary-48881` containing that key, then run:
+
+```bash
+gcloud services enable places.googleapis.com --project="$PROJECT"
+gcloud secrets add-iam-policy-binding GOOGLE_MAPS_API_KEY --project="$PROJECT" \
+  --member="serviceAccount:$RUNTIME" --role=roles/secretmanager.secretAccessor
+```
+
+Use a server-side key restricted to Places API (New); browser HTTP-referrer
+restrictions do not work for these server requests. For local development,
+set `GOOGLE_MAPS_API_KEY` in `proxy/.env` and start the proxy with
+`node --env-file=.env server.js`. Cloud Run reads Secret Manager, not `.env`.
+See Google's [Places setup guide](https://developers.google.com/maps/documentation/places/web-service/get-api-key).
+
 The workflow injects the latest secret version into the running container.
 After rotating it, deploy a new release to replace running instances.
 Keep the existing `FIREBASE_OPTIONS_DART` GitHub secret configured for Flutter.
@@ -75,6 +91,9 @@ The workflow runs proxy lint, tests, and a dependency audit plus Flutter
 analysis and tests before deployment. After deploying Cloud Run it requests
 `/hotels` without parameters and expects HTTP 400; this checks reachability
 without making a billed SerpApi call. It then builds and publishes the web app.
+It also checks `/airports?q=IND` to verify the packaged airport router and
+catalog without calling Google. This does not verify the Maps key: check a
+city such as Indianapolis in the deployed app to exercise Google Places.
 Check flights and hotels in the deployed app after publishing a release.
 
 Cloud Run and Hosting updates are sequential, not atomic: if the web build or

@@ -87,7 +87,7 @@ jobs:
             --source=. \
             --build-service-account="projects/$GOOGLE_CLOUD_PROJECT/serviceAccounts/syncinary-proxy-build@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
             --service-account="syncinary-proxy-runtime@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
-            --set-secrets=SERPAPI_KEY=SERPAPI_KEY:latest \
+            --set-secrets=SERPAPI_KEY=SERPAPI_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest \
             --port=8080 \
             --allow-unauthenticated \
             --min-instances=0 \
@@ -107,6 +107,9 @@ jobs:
             echo "::error::Proxy smoke check expected HTTP 400, received $status."
             exit 1
           fi
+          # Known IATA codes exercise the airport router and catalog without a Google API call.
+          curl --fail --silent --show-error "$proxy_url/airports?q=IND" \
+            | jq -e '.airports | any(.code == "IND")' > /dev/null
           printf 'url=%s\n' "$proxy_url" >> "$GITHUB_OUTPUT"
 
       - name: Build web app
