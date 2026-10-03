@@ -1,0 +1,8 @@
+# Allowlist uploads: never send local .env files or node_modules to Cloud Build.
+*
+!.gcloudignore
+!.dockerignore
+!Dockerfile
+!package.json
+!package-lock.json
+!server.js
