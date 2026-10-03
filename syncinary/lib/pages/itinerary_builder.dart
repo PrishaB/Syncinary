@@ -1,3 +1,5 @@
+// TODO: rename snake_case types, then drop this ignore (follow-up to #117).
+// ignore_for_file: camel_case_types
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'flight_search.dart';
