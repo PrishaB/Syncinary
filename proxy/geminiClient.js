@@ -93,7 +93,13 @@ function createGeminiClient(options) {
 
     const url = `${baseUrl}/v1beta/models/${model}:generateContent`;
     const text = `${prompt}\n\n${JSON.stringify(payload)}`;
-    const body = JSON.stringify({ contents: [{ role: 'user', parts: [{ text }] }] });
+    // Ask Gemini to enforce JSON-only output at the API level (#81) — this is a
+    // second layer, not a substitute for validating the reply with
+    // recommendationPrompt.js's parseRecommendationResponse() once it comes back.
+    const body = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    });
     // A plain setTimeout (ref'd, unlike AbortSignal.timeout()'s internal timer) so the
     // timeout reliably fires instead of racing the event loop on a busy/CI machine.
     let timeoutHandle;

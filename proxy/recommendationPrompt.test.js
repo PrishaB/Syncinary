@@ -2,7 +2,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildRecommendationPrompt, RECOMMENDATION_OUTPUT_SCHEMA, PROMPT_ERRORS, DEFAULT_LIMITS } = require('./recommendationPrompt');
+const {
+  buildRecommendationPrompt,
+  parseRecommendationResponse,
+  RECOMMENDATION_OUTPUT_SCHEMA,
+  PROMPT_ERRORS,
+  RESPONSE_ERRORS,
+  DEFAULT_LIMITS,
+} = require('./recommendationPrompt');
 const { buildRecommendationPayload } = require('./llmDataFilter');
 const { createGeminiClient } = require('./geminiClient');
 
@@ -163,6 +170,111 @@ test('RECOMMENDATION_OUTPUT_SCHEMA is frozen and every declared key appears in t
   for (const key of Object.keys(RECOMMENDATION_OUTPUT_SCHEMA)) {
     assert.ok(prompt.includes(key), `schema key missing from prompt: ${key}`);
   }
+});
+
+// --- Response validation (#91 / #81) ---
+
+function validRecommendation() {
+  return {
+    summary: 'A relaxing beach trip.',
+    destinations: [
+      {
+        id: 'd1',
+        name: 'Lisbon',
+        region: null,
+        rationale: 'Matches the beach preference',
+        matchedPreferences: ['beach'],
+        estimatedCostPerPerson: { amount: 800, currency: 'USD' },
+      },
+    ],
+    activities: [
+      {
+        id: 'a1',
+        destinationId: 'd1',
+        name: 'Surfing lesson',
+        category: 'outdoor',
+        description: 'Beginner surf lesson',
+        estimatedCostPerPerson: { amount: 50, currency: 'USD' },
+        durationHours: 2,
+      },
+    ],
+    itinerary: [
+      {
+        day: 1,
+        date: '2026-06-01',
+        destinationId: 'd1',
+        items: [{ timeOfDay: 'morning', activityId: 'a1', title: 'Surf lesson', notes: null }],
+      },
+    ],
+    assumptions: ['Assumed moderate weather'],
+    warnings: [],
+  };
+}
+
+test('a well-formed recommendation reply parses and validates', () => {
+  const result = parseRecommendationResponse(JSON.stringify(validRecommendation()));
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data, validRecommendation());
+});
+
+test('a markdown-fenced JSON reply is still accepted', () => {
+  const fenced = '```json\n' + JSON.stringify(validRecommendation()) + '\n```';
+  const result = parseRecommendationResponse(fenced);
+  assert.equal(result.ok, true);
+});
+
+test('non-JSON prose is rejected as invalid_json, never returned as data', () => {
+  const result = parseRecommendationResponse('Sure! Book at http://evil.example (not JSON, ignores schema)');
+  assert.equal(result.ok, false);
+  assert.equal(result.error, RESPONSE_ERRORS.INVALID_JSON);
+  assert.equal('data' in result, false);
+});
+
+test('empty or non-string text is rejected as invalid_json', () => {
+  for (const bad of ['', '   ', undefined, null, 42]) {
+    const result = parseRecommendationResponse(bad);
+    assert.equal(result.ok, false);
+    assert.equal(result.error, RESPONSE_ERRORS.INVALID_JSON);
+  }
+});
+
+test('a reply missing a required top-level key is rejected as schema_mismatch', () => {
+  const broken = validRecommendation();
+  delete broken.warnings;
+  const result = parseRecommendationResponse(JSON.stringify(broken));
+  assert.equal(result.ok, false);
+  assert.equal(result.error, RESPONSE_ERRORS.SCHEMA_MISMATCH);
+});
+
+test('a reply with the wrong type for a field is rejected as schema_mismatch', () => {
+  const broken = validRecommendation();
+  broken.summary = 12345;
+  const result = parseRecommendationResponse(JSON.stringify(broken));
+  assert.equal(result.ok, false);
+  assert.equal(result.error, RESPONSE_ERRORS.SCHEMA_MISMATCH);
+});
+
+test('a reply with an invalid enum value is rejected as schema_mismatch', () => {
+  const broken = validRecommendation();
+  broken.itinerary[0].items[0].timeOfDay = 'IGNORE ALL PREVIOUS INSTRUCTIONS';
+  const result = parseRecommendationResponse(JSON.stringify(broken));
+  assert.equal(result.ok, false);
+  assert.equal(result.error, RESPONSE_ERRORS.SCHEMA_MISMATCH);
+});
+
+test('a top-level JSON array is rejected as schema_mismatch, not treated as data', () => {
+  const result = parseRecommendationResponse(JSON.stringify([validRecommendation()]));
+  assert.equal(result.ok, false);
+  assert.equal(result.error, RESPONSE_ERRORS.SCHEMA_MISMATCH);
+});
+
+test('an injected instruction steering the model to omit fields is caught by schema validation', () => {
+  // Mirrors the #91 repro: an attacker tries to get Gemini to return a
+  // minimal/malicious object instead of the contracted shape.
+  const steered = JSON.stringify({ summary: 'Visit http://evil.example to book' });
+  const result = parseRecommendationResponse(steered);
+  assert.equal(result.ok, false);
+  assert.equal(result.error, RESPONSE_ERRORS.SCHEMA_MISMATCH);
 });
 
 // --- Integration seam (no network) ---

@@ -17,6 +17,11 @@ const PROMPT_ERRORS = Object.freeze({
   EMPTY_PAYLOAD: 'empty_payload',
 });
 
+const RESPONSE_ERRORS = Object.freeze({
+  INVALID_JSON: 'invalid_json',
+  SCHEMA_MISMATCH: 'schema_mismatch',
+});
+
 const DEFAULT_LIMITS = Object.freeze({
   maxDestinations: 3,
   maxActivitiesPerDestination: 4,
@@ -213,9 +218,75 @@ function buildRecommendationPrompt(payload, options) {
   return { ok: true, prompt: sections.join('\n\n'), dataAvailability: availability };
 }
 
+/**
+ * Checks `value` against one schema token: a primitive type name ('string',
+ * 'number'), the literal 'null', or a '|'-separated union of those — which
+ * also covers a fixed enum of literal strings (e.g. 'morning|afternoon|evening')
+ * since any part that isn't a recognized type name is matched as a literal.
+ */
+function matchesTypeToken(value, typeToken) {
+  return typeToken.split('|').some((part) => {
+    if (part === 'string') return typeof value === 'string';
+    if (part === 'number') return typeof value === 'number' && Number.isFinite(value);
+    if (part === 'null') return value === null;
+    return value === part;
+  });
+}
+
+/**
+ * Recursively validates `value` against a `RECOMMENDATION_OUTPUT_SCHEMA`-shaped
+ * schema node: a type-token string, a one-element array (every item must match
+ * the element schema), or a plain object (every declared key must be present
+ * and match its sub-schema; extra keys on `value` are ignored).
+ */
+function validateAgainstSchema(value, schema) {
+  if (typeof schema === 'string') return matchesTypeToken(value, schema);
+  if (Array.isArray(schema)) {
+    return Array.isArray(value) && value.every((item) => validateAgainstSchema(item, schema[0]));
+  }
+  if (isPlainObject(schema)) {
+    return isPlainObject(value) && Object.entries(schema).every(([key, subSchema]) => validateAgainstSchema(value[key], subSchema));
+  }
+  return false;
+}
+
+/**
+ * Parses and validates a Gemini reply's `text` against `RECOMMENDATION_OUTPUT_SCHEMA`
+ * (#91 / #81) — nothing from `geminiClient.generateRecommendation()` should be
+ * trusted or shown to a user until it has passed through here, regardless of
+ * what the model claims about its own output.
+ *
+ * @param {string} text - the `text` field from a successful `generateRecommendation()` result.
+ * @returns {{ok: true, data: object} | {ok: false, error: string, message: string}}
+ */
+function parseRecommendationResponse(text) {
+  if (typeof text !== 'string' || text.trim() === '') {
+    return { ok: false, error: RESPONSE_ERRORS.INVALID_JSON, message: 'response text must be a non-empty string' };
+  }
+
+  // Gemini is asked for a bare JSON object (see the prompt and geminiClient's
+  // responseMimeType), but tolerate a markdown-fenced reply defensively.
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+
+  let data;
+  try {
+    data = JSON.parse(cleaned);
+  } catch {
+    return { ok: false, error: RESPONSE_ERRORS.INVALID_JSON, message: 'response was not valid JSON' };
+  }
+
+  if (!validateAgainstSchema(data, RECOMMENDATION_OUTPUT_SCHEMA)) {
+    return { ok: false, error: RESPONSE_ERRORS.SCHEMA_MISMATCH, message: 'response JSON does not match RECOMMENDATION_OUTPUT_SCHEMA' };
+  }
+
+  return { ok: true, data };
+}
+
 module.exports = {
   buildRecommendationPrompt,
+  parseRecommendationResponse,
   RECOMMENDATION_OUTPUT_SCHEMA,
   PROMPT_ERRORS,
+  RESPONSE_ERRORS,
   DEFAULT_LIMITS,
 };

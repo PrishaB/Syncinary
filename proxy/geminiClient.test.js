@@ -96,6 +96,15 @@ test('successful request sends the key as a header, not in the URL, and returns 
   assert.ok(sentText.includes('hiking'));
 });
 
+test('requests JSON-only output via generationConfig.responseMimeType (#81)', async () => {
+  const { fetchImpl, calls } = recordingFetch(() => makeResponse({ jsonBody: okPayload('{}') }));
+  const client = createGeminiClient({ apiKey: API_KEY, fetchImpl });
+  await client.generateRecommendation({ payload, prompt });
+
+  const sentBody = JSON.parse(calls[0].init.body);
+  assert.equal(sentBody.generationConfig.responseMimeType, 'application/json');
+});
+
 test('multiple response parts are concatenated in order', async () => {
   const { fetchImpl } = recordingFetch(() =>
     makeResponse({ jsonBody: { candidates: [{ content: { parts: [{ text: 'part one, ' }, { text: 'part two' }] } }] } })
