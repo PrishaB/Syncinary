@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/settings_panel.dart';
 
 class HotelSearch extends StatelessWidget {
   const HotelSearch({
@@ -14,6 +15,7 @@ class HotelSearch extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        actions: const [SettingsButton()],
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(

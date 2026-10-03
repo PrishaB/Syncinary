@@ -8,6 +8,7 @@ import 'login_page.dart';
 import 'groups/my_groups_page.dart';
 import 'amadeus_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/settings_panel.dart';
  
 enum SearchType { flights, hotels }
  
@@ -312,6 +313,7 @@ class _itineraryState extends State<itinerary_builder> {
               }
             },
           ),
+          const SettingsButton(),
           const SizedBox(width: 8),
         ],
       ),
