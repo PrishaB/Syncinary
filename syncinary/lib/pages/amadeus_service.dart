@@ -88,5 +88,29 @@ class AmadeusService {
       throw Exception('Booking lookup failed: ${res.body}');
     }
   }
+
+  /// Searches for hotels using the SerpApi Google Hotels endpoint.
+  Future<List<dynamic>> searchHotels({
+    required String location,
+    required String checkInDate,
+    required String checkOutDate,
+    int adults = 1,
+  }) async {
+    final uri = Uri.parse('$_proxyUrl/hotels').replace(
+      queryParameters: {
+        'location': location,
+        'checkInDate': checkInDate,
+        'checkOutDate': checkOutDate,
+        'adults': adults.toString(),
+      },
+    );
+
+    final res = await http.get(uri);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as List<dynamic>;
+    } else {
+      throw Exception('Hotel search failed: ${res.body}');
+    }
+  }
 }
- 
