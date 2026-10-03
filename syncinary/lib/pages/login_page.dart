@@ -79,7 +79,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     try {
       final credential = await (widget.auth ?? FirebaseAuth.instance)
           .signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
+        email: _emailController.text.trim().toLowerCase(),
         password: _passwordController.text,
       );
       final user = credential.user;
