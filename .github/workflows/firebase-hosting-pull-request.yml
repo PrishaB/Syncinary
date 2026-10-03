@@ -1,10 +1,15 @@
-name: Deploy release to Firebase Hosting
+name: Deploy release to Firebase Hosting and Cloud Run
 on:
   release:
     types: [published]
 
 permissions:
   contents: read
+
+env:
+  GOOGLE_CLOUD_PROJECT: syncinary-48881
+  CLOUD_RUN_REGION: us-central1
+  CLOUD_RUN_SERVICE: syncinary-proxy
 
 concurrency:
   group: firebase-hosting-production
@@ -21,6 +26,19 @@ jobs:
     steps:
       - name: Checkout release
         uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Check proxy
+        working-directory: proxy
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          npm audit --omit=dev --audit-level=high
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -49,8 +67,55 @@ jobs:
       - name: Run tests
         run: flutter test
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SYNCINARY_48881 }}
+          project_id: ${{ env.GOOGLE_CLOUD_PROJECT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      # One-time IAM, billing, and Secret Manager setup: proxy/README.md.
+      - name: Deploy proxy to Cloud Run
+        id: proxy
+        working-directory: proxy
+        run: |
+          gcloud run deploy "$CLOUD_RUN_SERVICE" \
+            --project="$GOOGLE_CLOUD_PROJECT" \
+            --region="$CLOUD_RUN_REGION" \
+            --source=. \
+            --build-service-account="projects/$GOOGLE_CLOUD_PROJECT/serviceAccounts/syncinary-proxy-build@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+            --service-account="syncinary-proxy-runtime@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
+            --set-secrets=SERPAPI_KEY=SERPAPI_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest \
+            --port=8080 \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=3 \
+            --quiet
+          proxy_url=$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --project="$GOOGLE_CLOUD_PROJECT" \
+            --region="$CLOUD_RUN_REGION" \
+            --format='value(status.url)')
+          if [[ "$proxy_url" != https://* ]]; then
+            echo '::error::Cloud Run did not return an HTTPS service URL.'
+            exit 1
+          fi
+          # Invalid hotel input returns 400 without calling the billed SerpApi API.
+          status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$proxy_url/hotels")
+          if [ "$status" != 400 ]; then
+            echo "::error::Proxy smoke check expected HTTP 400, received $status."
+            exit 1
+          fi
+          # Known IATA codes exercise the airport router and catalog without a Google API call.
+          curl --fail --silent --show-error "$proxy_url/airports?q=IND" \
+            | jq -e '.airports | any(.code == "IND")' > /dev/null
+          printf 'url=%s\n' "$proxy_url" >> "$GITHUB_OUTPUT"
+
       - name: Build web app
-        run: flutter build web --release
+        env:
+          PROXY_URL: ${{ steps.proxy.outputs.url }}
+        run: flutter build web --release --dart-define="PROXY_URL=$PROXY_URL"
 
       - name: Deploy to production
         uses: FirebaseExtended/action-hosting-deploy@v0

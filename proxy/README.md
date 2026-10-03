@@ -2,6 +2,109 @@
 
 Small Express backend. `server.js` proxies flight search to SerpApi.
 
+## Production releases (Cloud Run)
+
+The release workflow deploys `syncinary-proxy` to Cloud Run in
+`syncinary-48881`, region `us-central1`, then builds Flutter with the service's
+HTTPS URL (`--dart-define=PROXY_URL=...`) and deploys Firebase Hosting.
+Only published, non-prerelease GitHub releases deploy. The release tag must
+include the workflow and these deployment files. Local Flutter builds still
+default to `http://localhost:3000`.
+
+### One-time setup
+
+Enable billing for the Firebase/Google Cloud project (Firebase Blaze plan).
+Run the following in **Google Cloud Shell (Bash)** as a project administrator.
+The deployer is the service account whose JSON is already saved in the GitHub
+secret `FIREBASE_SERVICE_ACCOUNT_SYNCINARY_48881`. Confirm its email in IAM
+and replace the example `DEPLOYER` value if necessary.
+
+```bash
+PROJECT=syncinary-48881
+DEPLOYER=github-action-1200702692@syncinary-48881.iam.gserviceaccount.com
+RUNTIME=syncinary-proxy-runtime@$PROJECT.iam.gserviceaccount.com
+BUILDER=syncinary-proxy-build@$PROJECT.iam.gserviceaccount.com
+
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com secretmanager.googleapis.com \
+  --project="$PROJECT"
+
+gcloud iam service-accounts create syncinary-proxy-runtime --project="$PROJECT"
+gcloud iam service-accounts create syncinary-proxy-build --project="$PROJECT"
+
+for ROLE in roles/run.sourceDeveloper roles/serviceusage.serviceUsageConsumer roles/run.admin; do
+  gcloud projects add-iam-policy-binding "$PROJECT" \
+    --member="serviceAccount:$DEPLOYER" --role="$ROLE"
+done
+
+for ACCOUNT in "$RUNTIME" "$BUILDER"; do
+  gcloud iam service-accounts add-iam-policy-binding "$ACCOUNT" \
+    --project="$PROJECT" --member="serviceAccount:$DEPLOYER" \
+    --role=roles/iam.serviceAccountUser
+done
+
+gcloud projects add-iam-policy-binding "$PROJECT" \
+  --member="serviceAccount:$BUILDER" --role=roles/run.builder
+```
+
+In **Google Cloud Console → Secret Manager**, create a secret named
+`SERPAPI_KEY` in this project and paste the current SerpApi key as its value.
+Then grant only the runtime account access to that secret:
+
+```bash
+gcloud secrets add-iam-policy-binding SERPAPI_KEY --project="$PROJECT" \
+  --member="serviceAccount:$RUNTIME" --role=roles/secretmanager.secretAccessor
+```
+
+Airport name/city search also requires **Places API (New)** enabled in the
+Google Cloud project that owns the Maps key. Create a Secret Manager secret
+named `GOOGLE_MAPS_API_KEY` in `syncinary-48881` containing that key, then run:
+
+```bash
+gcloud services enable places.googleapis.com --project="$PROJECT"
+gcloud secrets add-iam-policy-binding GOOGLE_MAPS_API_KEY --project="$PROJECT" \
+  --member="serviceAccount:$RUNTIME" --role=roles/secretmanager.secretAccessor
+```
+
+Use a server-side key restricted to Places API (New); browser HTTP-referrer
+restrictions do not work for these server requests. For local development,
+set `GOOGLE_MAPS_API_KEY` in `proxy/.env` and start the proxy with
+`node --env-file=.env server.js`. Cloud Run reads Secret Manager, not `.env`.
+See Google's [Places setup guide](https://developers.google.com/maps/documentation/places/web-service/get-api-key).
+
+The workflow injects the latest secret version into the running container.
+After rotating it, deploy a new release to replace running instances.
+Keep the existing `FIREBASE_OPTIONS_DART` GitHub secret configured for Flutter.
+No SerpApi key belongs in GitHub source, the Docker image, or the Flutter build.
+The upload and Docker contexts allow only the files needed by `server.js`;
+extend both allowlists and the Dockerfile if new runtime modules are added.
+
+These permissions follow Google's [source deployment](https://docs.cloud.google.com/run/docs/deploying-source-code),
+[build service account](https://docs.cloud.google.com/run/docs/configuring/services/build-service-account),
+and [runtime secret](https://docs.cloud.google.com/run/docs/configuring/services/secrets)
+documentation. `roles/run.admin` additionally allows the deployer to make the
+service publicly invokable for browser requests.
+
+### Verification and behavior
+
+The workflow runs proxy lint, tests, and a dependency audit plus Flutter
+analysis and tests before deployment. After deploying Cloud Run it requests
+`/hotels` without parameters and expects HTTP 400; this checks reachability
+without making a billed SerpApi call. It then builds and publishes the web app.
+It also checks `/airports?q=IND` to verify the packaged airport router and
+catalog without calling Google. This does not verify the Maps key: check a
+city such as Indianapolis in the deployed app to exercise Google Places.
+Check flights and hotels in the deployed app after publishing a release.
+
+Cloud Run and Hosting updates are sequential, not atomic: if the web build or
+Hosting deployment fails, the new proxy revision remains live. Keep proxy
+routes compatible with the previous frontend release.
+
+The current proxy has public, unauthenticated search routes. Anyone who knows
+the URL can consume the SerpApi quota; the three-instance limit is not a
+request quota. Authentication and rate limiting are separate backend work.
+The `/recommendations` route is not implemented yet; deploying does not add it.
+
 ## `llmDataFilter.js`
 
 Filters and assembles the payload sent to the LLM recommendation agent
