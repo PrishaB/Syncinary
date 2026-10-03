@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
+import 'login_page.dart';
 import 'verify_email_page.dart';
 
 /// ─────────────────────────────────────────────────────────
@@ -323,8 +324,24 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
               GradientButton(
                 onPressed: _isLoading ? null : _signUp,
                 label: 'Sign Up',
-                icon: Icons.login_rounded,
                 isLoading: _isLoading,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _isLoading
+                    ? null
+                    : () => Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => LoginPage(auth: widget.auth),
+                          ),
+                        ),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentEnd,
+                ),
+                child: const Text(
+                  'Already have an account? Sign In',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),

@@ -415,7 +415,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               GradientButton(
                 onPressed: _isLoading ? null : _signIn,
                 label: 'Sign In',
-                icon: Icons.login_rounded,
                 isLoading: _isLoading,
               ),
 
