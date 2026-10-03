@@ -117,7 +117,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       await _auth.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => LoginPage(auth: widget.auth)),
+        MaterialPageRoute(builder: (_) => LoginPage(auth: widget.auth, groupService: widget.groupService)),
         (_) => false,
       );
     } catch (_) {

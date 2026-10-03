@@ -90,7 +90,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => user?.emailVerified == true
             ? MyGroupsPage(service: widget.groupService)
-            : VerifyEmailPage(auth: widget.auth)),
+            : VerifyEmailPage(auth: widget.auth, groupService: widget.groupService)),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
