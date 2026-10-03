@@ -1,7 +1,10 @@
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:syncinary/pages/itinerary_builder.dart';
+import 'package:syncinary/pages/groups/my_groups_page.dart';
 import 'package:syncinary/pages/onboarding_page.dart';
+import 'package:syncinary/services/group_service.dart';
 import 'package:syncinary/theme/app_theme.dart';
 
 Future<void> pumpOnboarding(WidgetTester tester) async {
@@ -42,7 +45,7 @@ void main() {
     for (var slide = 1; slide <= 3; slide++) {
       expect(find.text('Onboarding $slide'), findsOneWidget);
       expect(find.bySemanticsLabel('Slide $slide of 3'), findsOneWidget);
-      expect(find.byType(itinerary_builder), findsNothing);
+      expect(find.byType(MyGroupsPage), findsNothing);
       if (slide < 3) await tapArrow(tester, 'Next slide');
     }
 
@@ -74,36 +77,43 @@ void main() {
     );
   });
 
-  testWidgets('Final arrow opens the main screen and clears previous routes', (
-    tester,
-  ) async {
-    final navigatorKey = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(
-      MaterialApp(
-        navigatorKey: navigatorKey,
-        theme: buildAppTheme(),
-        home: const Scaffold(body: Text('Earlier screen')),
-      ),
-    );
-    navigatorKey.currentState!.push(
-      MaterialPageRoute<void>(builder: (_) => const OnboardingPage()),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    '[302-2] Final arrow opens My Groups and clears previous routes',
+    (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      final groupService = GroupService(
+        firestore: FakeFirebaseFirestore(),
+        auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser()),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: buildAppTheme(),
+          home: const Scaffold(body: Text('Earlier screen')),
+        ),
+      );
+      navigatorKey.currentState!.push(
+        MaterialPageRoute<void>(
+          builder: (_) => OnboardingPage(groupService: groupService),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // System back must not bypass onboarding.
-    await navigatorKey.currentState!.maybePop();
-    await tester.pumpAndSettle();
-    expect(find.byType(OnboardingPage), findsOneWidget);
+      // System back must not bypass onboarding.
+      await navigatorKey.currentState!.maybePop();
+      await tester.pumpAndSettle();
+      expect(find.byType(OnboardingPage), findsOneWidget);
 
-    await tapArrow(tester, 'Next slide');
-    await tapArrow(tester, 'Next slide');
-    await tapArrow(tester, 'Go to main screen');
+      await tapArrow(tester, 'Next slide');
+      await tapArrow(tester, 'Next slide');
+      await tapArrow(tester, 'Go to main screen');
 
-    expect(find.byType(itinerary_builder), findsOneWidget);
-    expect(find.byType(OnboardingPage, skipOffstage: false), findsNothing);
-    expect(find.text('Earlier screen', skipOffstage: false), findsNothing);
-    expect(navigatorKey.currentState!.canPop(), isFalse);
-  });
+      expect(find.byType(MyGroupsPage), findsOneWidget);
+      expect(find.byType(OnboardingPage, skipOffstage: false), findsNothing);
+      expect(find.text('Earlier screen', skipOffstage: false), findsNothing);
+      expect(navigatorKey.currentState!.canPop(), isFalse);
+    },
+  );
 
   testWidgets('Navigation remains reachable on a small screen', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 480));

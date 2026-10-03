@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../services/group_service.dart';
 import '../theme/app_theme.dart';
-import 'itinerary_builder.dart';
+import 'groups/my_groups_page.dart';
 
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({super.key});
+  const OnboardingPage({super.key, this.groupService});
+
+  /// Passed to the groups landing page when onboarding finishes.
+  final GroupService? groupService;
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -21,7 +25,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const itinerary_builder()),
+      MaterialPageRoute(
+        builder: (_) => MyGroupsPage(service: widget.groupService),
+      ),
       (_) => false,
     );
   }

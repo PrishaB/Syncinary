@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../services/group_service.dart';
 import '../theme/app_theme.dart';
 import 'onboarding_page.dart';
-import 'groups/my_groups_page.dart';
 import 'login_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
@@ -19,7 +18,7 @@ class VerifyEmailPage extends StatefulWidget {
   final FirebaseAuth? auth;
   final bool sendOnOpen;
 
-  /// Passed through to [MyGroupsPage] once verification succeeds, so tests
+  /// Passed through [OnboardingPage] to the groups landing page, so tests
   /// can supply a fake instead of the real Firestore/Auth singletons.
   final GroupService? groupService;
 
@@ -92,7 +91,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         await user.getIdToken(true);
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const OnboardingPage()),
+          MaterialPageRoute(
+            builder: (_) => OnboardingPage(groupService: widget.groupService),
+          ),
           (_) => false,
         );
       } else if (mounted) {

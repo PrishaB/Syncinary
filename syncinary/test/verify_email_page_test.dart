@@ -1,9 +1,12 @@
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncinary/pages/login_page.dart';
 import 'package:syncinary/pages/onboarding_page.dart';
 import 'package:syncinary/pages/verify_email_page.dart';
+import 'package:syncinary/pages/groups/my_groups_page.dart';
+import 'package:syncinary/services/group_service.dart';
 
 void main() {
   testWidgets('Sends verification on signup and prevents immediate resend', (
@@ -44,12 +47,22 @@ void main() {
     expect(find.byType(OnboardingPage), findsNothing);
   });
 
-  testWidgets('Verified account continues to onboarding', (tester) async {
+  testWidgets('[302-2] Verified account completes onboarding into My Groups', (
+    tester,
+  ) async {
     final auth = MockFirebaseAuth(
       signedIn: true,
       mockUser: MockUser(email: 'new@example.com', isEmailVerified: true),
     );
-    await tester.pumpWidget(MaterialApp(home: VerifyEmailPage(auth: auth)));
+    final groupService = GroupService(
+      firestore: FakeFirebaseFirestore(),
+      auth: auth,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: VerifyEmailPage(auth: auth, groupService: groupService),
+      ),
+    );
     await tester.tap(find.text('Check verification'));
     await tester.pumpAndSettle();
 
@@ -58,6 +71,17 @@ void main() {
     expect(find.byType(VerifyEmailPage, skipOffstage: false), findsNothing);
     expect(
       Navigator.of(tester.element(find.byType(OnboardingPage))).canPop(),
+      isFalse,
+    );
+    for (final tooltip in ['Next slide', 'Next slide', 'Go to main screen']) {
+      await tester.ensureVisible(find.byTooltip(tooltip));
+      await tester.tap(find.byTooltip(tooltip));
+      await tester.pumpAndSettle();
+    }
+    expect(find.byType(MyGroupsPage), findsOneWidget);
+    expect(find.byType(OnboardingPage, skipOffstage: false), findsNothing);
+    expect(
+      Navigator.of(tester.element(find.byType(MyGroupsPage))).canPop(),
       isFalse,
     );
   });
