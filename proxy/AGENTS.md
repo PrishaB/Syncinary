@@ -25,19 +25,29 @@ package.
 
 `node_modules/` is **committed** (~650 files) on purpose so `node server.js`
 works without an `npm install` step. That's about the runtime
-`dependencies` only — CI (`.github/workflows/ci.yml`) now runs `npm install`
-fresh in this directory for every push/PR, which is also how the `eslint` /
+`dependencies` only — CI (`.github/workflows/ci.yml`) runs `npm ci` fresh in
+this directory for every push/PR, which is also how the `eslint` /
 `@eslint/js` / `globals` devDependencies are resolved (not committed).
 Adding a runtime dependency still means committing `node_modules` too, so add
-one only if you genuinely need it.
+one only if you genuinely need it. Dependabot npm PRs update only
+`package*.json`: before merging one, run `npm ci --omit=dev` and commit the
+refreshed `node_modules`. A later plain `npm install` rewrites the committed
+`node_modules/.package-lock.json` to list dev dependencies; don't commit that.
 
 ## Lint & test
 
-CI runs `npm run lint` (ESLint 9, flat config in `eslint.config.cjs`) and
-`npm test` (`node --test`) on every push/PR. There is no test suite yet — `npm
-test` currently passes trivially (0 tests found). If you add logic worth
-testing, drop files named `*.test.js` beside the module; `node --test` picks
-them up automatically.
+CI runs `npm run lint` (ESLint 9, flat config in `eslint.config.cjs`),
+`npm test` (`node --test`, e.g. `llmDataFilter.test.js`) and `npm audit
+--omit=dev --audit-level=high` on every push/PR. The `osv` job also fails on
+any known vulnerability in `package-lock.json`, dev dependencies included, and
+`codeql` scans the JavaScript here. Add tests as `*.test.js`
+beside the module; `node --test` picks them up automatically.
+
+`recommendationVariance.test.js` (FR-104 / #47) has a live sub-test that calls
+the real Gemini API — it's skipped unless **both** `GEMINI_API_KEY` and
+`RUN_GEMINI_LIVE_TESTS=1` are set, so `npm test` never makes a billed network
+call by accident, and CI (which has neither) always skips it. See
+`README.md` for the command to run it deliberately.
 
 ## Conventions
 
@@ -53,6 +63,8 @@ them up automatically.
   hardcode a key in source again. The key that used to be hardcoded here is
   still live in this repo's git history (removing it from `server.js` doesn't
   erase old commits) — **rotate it in the SerpApi dashboard** and use the new
-  value locally / in deployment secrets.
+  value locally / in deployment secrets (#20). CI's gitleaks job detects
+  SerpApi keys with a custom `serpapi-key` rule and allowlists only that old
+  commit's finding in `.gitleaksignore`.
 - Never forward the SerpApi key to the client, and don't log full upstream
   responses that may carry it.

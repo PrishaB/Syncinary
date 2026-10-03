@@ -19,7 +19,7 @@ flutterfire configure --project=syncinary-48881
 ```
 
 `flutter test` does **not** need this file — the test suite doesn't import
-`main.dart`.
+`main.dart`. CI analyzes against a placeholder stub written by the workflow.
 
 ## Build / run
 
@@ -32,10 +32,10 @@ are generated. Don't hand-edit them without a specific reason.
 ## Test
 
 ```bash
-flutter test
+flutter test --coverage   # CI form; writes coverage/lcov.info
 ```
 
-Baseline on `main`: **9 passing, 0 failing.** Tests live in `test/`, one file
+Baseline on `main`: **49 passing, 0 failing.** Tests live in `test/`, one file
 per feature (`login_page_test.dart`, `groups_flow_test.dart`). Firestore/Auth
 code is tested with `fake_cloud_firestore` + `firebase_auth_mocks` — no
 emulator, no network. Add tests next to their peers and keep them offline.
@@ -47,15 +47,10 @@ flutter analyze
 ```
 
 Config: `analysis_options.yaml` pulls in `package:flutter_lints/flutter.yaml`
-with no custom rules; platform dirs and `build/` are excluded. Pre-existing
-baseline — do **not** fix these as a drive-by:
-
-- 2 errors from the missing `lib/firebase_options.dart` (see Setup)
-- info-level `camel_case_types` on `flight_search`, `itinerary_builder`,
-  `_itineraryState`, and one `unnecessary_underscores` in `theme/app_theme.dart`
-
-**New code must not add issues.** CI does not run analyze, so run it yourself
-before pushing.
+with no custom rules; platform dirs and `build/` are excluded. CI fails on
+any issue, so the baseline is **0 issues** (with `firebase_options.dart` in
+place) and new code must keep it there. The snake_case `flight_search` /
+`itinerary_builder` types are the one exception, ignored per file.
 
 ## Layout
 

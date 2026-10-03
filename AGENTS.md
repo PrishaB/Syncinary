@@ -45,14 +45,34 @@ Full policy is in `Doc/DevProcesses.md`. Essentials:
 
 ## CI
 
-`.github/workflows/ci.yml` runs two jobs on every push (any branch) and every
-PR targeting `main` or `dev`:
+`.github/workflows/ci.yml` runs on every push (any branch), every PR (any
+base) and manual `workflow_dispatch`. Jobs:
 
-- **`flutter`** — `flutter pub get` + `flutter test` in `syncinary/` on
-  Flutter 3.47.2 (stable). It does **not** run `flutter analyze`: `lib/main.dart`
-  imports the gitignored `lib/firebase_options.dart` (contains API keys, never
-  committed), so `flutter analyze` fails outside a machine that has run
-  `flutterfire configure`. Run `flutter analyze` yourself before pushing.
-- **`proxy`** — `npm install`, `npm run lint` (ESLint, flat config in
-  `proxy/eslint.config.cjs`), then `npm test` (`node --test`; currently a
-  no-op since `proxy/` has no `*.test.js` files yet — see `proxy/AGENTS.md`).
+- **`flutter`** — in `syncinary/` on Flutter 3.47.2: writes a placeholder
+  `lib/firebase_options.dart` (the real one is gitignored), then `flutter pub
+  get`, `flutter analyze` (any issue, info included, fails), and `flutter test
+  --coverage`. `coverage/lcov.info` is uploaded as the `flutter-coverage`
+  artifact (no threshold).
+- **`proxy`** — `npm ci`, `npm run lint`, `npm test`, and `npm audit --omit=dev
+  --audit-level=high` (see `proxy/AGENTS.md`).
+- **`security`** (`Security - gitleaks`) — gitleaks CLI over the commits new in
+  the push or PR. A manual dispatch scans the full history. `.gitleaks.toml`
+  adds a `serpapi-key` rule to the defaults and allowlists the exact fake key
+  in `proxy/geminiClient.test.js`. Known finding: the old SerpApi key (#20),
+  allowlisted by fingerprint in `.gitleaksignore`.
+  On a finding, remove the secret and **rotate it**; don't allowlist it.
+- **`osv`** (`Security - OSV-Scanner`) — checks `syncinary/pubspec.lock` and
+  `proxy/package-lock.json` (dev dependencies included) against OSV.dev and
+  fails on any known vulnerability. Fix by upgrading the package.
+- **`codeql`** (`Security - CodeQL`) — CodeQL default security queries for the
+  proxy's JavaScript and for the workflow files (`actions`); Dart isn't
+  supported. Fails on any finding; results also appear in the Security tab.
+
+`security` is never cancelled by newer pushes; the other jobs are, except on
+`main`.
+
+Dependabot (`.github/dependabot.yml`) opens weekly grouped updates for npm,
+pub and GitHub Actions.
+
+Name new tests with their `Doc/Verification_Test_Inventory.md` ID as a prefix,
+e.g. `'[501-6] joinByCode trims the code'`.

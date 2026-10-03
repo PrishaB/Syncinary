@@ -117,6 +117,36 @@ app.get('/flights/booking', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// GET /hotels?location=&checkInDate=&checkOutDate=&adults=
+app.get('/hotels', async (req, res) => {
+  const { location, checkInDate, checkOutDate, adults } = req.query;
+
+  if (!location || !checkInDate || !checkOutDate) {
+    return res.status(400).json({
+      error: 'location, checkInDate, and checkOutDate are required',
+    });
+  }
+
+  const url = new URL('https://serpapi.com/search');
+  url.searchParams.set('engine', 'google_hotels');
+  url.searchParams.set('q', location);
+  url.searchParams.set('check_in_date', checkInDate);
+  url.searchParams.set('check_out_date', checkOutDate);
+  url.searchParams.set('adults', adults ?? '1');
+  url.searchParams.set('currency', 'USD');
+  url.searchParams.set('api_key', SERPAPI_KEY);
+
+  try {
+    const response = await fetch(url.toString());
+    const data = await response.json();
+
+    res.json(data['properties'] ?? []);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
  
 app.listen(3000, () => console.log('Proxy running on http://localhost:3000'));
  
