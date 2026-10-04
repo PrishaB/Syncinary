@@ -118,8 +118,8 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     }
   }
 
-  void _planItinerary() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => PlanItineraryPage(group: widget.group)));
+  void _planItinerary(Group group) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ScheduleBuilderPage(group: group)));
   }
 
   void _trackCosts(Group group) {
@@ -226,7 +226,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                     ),
                     const SizedBox(height: 12),
                     GradientButton(
-                      onPressed: _planItinerary,
+                      onPressed: () => _planItinerary(group),
                       label: 'Plan Itinerary',
                       icon: Icons.map_outlined,
                     ),
