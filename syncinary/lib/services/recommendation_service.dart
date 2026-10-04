@@ -91,7 +91,10 @@ class SearchContext {
 class RecommendationService {
   RecommendationService({
     http.Client? client,
-    this.baseUrl = 'http://localhost:3000',
+    this.baseUrl = const String.fromEnvironment(
+      'PROXY_URL',
+      defaultValue: 'http://localhost:3000',
+    ),
     Future<String?> Function()? idTokenProvider,
     this.timeout = const Duration(seconds: 30),
   })  : _client = client ?? http.Client(),

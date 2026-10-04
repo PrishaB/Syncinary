@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
  
 class AmadeusService {
-  static const _proxyUrl = 'http://localhost:3000';
+  static const _proxyUrl = String.fromEnvironment(
+    'PROXY_URL',
+    defaultValue: 'http://localhost:3000',
+  );
  
   /// Searches outbound flights. Pass [returnDate] for a round trip —
   /// each returned offer will include a `departure_token` you pass to
