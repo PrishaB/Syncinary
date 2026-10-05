@@ -8,6 +8,7 @@ import 'login_page.dart';
 import 'groups/my_groups_page.dart';
 import 'amadeus_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/settings_panel.dart';
 import '../services/airport_service.dart';
 import '../widgets/airport_search_field.dart';
  
@@ -317,6 +318,7 @@ class _itineraryState extends State<itinerary_builder> {
               }
             },
           ),
+          const SettingsButton(),
           const SizedBox(width: 8),
         ],
       ),
