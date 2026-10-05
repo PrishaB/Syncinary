@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
+import 'login_page.dart';
 import 'verify_email_page.dart';
 
 /// ─────────────────────────────────────────────────────────
@@ -9,11 +10,14 @@ import 'verify_email_page.dart';
 /// Uses the "Midnight Voyage" design system.
 /// ─────────────────────────────────────────────────────────
 class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key, this.auth});
+  const SignUpPage({super.key, this.auth, this.firestore});
 
   /// Optional [FirebaseAuth] instance for dependency injection (testing).
   /// Falls back to [FirebaseAuth.instance] when null.
   final FirebaseAuth? auth;
+
+  /// Optional database for offline tests; defaults to the Firebase instance.
+  final FirebaseFirestore? firestore;
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
@@ -73,14 +77,14 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
 
     try {
       final name = _nameController.text.trim();
-      final email = _emailController.text.trim();
+      final email = _emailController.text.trim().toLowerCase();
 
       final credential = await (widget.auth ?? FirebaseAuth.instance)
           .createUserWithEmailAndPassword(email: email, password: _passwordController.text);
       final user = credential.user;
       if (user != null) {
         await user.updateDisplayName(name);
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        await (widget.firestore ?? FirebaseFirestore.instance).collection('users').doc(user.uid).set({
           'username': name,
           'email': email.toLowerCase(),
           'createdAt': FieldValue.serverTimestamp(),
@@ -320,8 +324,24 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
               GradientButton(
                 onPressed: _isLoading ? null : _signUp,
                 label: 'Sign Up',
-                icon: Icons.login_rounded,
                 isLoading: _isLoading,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _isLoading
+                    ? null
+                    : () => Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => LoginPage(auth: widget.auth),
+                          ),
+                        ),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentEnd,
+                ),
+                child: const Text(
+                  'Already have an account? Sign In',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),
