@@ -10,6 +10,7 @@ import 'package:syncinary/pages/groups/join_group_page.dart';
 import 'package:syncinary/pages/groups/my_groups_page.dart';
 import 'package:syncinary/pages/itinerary_builder.dart';
 import 'package:syncinary/pages/login_page.dart';
+import 'package:syncinary/pages/onboarding_page.dart';
 import 'package:syncinary/pages/schedule_builder_page.dart';
 import 'package:syncinary/pages/verify_email_page.dart';
 import 'package:syncinary/services/group_service.dart';
@@ -87,6 +88,7 @@ void _expectBlocked(_TrackedGroups service) {
   expect(find.byType(VerifyEmailPage), findsOneWidget);
   expect(find.text('Verify your email'), findsOneWidget);
   for (final page in [
+    OnboardingPage,
     MyGroupsPage,
     JoinGroupPage,
     GroupDetailPage,
@@ -211,6 +213,20 @@ void main() {
         expect(user.reloads, 3);
         expect(auth.currentUser!.emailVerified, isTrue);
         expect(find.byType(VerifyEmailPage, skipOffstage: false), findsNothing);
+        expect(find.byType(OnboardingPage), findsOneWidget);
+        expect(service.groupReads, 0);
+        expect(service.inviteReads, 0);
+
+        // Verified users finish onboarding before reaching their groups.
+        for (final tooltip in [
+          'Next slide',
+          'Next slide',
+          'Go to main screen',
+        ]) {
+          await tester.tap(find.byTooltip(tooltip));
+          await tester.pumpAndSettle();
+        }
+        expect(find.byType(OnboardingPage, skipOffstage: false), findsNothing);
         expect(find.byType(MyGroupsPage), findsOneWidget);
         expect(service.groupReads, greaterThan(0));
         await _tap(tester, 'Private trip');
