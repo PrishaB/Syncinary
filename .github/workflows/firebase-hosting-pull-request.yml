@@ -1,0 +1,61 @@
+name: Deploy release to Firebase Hosting
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-hosting-production
+  cancel-in-progress: false
+
+jobs:
+  build_and_deploy:
+    # Only full releases deploy to production; skip prereleases.
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: syncinary
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      # Add the full local file as a repository secret before publishing.
+      - name: Restore Firebase configuration
+        env:
+          FIREBASE_OPTIONS_DART: ${{ secrets.FIREBASE_OPTIONS_DART }}
+        run: |
+          if [ -z "$FIREBASE_OPTIONS_DART" ]; then
+            echo '::error::Set FIREBASE_OPTIONS_DART to the contents of syncinary/lib/firebase_options.dart.'
+            exit 1
+          fi
+          printf '%s\n' "$FIREBASE_OPTIONS_DART" > lib/firebase_options.dart
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build web app
+        run: flutter build web --release
+
+      - name: Deploy to production
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SYNCINARY_48881 }}
+          projectId: syncinary-48881
+          entryPoint: syncinary
+          channelId: live

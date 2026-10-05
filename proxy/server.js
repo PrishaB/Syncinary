@@ -4,6 +4,7 @@ const fetch = require('node-fetch');
  
 const app = express();
 app.use(cors());
+app.use('/airports', require('./airports').createAirportRouter());
  
 const SERPAPI_KEY = process.env.SERPAPI_KEY;
 if (!SERPAPI_KEY) {
@@ -149,4 +150,3 @@ app.get('/hotels', async (req, res) => {
 
  
 app.listen(3000, () => console.log('Proxy running on http://localhost:3000'));
- 

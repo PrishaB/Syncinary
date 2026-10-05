@@ -8,6 +8,8 @@ import 'login_page.dart';
 import 'groups/my_groups_page.dart';
 import 'amadeus_service.dart';
 import '../theme/app_theme.dart';
+import '../services/airport_service.dart';
+import '../widgets/airport_search_field.dart';
  
 enum SearchType { flights, hotels }
  
@@ -21,6 +23,15 @@ class itinerary_builder extends StatefulWidget {
 class _itineraryState extends State<itinerary_builder> {
   final TextEditingController _startController = TextEditingController();
   final TextEditingController _endController = TextEditingController();
+  Airport? _originAirport;
+  Airport? _destinationAirport;
+
+  @override
+  void dispose() {
+    _startController.dispose();
+    _endController.dispose();
+    super.dispose();
+  }
  
   int currentDisplay = 0;
   DateTime? _departureDate;
@@ -54,14 +65,11 @@ class _itineraryState extends State<itinerary_builder> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            AirportSearchField(
+              key: const ValueKey('origin-airport'),
               controller: _startController,
-              style: AppTextStyles.body,
-              decoration: AppDecorations.inputDecoration(
-                label: 'Origin (e.g. JFK)',
-                prefixIcon: Icons.location_on_outlined,
-                suffixIcon: Icons.search,
-              ),
+              label: 'Departure airport',
+              onSelected: (airport) => setState(() => _originAirport = airport),
             ),
             const SizedBox(height: 28),
             GradientButton(
@@ -81,14 +89,11 @@ class _itineraryState extends State<itinerary_builder> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            AirportSearchField(
+              key: const ValueKey('destination-airport'),
               controller: _endController,
-              style: AppTextStyles.body,
-              decoration: AppDecorations.inputDecoration(
-                label: 'Destination (e.g. LAX)',
-                prefixIcon: Icons.pin_drop_outlined,
-                suffixIcon: Icons.search,
-              ),
+              label: 'Arrival airport',
+              onSelected: (airport) => setState(() => _destinationAirport = airport),
             ),
             const SizedBox(height: 28),
             GradientButton(
@@ -445,10 +450,22 @@ class _itineraryState extends State<itinerary_builder> {
       return;
     }
  
+    if (_originAirport == null || _destinationAirport == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Select a departure and arrival airport from the suggestions.'),
+      ));
+      return;
+    }
+    if (_originAirport!.code == _destinationAirport!.code) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Choose different departure and arrival airports.'),
+      ));
+      return;
+    }
     setState(() => _loading = true);
  
-    final origin = _startController.text.trim();
-    final destination = _endController.text.trim();
+    final origin = _originAirport!.code;
+    final destination = _destinationAirport!.code;
     final departureDateStr = _formatDate(_departureDate!);
     final returnDateStr =
         _returnDate != null ? _formatDate(_returnDate!) : null;
