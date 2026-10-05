@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import 'groups/my_groups_page.dart';
 import 'signup_page.dart';
 import 'verify_email_page.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 /// ─────────────────────────────────────────────────────────
 /// LoginPage — Email / Password authentication via Firebase
@@ -33,6 +34,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  String _appVersion = '';
 
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
@@ -41,6 +43,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
+
+    
+    _loadAppVersion();
+
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -57,6 +63,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       curve: Curves.easeOutCubic,
     ));
     _fadeController.forward();
+  }
+
+  // VERSION TRACKING
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+
+    if (!mounted) return;
+
+    setState(() {
+      _appVersion = packageInfo.version;
+    });
   }
 
   @override
@@ -90,7 +107,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => user?.emailVerified == true
             ? MyGroupsPage(service: widget.groupService)
-            : VerifyEmailPage(auth: widget.auth)),
+            : VerifyEmailPage(
+                auth: widget.auth,
+                groupService: widget.groupService,
+              )),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -240,6 +260,18 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
                       // ── Login card ─────────────────────
                       _buildLoginCard(size),
+
+                      // VERSION TRACKING
+                      const SizedBox(height: 16),
+
+                      if (_appVersion.isNotEmpty)
+                        Text(
+                          'Version $_appVersion',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                          ),
+                        ),
                     ],
                   ),
                 ),
