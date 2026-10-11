@@ -267,4 +267,37 @@ void main() {
       );
     });
   });
+
+  for (final error in {
+    'user-not-found': 'No account found with this email.',
+    'invalid-email': 'Please enter a valid email address.',
+    'too-many-requests': 'Too many attempts. Please try again later.',
+    'network-request-failed': 'Failed to send reset email. Please try again.',
+  }.entries) {
+    testWidgets('[301-7] Reset request displays ${error.key} and allows retry',
+        (tester) async {
+      final auth = MockFirebaseAuth();
+      whenCalling(Invocation.method(#sendPasswordResetEmail, null))
+          .on(auth)
+          .thenThrow(FirebaseAuthException(code: error.key));
+      await tester.pumpWidget(makeTestableWidget(LoginPage(auth: auth)));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextFormField).first, 'missing@example.com',
+      );
+      await tester.tap(find.text('Forgot Password?'));
+      await tester.pumpAndSettle();
+      expect(find.text(error.value), findsOneWidget);
+      expect(
+        find.text('Password reset link sent! Check your email.'), findsNothing,
+      );
+      expect(
+        tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Forgot Password?'),
+        ).onPressed,
+        isNotNull,
+      );
+      expect(auth.currentUser, isNull);
+    });
+  }
 }
