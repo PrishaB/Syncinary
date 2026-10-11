@@ -15,8 +15,8 @@ Filters and assembles the payload sent to the LLM recommendation agent
 
 It's a pure function: no Firebase, no network. `requestingUserId` is assumed
 to already be verified (e.g. from a checked session token) by the caller — this
-module checks group *membership*, not identity (see #86). Wiring it to real
-Firebase reads and an authenticated route is a follow-up issue.
+module checks group *membership*, not identity (see #86). `POST /recommendations`
+(below) supplies the verified id.
 
 Every allowlisted field also has a declared type (string, number, or array of
 strings) — a value of the wrong shape (a nested object, a number where a
@@ -102,6 +102,37 @@ as `{ok: false, error: 'schema_mismatch' | 'invalid_json'}` rather than being
 passed through — this is what actually closes the gap `geminiClient.js`'s
 `generationConfig.responseMimeType` only makes less likely, since a model
 reply is never trusted just because Gemini returned `ok: true`.
+
+## `POST /recommendations`
+
+Runs the whole FR-104 pipeline for the Flutter app (#107, #86). Mounted in
+`server.js`; logic in `recommendationRoute.js` (handler), `recommendationData.js`
+(Firestore loader) and `firebaseAdmin.js` (lazy firebase-admin init).
+
+- Header `Authorization: Bearer <Firebase ID token>`. The uid comes only from
+  the verified token, never the body. Credentials are read via ADC
+  (`GOOGLE_APPLICATION_CREDENTIALS`, see `.env.example`).
+- Body `{groupId, search: {destination, startDate, query}, travelResults: [...]}`
+  (32 kb max). Group and member docs are read server-side.
+- Reply `{ok: true, data}` or `{ok: false, error, message}`; `message` is
+  always a fixed string, never upstream text.
+
+| error | HTTP |
+|---|---|
+| `invalid_input` | 400 |
+| `unauthenticated` | 401 |
+| `not_a_member` | 403 |
+| `unknown_group` | 404 |
+| `payload_too_large` | 413 |
+| `empty_payload` | 422 |
+| `rate_limited` (+`Retry-After`) | 429 |
+| `invalid_json`, `schema_mismatch`, `invalid_response`, `upstream_error`, `network_error` | 502 |
+| `missing_api_key`; Firestore/admin unavailable (`upstream_error`) | 503 |
+| `timeout` | 504 |
+| unexpected server error (`upstream_error`) | 500 |
+
+No per-user rate limit yet, and the server binds all interfaces: keep it
+localhost-only until it is deployed behind #132.
 
 ### Local setup
 
