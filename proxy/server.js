@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const { createGeminiClient } = require('./geminiClient');
+const { createRecommendationDataLoader } = require('./recommendationData');
+const { createRecommendationsHandler, bodyErrorHandler } = require('./recommendationRoute');
  
 const app = express();
 app.use(cors());
@@ -177,6 +180,32 @@ app.get('/hotels', async (req, res) => {
   }
 });
 
+// Real dependencies are built per call, so firebase-admin and the Gemini key
+// are only touched by /recommendations. Tests swap them via setRecommendationDeps.
+const defaultRecommendationDeps = {
+  verifyIdToken: (header) => require('./firebaseAdmin').verifyIdTokenFromHeader(header),
+  loadRawData: (args) =>
+    createRecommendationDataLoader(require('./firebaseAdmin').getFirestore()).loadRawData(args),
+  geminiClient: { generateRecommendation: (args) => createGeminiClient().generateRecommendation(args) },
+};
+let recommendationDeps = defaultRecommendationDeps;
+
+function setRecommendationDeps(deps) {
+  recommendationDeps = { ...defaultRecommendationDeps, ...deps };
+}
+
+function resetRecommendationDeps() {
+  recommendationDeps = defaultRecommendationDeps;
+}
+
+// POST /recommendations — Bearer Firebase ID token required; see recommendationRoute.js.
+app.post(
+  '/recommendations',
+  express.json({ limit: '32kb' }),
+  bodyErrorHandler,
+  (req, res) => createRecommendationsHandler(recommendationDeps)(req, res)
+);
+
 if (require.main === module) {
   app.listen(3000, () => console.log('Proxy running on http://localhost:3000'));
 }
@@ -185,4 +214,6 @@ module.exports = {
   app,
   setFlightFetch,
   resetFlightFetch,
+  setRecommendationDeps,
+  resetRecommendationDeps,
 };

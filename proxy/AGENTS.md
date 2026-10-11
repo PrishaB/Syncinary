@@ -1,8 +1,9 @@
 # AGENTS.md — flight proxy
 
 A ~30-line Express service. It exists so the SerpApi key isn't shipped inside
-the Flutter app. One route: `GET /flights` → SerpApi Google Flights, returning
-the `best_flights` / `other_flights` array as JSON. Run commands from this
+the Flutter app. `GET /flights` → SerpApi Google Flights, returning the
+`best_flights` / `other_flights` array as JSON; `POST /recommendations` → the
+Gemini recommendation pipeline (see `README.md`). Run commands from this
 directory (`proxy/`).
 
 ## Setup / run
@@ -19,11 +20,14 @@ itself via `--env-file`; on older Node 18, export the var another way
 (`export SERPAPI_KEY=...` or a tool like `dotenv-cli`). `.env` is gitignored;
 never commit it.
 
-Node 18+ (CommonJS, `require`). Dependencies: `express`, `cors`, and
-`node-fetch@2` — v2 is deliberate, it's the last CommonJS release of the
-package.
+Node 18+ (CommonJS, `require`). Dependencies: `express`, `cors`,
+`firebase-admin` and `node-fetch@2` — v2 is deliberate, it's the last CommonJS
+release of the package. `firebase-admin` is pinned to `^13`: 14.x needs Node 22
+and CI runs Node 20. It is only initialized lazily by `/recommendations`
+(needs `GOOGLE_APPLICATION_CREDENTIALS`, see `.env.example`); `/flights` and
+the tests never touch it.
 
-`node_modules/` is **committed** (~650 files) on purpose so `node server.js`
+`node_modules/` is **committed** (~5.6k files, ~68 MB) on purpose so `node server.js`
 works without an `npm install` step. That's about the runtime
 `dependencies` only — CI (`.github/workflows/ci.yml`) runs `npm ci` fresh in
 this directory for every push/PR, which is also how the `eslint` /
@@ -68,3 +72,6 @@ call by accident, and CI (which has neither) always skips it. See
   commit's finding in `.gitleaksignore`.
 - Never forward the SerpApi key to the client, and don't log full upstream
   responses that may carry it.
+- `POST /recommendations` must verify the Firebase ID token before any
+  Firestore or Gemini work and take the uid only from the verified token. Never
+  forward upstream error text, `raw`, or tokens to the client or logs.
