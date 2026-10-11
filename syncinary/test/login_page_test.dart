@@ -28,7 +28,7 @@ void main() {
       expect(find.text('Welcome back'), findsOneWidget);
     });
 
-    testWidgets('Shows error for empty email', (tester) async {
+    testWidgets('[301-5] Shows error for empty email', (tester) async {
       await tester.pumpWidget(makeTestableWidget(const LoginPage()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Sign In'));
@@ -36,7 +36,7 @@ void main() {
       expect(find.text('Please enter your email'), findsOneWidget);
     });
 
-    testWidgets('Shows error for invalid email format', (tester) async {
+    testWidgets('[301-5] Shows error for invalid email format', (tester) async {
       await tester.pumpWidget(makeTestableWidget(const LoginPage()));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'notanemail');
@@ -46,7 +46,7 @@ void main() {
       expect(find.text('Please enter a valid email'), findsOneWidget);
     });
 
-    testWidgets('Shows error for short password', (tester) async {
+    testWidgets('[301-5] Shows error for short password', (tester) async {
       await tester.pumpWidget(makeTestableWidget(const LoginPage()));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'test@test.com');
@@ -56,7 +56,7 @@ void main() {
       expect(find.text('Password must be at least 8 characters'), findsOneWidget);
     });
 
-    testWidgets('Shows error for empty password', (tester) async {
+    testWidgets('[301-5] Shows error for empty password', (tester) async {
       await tester.pumpWidget(makeTestableWidget(const LoginPage()));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'test@test.com');
@@ -79,7 +79,7 @@ void main() {
       );
     });
 
-    testWidgets('Successful sign-in authenticates and navigates',
+    testWidgets('[301-4] Successful sign-in authenticates and navigates',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       final groupService = GroupService(firestore: FakeFirebaseFirestore(), auth: mockAuth);
@@ -97,7 +97,7 @@ void main() {
       expect(mockAuth.currentUser!.email, 'test@test.com');
     });
 
-    testWidgets('Shows friendly error for wrong-password code',
+    testWidgets('[301-5] Shows friendly error for wrong-password code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#signInWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'wrong-password'));
@@ -110,7 +110,7 @@ void main() {
       expect(find.text('Incorrect password. Please try again.'), findsOneWidget);
     });
 
-    testWidgets('Shows friendly error for user-not-found code',
+    testWidgets('[301-5] Shows friendly error for user-not-found code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#signInWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'user-not-found'));
@@ -123,7 +123,7 @@ void main() {
       expect(find.text('No account found with this email.'), findsOneWidget);
     });
 
-    testWidgets('Shows friendly error for invalid-email code',
+    testWidgets('[301-5] Shows friendly error for invalid-email code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#signInWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'invalid-email'));
@@ -136,7 +136,7 @@ void main() {
       expect(find.text('Please enter a valid email address.'), findsOneWidget);
     });
 
-    testWidgets('Shows friendly error for user-disabled code',
+    testWidgets('[301-5] Shows friendly error for user-disabled code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#signInWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'user-disabled'));
@@ -149,7 +149,7 @@ void main() {
       expect(find.text('This account has been disabled.'), findsOneWidget);
     });
 
-    testWidgets('Shows friendly error for too-many-requests code',
+    testWidgets('[301-5] Shows friendly error for too-many-requests code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#signInWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'too-many-requests'));
@@ -162,7 +162,7 @@ void main() {
       expect(find.text('Too many attempts. Please try again later.'), findsOneWidget);
     });
 
-    testWidgets('Shows friendly error for invalid-credential code',
+    testWidgets('[301-5] Shows friendly error for invalid-credential code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#signInWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'invalid-credential'));
@@ -175,7 +175,7 @@ void main() {
       expect(find.text('Invalid email or password.'), findsOneWidget);
     });
 
-    testWidgets('Shows fallback error for unknown Firebase error code',
+    testWidgets('[301-5] Shows fallback error for unknown Firebase error code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#signInWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'some-unknown-code'));
@@ -188,7 +188,7 @@ void main() {
       expect(find.text('Sign-in failed. Please check your credentials.'), findsOneWidget);
     });
 
-    testWidgets('Shows generic error for non-Firebase exceptions',
+    testWidgets('[301-5] Shows generic error for non-Firebase exceptions',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#signInWithEmailAndPassword, null)).on(mockAuth).thenThrow(Exception('Network error'));
@@ -201,7 +201,7 @@ void main() {
       expect(find.text('An unexpected error occurred. Please try again.'), findsOneWidget);
     });
 
-    testWidgets('No error banner shown after successful sign-in',
+    testWidgets('[301-4] No error banner shown after successful sign-in',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       final groupService = GroupService(firestore: FakeFirebaseFirestore(), auth: mockAuth);
@@ -219,13 +219,13 @@ void main() {
   });
 
   group('Forgot Password', () {
-    testWidgets('Renders Forgot Password link', (tester) async {
+    testWidgets('[301-7] Renders Forgot Password link', (tester) async {
       await tester.pumpWidget(makeTestableWidget(const LoginPage()));
       await tester.pumpAndSettle();
       expect(find.text('Forgot Password?'), findsOneWidget);
     });
 
-    testWidgets('Shows error when email is empty and Forgot Password is tapped',
+    testWidgets('[301-7] Shows error when email is empty and Forgot Password is tapped',
         (tester) async {
       await tester.pumpWidget(makeTestableWidget(const LoginPage()));
       await tester.pumpAndSettle();
@@ -237,7 +237,7 @@ void main() {
       );
     });
 
-    testWidgets('Shows error when email is invalid and Forgot Password is tapped',
+    testWidgets('[301-7] Shows error when email is invalid and Forgot Password is tapped',
         (tester) async {
       await tester.pumpWidget(makeTestableWidget(const LoginPage()));
       await tester.pumpAndSettle();
@@ -250,7 +250,7 @@ void main() {
       );
     });
 
-    testWidgets('Shows success SnackBar when reset email is sent',
+    testWidgets('[301-7] Shows success SnackBar when reset email is sent',
         (tester) async {
       final mockAuth = MockFirebaseAuth(
         mockUser: MockUser(uid: 'uid', email: 'test@test.com'),

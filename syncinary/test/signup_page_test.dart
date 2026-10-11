@@ -65,7 +65,7 @@ void main() {
       expect(find.text('Please enter a valid email'), findsOneWidget);
     });
 
-    testWidgets('Shows error for empty password', (tester) async {
+    testWidgets('[301-3] Shows error for empty password', (tester) async {
       await tester.pumpWidget(makeTestableWidget(const SignUpPage()));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
@@ -86,7 +86,7 @@ void main() {
       expect(find.text('Password must be at least 8 characters'), findsOneWidget);
     });
 
-    testWidgets('Shows all validation errors at once when all fields empty',
+    testWidgets('[301-3] Shows all validation errors at once when all fields empty',
         (tester) async {
       await tester.pumpWidget(makeTestableWidget(const SignUpPage()));
       await tester.pumpAndSettle();
@@ -110,7 +110,7 @@ void main() {
       );
     });
 
-    testWidgets('Successful sign-up authenticates the user', (tester) async {
+    testWidgets('[301-1] Successful sign-up authenticates the user', (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       await tester.pumpWidget(makeTestableWidget(SignUpPage(auth: mockAuth)));
       await tester.pumpAndSettle();
@@ -123,7 +123,7 @@ void main() {
       expect(mockAuth.currentUser, isNotNull);
     });
 
-    testWidgets('Shows friendly error for email-already-in-use code',
+    testWidgets('[301-2] Shows friendly error for email-already-in-use code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#createUserWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'email-already-in-use'));
@@ -207,7 +207,7 @@ void main() {
       expect(find.text('An unexpected error occurred. Please try again.'), findsOneWidget);
     });
 
-    testWidgets('No error banner shown after successful sign-up',
+    testWidgets('[301-1] No error banner shown after successful sign-up',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       await tester.pumpWidget(makeTestableWidget(SignUpPage(auth: mockAuth)));

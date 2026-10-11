@@ -20,7 +20,7 @@ Future<void> tapArrow(WidgetTester tester, String tooltip) async {
 }
 
 void main() {
-  testWidgets('Starts on the first slide with back disabled', (tester) async {
+  testWidgets('[302-2] Starts on the first slide with back disabled', (tester) async {
     await pumpOnboarding(tester);
 
     expect(find.text('Onboarding 1'), findsOneWidget);
@@ -37,7 +37,7 @@ void main() {
     );
   });
 
-  testWidgets('Advances through all three slides and updates progress', (
+  testWidgets('[302-2] Advances through all three slides and updates progress', (
     tester,
   ) async {
     await pumpOnboarding(tester);
@@ -55,7 +55,7 @@ void main() {
     expect(find.byTooltip('Go to main screen'), findsOneWidget);
   });
 
-  testWidgets('Can return from the last slide to the first', (tester) async {
+  testWidgets('[302-2] Can return from the last slide to the first', (tester) async {
     await pumpOnboarding(tester);
     await tapArrow(tester, 'Next slide');
     await tapArrow(tester, 'Next slide');
@@ -115,7 +115,7 @@ void main() {
     },
   );
 
-  testWidgets('Navigation remains reachable on a small screen', (tester) async {
+  testWidgets('[302-2] Navigation remains reachable on a small screen', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 480));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await pumpOnboarding(tester);
