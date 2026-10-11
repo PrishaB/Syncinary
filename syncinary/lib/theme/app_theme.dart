@@ -341,7 +341,7 @@ ThemeData buildAppTheme() {
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: AppTextStyles.title,
-      iconTheme: IconThemeData(color: AppColors.textPrimary),
+      iconTheme: IconThemeData(color: AppColors.textMuted),
     ),
     cardTheme: CardThemeData(
       color: AppColors.surface,

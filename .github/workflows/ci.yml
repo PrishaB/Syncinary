@@ -53,6 +53,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Reads the application version from pubspec.yaml.
+      - name: Get app version
+        id: app_version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Analyze
         run: flutter analyze
 
@@ -64,6 +71,18 @@ jobs:
         with:
           name: flutter-coverage
           path: syncinary/coverage/lcov.info
+          if-no-files-found: error
+
+      # Builds the packaged Flutter web application.
+      - name: Build Flutter web
+        run: flutter build web --release
+
+      # Associates the product version with the build artifact.
+      - name: Upload versioned web build
+        uses: actions/upload-artifact@v7
+        with:
+          name: syncinary-web-${{ steps.app_version.outputs.version }}
+          path: syncinary/build/web
           if-no-files-found: error
 
   proxy:

@@ -28,19 +28,6 @@ class ScheduleService {
   CollectionReference<Map<String, dynamic>> _items(String groupId) =>
       _group(groupId).collection('scheduleItems');
 
-  /// Per-user marker that the current user has run the trip-setup search
-  /// (origin → destination → dates) for this group, after which "Plan
-  /// Itinerary" goes straight to the Schedule Builder:
-  /// `groups/{groupId}/itineraryStarted/{uid}: { startedAt: Timestamp }`.
-  DocumentReference<Map<String, dynamic>> _startedMarker(String groupId) =>
-      _group(groupId).collection('itineraryStarted').doc(currentUserId);
-
-  Future<bool> hasStartedItinerary(String groupId) async =>
-      (await _startedMarker(groupId).get()).exists;
-
-  Future<void> markItineraryStarted(String groupId) =>
-      _startedMarker(groupId).set({'startedAt': FieldValue.serverTimestamp()});
-
   Stream<List<ScheduleDay>> daysStream(String groupId) {
     return _days(groupId)
         .orderBy('date')
@@ -57,8 +44,17 @@ class ScheduleService {
 
   /// Adding a day that already exists is a no-op (the doc id is the date).
   Future<void> addDay(String groupId, DateTime date) {
+    final batch = _firestore.batch();
+    _setDay(batch, groupId, date);
+    return batch.commit();
+  }
+
+  /// Writes the day doc for [date] into [batch] and returns its key.
+  String _setDay(WriteBatch batch, String groupId, DateTime date) {
     final day = DateTime(date.year, date.month, date.day);
-    return _days(groupId).doc(scheduleDayKey(day)).set({'date': Timestamp.fromDate(day)});
+    final key = scheduleDayKey(day);
+    batch.set(_days(groupId).doc(key), {'date': Timestamp.fromDate(day)});
+    return key;
   }
 
   /// Removes the day and every item scheduled on it.
@@ -72,14 +68,17 @@ class ScheduleService {
     await batch.commit();
   }
 
+  /// Adds an item on [date], creating that day if the trip doesn't have it yet.
   Future<void> addItem(
     String groupId, {
-    required String dayKey,
+    required DateTime date,
     required ScheduleItemType type,
     required String title,
     String details = '',
   }) {
-    return _items(groupId).add({
+    final batch = _firestore.batch();
+    final dayKey = _setDay(batch, groupId, date);
+    batch.set(_items(groupId).doc(), {
       'day': dayKey,
       'type': scheduleItemTypeToString(type),
       'title': title,
@@ -87,15 +86,23 @@ class ScheduleService {
       'addedBy': currentUserId,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    return batch.commit();
   }
 
+  /// Saves edits to an item, moving it to [date] (and creating that day) if
+  /// the date changed. The day it moved from is kept, even if now empty.
   Future<void> updateItem(
     String groupId,
     String itemId, {
+    required DateTime date,
     required String title,
     required String details,
   }) {
-    return _items(groupId).doc(itemId).update({'title': title, 'details': details});
+    final batch = _firestore.batch();
+    final dayKey = _setDay(batch, groupId, date);
+    batch.update(_items(groupId).doc(itemId),
+        {'day': dayKey, 'title': title, 'details': details});
+    return batch.commit();
   }
 
   Future<void> deleteItem(String groupId, String itemId) =>

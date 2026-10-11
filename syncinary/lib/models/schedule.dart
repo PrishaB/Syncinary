@@ -1,12 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum ScheduleItemType { hotel, activity }
+enum ScheduleItemType { flight, hotel, activity }
 
-ScheduleItemType scheduleItemTypeFromString(String? value) =>
-    value == 'hotel' ? ScheduleItemType.hotel : ScheduleItemType.activity;
+/// Unknown or missing values read as an activity.
+ScheduleItemType scheduleItemTypeFromString(String? value) => switch (value) {
+      'flight' => ScheduleItemType.flight,
+      'hotel' => ScheduleItemType.hotel,
+      _ => ScheduleItemType.activity,
+    };
 
-String scheduleItemTypeToString(ScheduleItemType type) =>
-    type == ScheduleItemType.hotel ? 'hotel' : 'activity';
+String scheduleItemTypeToString(ScheduleItemType type) => type.name;
 
 /// Formats a calendar date as the `yyyy-MM-dd` key used for schedule days.
 String scheduleDayKey(DateTime date) =>
@@ -40,7 +43,7 @@ class ScheduleDay {
 /// ```
 /// groups/{groupId}/scheduleItems/{itemId}: {
 ///   day: 'yyyy-MM-dd',   // the ScheduleDay this item belongs to
-///   type: 'hotel' | 'activity',
+///   type: 'flight' | 'hotel' | 'activity',
 ///   title: string,
 ///   details: string,
 ///   addedBy: uid,
@@ -54,6 +57,7 @@ class ScheduleItem {
     required this.type,
     required this.title,
     required this.details,
+    this.addedBy = '',
   });
 
   final String id;
@@ -61,6 +65,9 @@ class ScheduleItem {
   final ScheduleItemType type;
   final String title;
   final String details;
+
+  /// Uid of the group member who added this item; empty on legacy docs.
+  final String addedBy;
 
   factory ScheduleItem.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const {};
@@ -70,6 +77,7 @@ class ScheduleItem {
       type: scheduleItemTypeFromString(data['type'] as String?),
       title: data['title'] as String? ?? '',
       details: data['details'] as String? ?? '',
+      addedBy: data['addedBy'] as String? ?? '',
     );
   }
 }

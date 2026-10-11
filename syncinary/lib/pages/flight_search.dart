@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/suggestions_section.dart';
+import '../widgets/settings_panel.dart';
 import 'amadeus_service.dart';
 
 class flight_search extends StatefulWidget {
@@ -184,6 +185,7 @@ class _flightSearchState extends State<flight_search> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        actions: const [SettingsButton()],
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
