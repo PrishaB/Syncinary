@@ -294,3 +294,19 @@ test('injected instruction text surviving field validation is still length-cappe
   const { payload } = buildRecommendationPayload(ctx, rawData);
   assert.equal(payload.requestingUserPreferences.activities[0], evil.slice(0, MAX_STRING_LENGTH));
 });
+
+test('currentSearch is sanitized, truncated and included', () => {
+  const rawData = baseRawData();
+  const { payload } = buildRecommendationPayload(
+    { ...ctx, currentSearch: { destination: 'x'.repeat(MAX_STRING_LENGTH + 5), query: 7, extra: 'LEAK_extra' } },
+    rawData
+  );
+  assert.deepEqual(payload.currentSearch, { destination: 'x'.repeat(MAX_STRING_LENGTH) });
+});
+
+test('currentSearch falls back to rawData.currentSearch and is omitted when absent', () => {
+  const withRaw = buildRecommendationPayload(ctx, baseRawData({ currentSearch: { destination: 'Rome' } }));
+  assert.deepEqual(withRaw.payload.currentSearch, { destination: 'Rome' });
+  const without = buildRecommendationPayload(ctx, baseRawData());
+  assert.equal('currentSearch' in without.payload, false);
+});

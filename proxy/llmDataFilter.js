@@ -105,7 +105,7 @@ const pickSearch = (raw) => pickAllowed(raw, SEARCH_FIELD_TYPES);
 const pickTravelResult = (raw) => pickAllowed(raw, TRAVEL_RESULT_FIELD_TYPES);
 
 /**
- * @param {{requestingUserId: string, groupId: string}} requestContext
+ * @param {{requestingUserId: string, groupId: string, currentSearch?: object}} requestContext
  * @param {{
  *   users?: Record<string, {preferences?: object}>,
  *   groups?: Record<string, {memberIds?: string[], sharedPreferences?: object, budget?: object, availableDates?: object}>,
@@ -157,6 +157,7 @@ function buildRecommendationPayload(requestContext, rawData) {
     .map(pickTravelResult);
 
   const requestingUser = users[requestingUserId];
+  const currentSearch = pickSearch(requestContext.currentSearch || rawData.currentSearch);
 
   const payload = {
     requestingUserPreferences: pickPreferences(requestingUser && requestingUser.preferences),
@@ -167,6 +168,9 @@ function buildRecommendationPayload(requestContext, rawData) {
     previousSearches: groupSearches,
     travelResults: groupTravelResults,
   };
+
+  // Only present when given, so callers without a current search get the same payload as before.
+  if (Object.keys(currentSearch).length > 0) payload.currentSearch = currentSearch;
 
   // Defense in depth on top of the per-field caps above: even fully-capped
   // fields can add up across enough members/searches/results, so refuse to

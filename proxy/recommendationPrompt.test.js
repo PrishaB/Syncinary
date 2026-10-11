@@ -129,9 +129,23 @@ test('dataAvailability flags match every populated section of a full payload', (
     memberPreferences: true,
     budgetConstraints: true,
     availableDates: true,
+    currentSearch: false,
     previousSearches: true,
     travelResults: true,
   });
+});
+
+test('a payload with only currentSearch succeeds and reports it present', () => {
+  const result = buildRecommendationPrompt({ ...emptyPayload(), currentSearch: { destination: 'SENTINEL_DEST' } });
+  assert.equal(result.ok, true);
+  assert.equal(result.dataAvailability.currentSearch, true);
+  assert.match(result.prompt, /currentSearch: present/);
+  assert.ok(!result.prompt.includes('SENTINEL_DEST'));
+});
+
+test('an absent currentSearch is reported absent', () => {
+  const result = buildRecommendationPrompt(fullPayload());
+  assert.match(result.prompt, /currentSearch: absent/);
 });
 
 // --- Options ---
