@@ -77,7 +77,8 @@ After rotating it, deploy a new release to replace running instances.
 Keep the existing `FIREBASE_OPTIONS_DART` GitHub secret configured for Flutter.
 No SerpApi key belongs in GitHub source, the Docker image, or the Flutter build.
 The upload and Docker contexts allow only the files needed by `server.js`;
-extend both allowlists and the Dockerfile if new runtime modules are added.
+extend `.gcloudignore` and `.dockerignore` if new runtime modules are added.
+The Dockerfile copies the filtered build context after installing dependencies.
 
 These permissions follow Google's [source deployment](https://docs.cloud.google.com/run/docs/deploying-source-code),
 [build service account](https://docs.cloud.google.com/run/docs/configuring/services/build-service-account),
@@ -88,11 +89,15 @@ service publicly invokable for browser requests.
 ### Verification and behavior
 
 The workflow runs proxy lint, tests, and a dependency audit plus Flutter
-analysis and tests before deployment. After deploying Cloud Run it requests
+analysis and tests before deployment. It deploys a tagged Cloud Run revision
+with `--no-traffic`, then checks its tagged URL before promoting it. It requests
 `/hotels` without parameters and expects HTTP 400; this checks reachability
-without making a billed SerpApi call. It then builds and publishes the web app.
-It also checks `/airports?q=IND` to verify the packaged airport router and
-catalog without calling Google. This does not verify the Maps key: check a
+without making a billed SerpApi call. It also checks `/airports?q=IND` to verify
+the packaged airport router and catalog without calling Google. Only after
+both checks pass does it send production traffic to that exact revision and
+remove the test tag. A failed smoke check leaves existing production traffic
+unchanged. It then builds and publishes the web app with the stable service URL.
+This does not verify the Maps key: check a
 city such as Indianapolis in the deployed app to exercise Google Places.
 Check flights and hotels in the deployed app after publishing a release.
 

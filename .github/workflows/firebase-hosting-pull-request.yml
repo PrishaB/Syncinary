@@ -81,6 +81,7 @@ jobs:
         id: proxy
         working-directory: proxy
         run: |
+          smoke_tag="smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           gcloud run deploy "$CLOUD_RUN_SERVICE" \
             --project="$GOOGLE_CLOUD_PROJECT" \
             --region="$CLOUD_RUN_REGION" \
@@ -92,24 +93,36 @@ jobs:
             --allow-unauthenticated \
             --min-instances=0 \
             --max-instances=3 \
+            --no-traffic \
+            --tag="$smoke_tag" \
             --quiet
-          proxy_url=$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+          service=$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
             --project="$GOOGLE_CLOUD_PROJECT" \
             --region="$CLOUD_RUN_REGION" \
-            --format='value(status.url)')
-          if [[ "$proxy_url" != https://* ]]; then
-            echo '::error::Cloud Run did not return an HTTPS service URL.'
+            --format=json)
+          proxy_url=$(jq -er '.status.url' <<< "$service")
+          smoke_url=$(jq -er --arg tag "$smoke_tag" '.status.traffic[] | select(.tag == $tag) | .url' <<< "$service")
+          revision=$(jq -er --arg tag "$smoke_tag" '.status.traffic[] | select(.tag == $tag) | .revisionName' <<< "$service")
+          if [[ "$proxy_url" != https://* || "$smoke_url" != https://* ]]; then
+            echo '::error::Cloud Run did not return HTTPS service and tagged revision URLs.'
             exit 1
           fi
           # Invalid hotel input returns 400 without calling the billed SerpApi API.
-          status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$proxy_url/hotels")
+          status=$(curl --silent --show-error --max-time 60 --output /dev/null --write-out '%{http_code}' "$smoke_url/hotels")
           if [ "$status" != 400 ]; then
             echo "::error::Proxy smoke check expected HTTP 400, received $status."
             exit 1
           fi
           # Known IATA codes exercise the airport router and catalog without a Google API call.
-          curl --fail --silent --show-error "$proxy_url/airports?q=IND" \
+          curl --fail --silent --show-error --max-time 60 "$smoke_url/airports?q=IND" \
             | jq -e '.airports | any(.code == "IND")' > /dev/null
+          # Promote only the revision that passed both checks, then remove its test tag.
+          gcloud run services update-traffic "$CLOUD_RUN_SERVICE" \
+            --project="$GOOGLE_CLOUD_PROJECT" \
+            --region="$CLOUD_RUN_REGION" \
+            --to-revisions="$revision=100" \
+            --remove-tags="$smoke_tag" \
+            --quiet
           printf 'url=%s\n' "$proxy_url" >> "$GITHUB_OUTPUT"
 
       - name: Build web app
