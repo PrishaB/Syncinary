@@ -181,6 +181,7 @@ class _flightSearchState extends State<flight_search> {
     final service = widget.recommendationService;
     final searchCtx = widget.searchContext;
     final showSuggestions = service != null && searchCtx != null;
+    final results = widget.initialResults;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -222,7 +223,7 @@ class _flightSearchState extends State<flight_search> {
                     ),
                   ),
                 Expanded(
-                  child: widget.initialResults.isEmpty
+                  child: results.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -244,121 +245,31 @@ class _flightSearchState extends State<flight_search> {
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          padding: EdgeInsets.fromLTRB(
-                            16,
-                            showSuggestions ? 12 : 100,
-                            16,
-                            24,
-                          ),
-                          itemCount: widget.initialResults.length,
-                          itemBuilder: (_, i) {
-                            final offer = widget.initialResults[i];
-                            final flights = offer['flights'] as List<dynamic>;
-                            final first = flights.first;
-                            final dep = first['departure_airport']['id'];
-                            final arr = flights.last['arrival_airport']['id'];
-                            final time = first['departure_airport']['time'];
-                            final price = offer['price'];
-                            final airline = first['airline'] as String?;
-                            final stops = flights.length - 1;
-                            final duration = _formatDuration(
-                              offer['total_duration'] as int?,
-                            );
-
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: GestureDetector(
-                                onTap: () => _handleOfferTap(offer),
-                                child: Container(
-                                  decoration: AppDecorations.glassCard(),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 48,
-                                          height: 48,
-                                          decoration: BoxDecoration(
-                                            gradient: AppColors.brandGradient,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.flight_rounded,
-                                            color: Colors.white,
-                                            size: 22,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                '$dep  →  $arr',
-                                                style: AppTextStyles.title
-                                                    .copyWith(fontSize: 17),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                [
-                                                  if (airline != null &&
-                                                      airline.isNotEmpty)
-                                                    airline,
-                                                  'Departs $time',
-                                                ].join(' · '),
-                                                style: AppTextStyles.caption,
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                [
-                                                  if (duration.isNotEmpty)
-                                                    duration,
-                                                  stops == 0
-                                                      ? 'Nonstop'
-                                                      : '$stops ${stops == 1 ? 'stop' : 'stops'}',
-                                                ].join(' · '),
-                                                style: AppTextStyles.caption
-                                                    .copyWith(
-                                                      color:
-                                                          AppColors.textMuted,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.accentStart
-                                                .withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            '\$$price',
-                                            style: AppTextStyles.button
-                                                .copyWith(
-                                                  color: AppColors.accentEnd,
-                                                  fontSize: 15,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                       : ListView.builder(
+                           padding: EdgeInsets.fromLTRB(
+                             16,
+                             showSuggestions ? 12 : 100,
+                             16,
+                             24,
+                           ),
+                           itemCount: results.length,
+                           itemBuilder: (_, i) {
+                             final offer = results[i];
+                             return Padding(
+                               padding: const EdgeInsets.only(bottom: 16),
+                               child: _FlightCard(
+                                 offer: offer,
+                                 isLoading: _busy,
+                                 buttonLabel: _isRoundTripOutbound
+                                     ? 'Select Outbound'
+                                     : widget.isReturnLeg
+                                         ? 'Select Return'
+                                         : 'Select Flight',
+                                 onSelect: () => _handleOfferTap(offer),
+                               ),
+                             );
+                           },
+                         ),
                 ),
               ],
             ),
@@ -369,6 +280,188 @@ class _flightSearchState extends State<flight_search> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Redesigned flight result card. Uses only data already in the offer.
+class _FlightCard extends StatelessWidget {
+  const _FlightCard({
+    required this.offer,
+    required this.onSelect,
+    required this.buttonLabel,
+    required this.isLoading,
+  });
+
+  final dynamic offer;
+  final VoidCallback onSelect;
+  final String buttonLabel;
+  final bool isLoading;
+
+  String _formatTime(dynamic value) {
+    if (value == null) return '--:--';
+    final raw = value.toString();
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    final hour = parsed.hour % 12 == 0 ? 12 : parsed.hour % 12;
+    final minute = parsed.minute.toString().padLeft(2, '0');
+    return '$hour:$minute ${parsed.hour >= 12 ? 'PM' : 'AM'}';
+  }
+
+  String _formatDuration(dynamic value) {
+    if (value is! num) return '';
+    final minutes = value.toInt();
+    final hours = minutes ~/ 60;
+    final remainder = minutes % 60;
+    if (hours == 0) return '${remainder}m';
+    if (remainder == 0) return '${hours}h';
+    return '${hours}h ${remainder}m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final flights = offer['flights'] as List<dynamic>? ?? [];
+    if (flights.isEmpty) return const SizedBox.shrink();
+
+    final first = flights.first;
+    final last = flights.last;
+    final departure = first['departure_airport'];
+    final arrival = last['arrival_airport'];
+    final origin = departure?['id']?.toString() ?? '---';
+    final destination = arrival?['id']?.toString() ?? '---';
+    final departureTime = _formatTime(departure?['time']);
+    final arrivalTime = _formatTime(arrival?['time']);
+    final airline = first['airline']?.toString() ?? 'Airline';
+    final duration = _formatDuration(offer['total_duration']);
+    final stops = flights.length - 1;
+    final stopLabel = stops == 0
+        ? 'Nonstop'
+        : '$stops ${stops == 1 ? 'stop' : 'stops'}';
+    final price = offer['price']?.toString() ?? 'N/A';
+
+    return Container(
+      decoration: AppDecorations.glassCard(),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.flight_rounded,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(airline,
+                    style: AppTextStyles.title.copyWith(fontSize: 16)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.accentStart.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(stopLabel,
+                    style: AppTextStyles.caption.copyWith(
+                        color: AppColors.accentEnd)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(departureTime,
+                        style: AppTextStyles.title.copyWith(fontSize: 18)),
+                    const SizedBox(height: 4),
+                    Text(origin, style: AppTextStyles.subtitle),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 4,
+                child: Column(
+                  children: [
+                    Text(duration, style: AppTextStyles.caption),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.circle, size: 7,
+                            color: AppColors.accentStart),
+                        Expanded(child: Container(
+                            height: 1, color: AppColors.textMuted)),
+                        Icon(Icons.flight_rounded, size: 18,
+                            color: AppColors.accentEnd),
+                        Expanded(child: Container(
+                            height: 1, color: AppColors.textMuted)),
+                        Icon(Icons.circle, size: 7,
+                            color: AppColors.accentStart),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(arrivalTime,
+                        style: AppTextStyles.title.copyWith(fontSize: 18)),
+                    const SizedBox(height: 4),
+                    Text(destination, style: AppTextStyles.subtitle),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Divider(color: AppColors.textMuted.withValues(alpha: 0.2)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('\$$price',
+                        style: AppTextStyles.title.copyWith(
+                            fontSize: 22, color: AppColors.accentEnd)),
+                    const SizedBox(height: 4),
+                    Text('Listed price', style: AppTextStyles.caption),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: IgnorePointer(
+                  ignoring: isLoading,
+                  child: Opacity(
+                    opacity: isLoading ? 0.5 : 1,
+                    child: GradientButton(
+                      onPressed: onSelect,
+                      label: buttonLabel,
+                      icon: Icons.arrow_forward_rounded,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
