@@ -1,12 +1,18 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:syncinary/models/group.dart';
 import 'package:syncinary/models/schedule.dart';
 import 'package:syncinary/pages/itinerary_builder.dart';
 import 'package:syncinary/pages/schedule_builder_page.dart';
+import 'package:syncinary/services/recommendation_service.dart';
 import 'package:syncinary/services/schedule_service.dart';
 import 'package:syncinary/theme/app_theme.dart';
 
@@ -29,6 +35,65 @@ Group _nycGroup() => Group(
         GroupMember(id: 'me-uid', username: 'You', email: 'me@syncinary.app', role: GroupRole.admin),
       ],
     );
+
+/// A recommendations service that answers via [handler] and records calls.
+RecommendationService _advisor(
+  List<http.Request> requests,
+  Future<http.Response> Function() handler,
+) =>
+    RecommendationService(
+      client: MockClient((request) {
+        requests.add(request);
+        return handler();
+      }),
+      idTokenProvider: () async => null,
+    );
+
+http.Response _emptyPayload() => http.Response(
+    jsonEncode({'ok': false, 'error': 'empty_payload', 'message': 'nothing to recommend from'}),
+    422);
+
+http.Response _suggestions() => http.Response(
+    jsonEncode({
+      'ok': true,
+      'data': {
+        'summary': 'A beach getaway.',
+        'destinations': [
+          {
+            'id': 'd1',
+            'name': 'Miami',
+            'region': null,
+            'rationale': 'Matches your love of beaches.',
+            'matchedPreferences': [],
+            'estimatedCostPerPerson': {'amount': 450, 'currency': 'USD'},
+          },
+        ],
+        'activities': [],
+        'itinerary': [],
+        'assumptions': [],
+        'warnings': [],
+      },
+    }),
+    200);
+
+RecommendationService _stubAdvisor() => _advisor([], () async => _emptyPayload());
+
+Future<ScheduleService> _pumpPage(
+  WidgetTester tester, {
+  required RecommendationService advisor,
+  double width = 1000,
+  bool settle = true,
+}) async {
+  tester.view.physicalSize = Size(width, 1600);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final service = _service(FakeFirebaseFirestore());
+  await tester.pumpWidget(makeTestableWidget(
+    ScheduleBuilderPage(group: _nycGroup(), service: service, recommendationService: advisor),
+  ));
+  settle ? await tester.pumpAndSettle() : await tester.pump();
+  return service;
+}
 
 /// Opens the add dialog for [button] ('Add Flight' etc.) and saves it.
 Future<void> _addViaDialog(WidgetTester tester, String button,
@@ -67,7 +132,8 @@ void main() {
     await service.addDay('nyc', DateTime(2026, 5, 3));
 
     await tester.pumpWidget(
-      makeTestableWidget(ScheduleBuilderPage(group: _nycGroup(), service: service)),
+      makeTestableWidget(ScheduleBuilderPage(
+          group: _nycGroup(), service: service, recommendationService: _stubAdvisor())),
     );
     await tester.pumpAndSettle();
 
@@ -135,7 +201,8 @@ void main() {
     final service = _service(firestore);
 
     await tester.pumpWidget(
-      makeTestableWidget(ScheduleBuilderPage(group: _nycGroup(), service: service)),
+      makeTestableWidget(ScheduleBuilderPage(
+          group: _nycGroup(), service: service, recommendationService: _stubAdvisor())),
     );
     await tester.pumpAndSettle();
 
@@ -174,7 +241,8 @@ void main() {
     await service.addDay('nyc', DateTime(2026, 5, 3));
 
     await tester.pumpWidget(
-      makeTestableWidget(ScheduleBuilderPage(group: _nycGroup(), service: service)),
+      makeTestableWidget(ScheduleBuilderPage(
+          group: _nycGroup(), service: service, recommendationService: _stubAdvisor())),
     );
     await tester.pumpAndSettle();
 
@@ -216,7 +284,8 @@ void main() {
     final group = _nycGroup()
       ..members.add(GroupMember(
           id: 'alex-uid', username: 'Alex', email: 'alex@syncinary.app', role: GroupRole.user));
-    await tester.pumpWidget(makeTestableWidget(ScheduleBuilderPage(group: group, service: service)));
+    await tester.pumpWidget(makeTestableWidget(ScheduleBuilderPage(
+        group: group, service: service, recommendationService: _stubAdvisor())));
     await tester.pumpAndSettle();
 
     expect(find.text('Added by you'), findsOneWidget);
@@ -233,7 +302,8 @@ void main() {
         date: DateTime(2026, 5, 4), type: ScheduleItemType.activity, title: 'Statue of Liberty');
 
     await tester.pumpWidget(
-      makeTestableWidget(ScheduleBuilderPage(group: _nycGroup(), service: service)),
+      makeTestableWidget(ScheduleBuilderPage(
+          group: _nycGroup(), service: service, recommendationService: _stubAdvisor())),
     );
     await tester.pumpAndSettle();
 
@@ -274,7 +344,8 @@ void main() {
         date: DateTime(2026, 5, 3), type: ScheduleItemType.activity, title: 'Empire State Building');
 
     await tester.pumpWidget(
-      makeTestableWidget(ScheduleBuilderPage(group: _nycGroup(), service: service)),
+      makeTestableWidget(ScheduleBuilderPage(
+          group: _nycGroup(), service: service, recommendationService: _stubAdvisor())),
     );
     await tester.pumpAndSettle();
     expect(find.text('Empire State Building'), findsOneWidget);
@@ -289,5 +360,72 @@ void main() {
         findsOneWidget);
     final items = await firestore.collection('groups').doc('nyc').collection('scheduleItems').get();
     expect(items.docs, isEmpty);
+  });
+
+  group('AI Advisor panel', () {
+    for (final width in [500.0, 1000.0]) {
+      final layout = width < 760 ? 'narrow' : 'wide';
+
+      testWidgets('shows suggestions for the page group ($layout)', (tester) async {
+        final requests = <http.Request>[];
+        await _pumpPage(tester,
+            advisor: _advisor(requests, () async => _suggestions()), width: width);
+
+        expect(requests.single.url.path, '/recommendations');
+        final body = jsonDecode(requests.single.body) as Map<String, dynamic>;
+        expect(body['groupId'], 'nyc');
+        expect(body['search'], isEmpty);
+        expect(find.textContaining('Coming soon'), findsNothing);
+        expect(find.text('Miami'), findsOneWidget);
+        expect(find.text('Matches your love of beaches.'), findsOneWidget);
+      });
+
+      testWidgets('empty_payload shows the empty state ($layout)', (tester) async {
+        await _pumpPage(tester, advisor: _stubAdvisor(), width: width);
+        expect(find.byKey(const Key('suggestions-empty')), findsOneWidget);
+      });
+
+      testWidgets('a failure shows an error that retry refetches ($layout)', (tester) async {
+        final requests = <http.Request>[];
+        await _pumpPage(tester,
+            advisor: _advisor(requests, () async => http.Response('boom', 502)), width: width);
+        expect(find.byKey(const Key('suggestions-error')), findsOneWidget);
+        expect(requests, hasLength(1));
+
+        final retry = find.byKey(const Key('suggestions-retry'));
+        await tester.ensureVisible(retry);
+        await tester.tap(retry);
+        await tester.pumpAndSettle();
+        expect(requests, hasLength(2));
+      });
+    }
+
+    testWidgets('loading does not block the rest of the page', (tester) async {
+      final pending = Completer<http.Response>();
+      await _pumpPage(tester, advisor: _advisor([], () => pending.future), settle: false);
+
+      expect(find.byKey(const Key('suggestions-loading')), findsOneWidget);
+      expect(find.text('Day Plan'), findsOneWidget);
+      expect(find.text('Add Activity'), findsOneWidget);
+
+      pending.complete(_suggestions());
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('schedule updates and layout changes do not refetch', (tester) async {
+      final requests = <http.Request>[];
+      final service = await _pumpPage(tester,
+          advisor: _advisor(requests, () async => _suggestions()));
+
+      await service.addItem('nyc',
+          date: DateTime(2026, 5, 3), type: ScheduleItemType.activity, title: 'Hike');
+      await tester.pumpAndSettle();
+      expect(find.text('Hike'), findsOneWidget);
+
+      tester.view.physicalSize = const Size(500, 1600);
+      await tester.pumpAndSettle();
+      expect(find.text('Miami'), findsOneWidget);
+      expect(requests, hasLength(1));
+    });
   });
 }
