@@ -15,15 +15,15 @@ node --env-file=.env server.js # listens on http://localhost:3000
 ```
 
 `server.js` reads `SERPAPI_KEY` from the environment and exits immediately if
-it's unset — get a key at https://serpapi.com. Node 20.6+ can load `.env`
-itself via `--env-file`; on older Node 18, export the var another way
-(`export SERPAPI_KEY=...` or a tool like `dotenv-cli`). `.env` is gitignored;
-never commit it.
+it's unset — get a key at https://serpapi.com. Node loads `.env` itself via
+`--env-file`. `.env` is gitignored; never commit it.
 
-Node 18+ (CommonJS, `require`). Dependencies: `express`, `cors`,
-`firebase-admin` and `node-fetch@2` — v2 is deliberate, it's the last CommonJS
-release of the package. `firebase-admin` is pinned to `^13`: 14.x needs Node 22
-and CI runs Node 20. It is only initialized lazily by `/recommendations`
+Node 22+ (CommonJS, `require`) — `firebase-admin@14` requires it, and CI runs
+Node 22. Dependencies: `express`, `cors`, `firebase-admin` and `node-fetch@2` —
+v2 is deliberate, it's the last CommonJS release of the package.
+`firebase-admin` is used only through its modular entry points
+(`firebase-admin/app`, `/auth`, `/firestore`; 14.x removed the legacy
+`admin.*` namespace). It is only initialized lazily by `/recommendations`
 (needs `GOOGLE_APPLICATION_CREDENTIALS`, see `.env.example`); `/flights` and
 the tests never touch it.
 
