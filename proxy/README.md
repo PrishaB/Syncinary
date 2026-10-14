@@ -143,7 +143,7 @@ node --env-file=.env server.js
 ```
 
 There's no `dotenv` dependency — `proxy/node_modules/` is committed to this
-repo, so native env-file loading (Node 20.6+) avoids growing that further.
+repo, so native env-file loading (`--env-file`) avoids growing that further.
 Without `--env-file`, `GEMINI_API_KEY` is simply unset and calls return
 `missing_api_key`.
 
