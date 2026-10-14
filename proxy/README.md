@@ -131,8 +131,15 @@ Runs the whole FR-104 pipeline for the Flutter app (#107, #86). Mounted in
 | `timeout` | 504 |
 | unexpected server error (`upstream_error`) | 500 |
 
-No per-user rate limit yet, and the server binds all interfaces: keep it
-localhost-only until it is deployed behind #132.
+`rate_limited` comes either from Gemini or from the route's own limits
+(`express-rate-limit`, 1-minute window): 30 requests per client IP, checked
+before the token or body, then 10 per verified uid. Counters are in memory, so
+each instance counts separately. Behind a load balancer such as Cloud Run, set
+`TRUST_PROXY_HOPS=1` so the IP limit sees real client addresses (see
+`.env.example`).
+
+The server binds all interfaces: keep it localhost-only until it is deployed
+behind #132.
 
 ### Local setup
 

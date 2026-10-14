@@ -3,9 +3,21 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const { createGeminiClient } = require('./geminiClient');
 const { createRecommendationDataLoader } = require('./recommendationData');
-const { createRecommendationsHandler, bodyErrorHandler } = require('./recommendationRoute');
- 
+const { rateLimit, MemoryStore } = require('express-rate-limit');
+const {
+  createAuthenticateMiddleware,
+  createRecommendationsHandler,
+  rateLimitedHandler,
+  bodyErrorHandler,
+} = require('./recommendationRoute');
+
 const app = express();
+// Behind a load balancer (e.g. Cloud Run) req.ip is the balancer's address
+// unless Express trusts its X-Forwarded-For; set TRUST_PROXY_HOPS=1 there so
+// the per-IP rate limit sees real clients. Left off locally so the header
+// can't be spoofed.
+const TRUST_PROXY_HOPS = Number.parseInt(process.env.TRUST_PROXY_HOPS || '0', 10);
+if (TRUST_PROXY_HOPS > 0) app.set('trust proxy', TRUST_PROXY_HOPS);
 app.use(cors());
 app.use('/airports', require('./airports').createAirportRouter());
  
@@ -198,11 +210,47 @@ function resetRecommendationDeps() {
   recommendationDeps = defaultRecommendationDeps;
 }
 
+// Each allowed /recommendations call costs a Gemini request, so cap it per
+// client IP (checked first, before any token or body work) and per verified
+// user. In-memory counters are per instance: with N instances the effective
+// cap is up to N times these numbers.
+const RECOMMENDATION_RATE_WINDOW_MS = 60 * 1000;
+const RECOMMENDATION_IP_LIMIT = 30;
+const RECOMMENDATION_USER_LIMIT = 10;
+
+const recommendationIpStore = new MemoryStore();
+const recommendationUserStore = new MemoryStore();
+const rateLimitOptions = {
+  windowMs: RECOMMENDATION_RATE_WINDOW_MS,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: rateLimitedHandler,
+};
+const recommendationIpLimiter = rateLimit({
+  ...rateLimitOptions,
+  limit: RECOMMENDATION_IP_LIMIT,
+  store: recommendationIpStore,
+});
+const recommendationUserLimiter = rateLimit({
+  ...rateLimitOptions,
+  limit: RECOMMENDATION_USER_LIMIT,
+  store: recommendationUserStore,
+  keyGenerator: (req, res) => res.locals.uid,
+});
+
+function resetRecommendationRateLimits() {
+  recommendationIpStore.resetAll();
+  recommendationUserStore.resetAll();
+}
+
 // POST /recommendations — Bearer Firebase ID token required; see recommendationRoute.js.
 app.post(
   '/recommendations',
+  recommendationIpLimiter,
   express.json({ limit: '32kb' }),
   bodyErrorHandler,
+  (req, res, next) => createAuthenticateMiddleware(recommendationDeps)(req, res, next),
+  recommendationUserLimiter,
   (req, res) => createRecommendationsHandler(recommendationDeps)(req, res)
 );
 
@@ -216,4 +264,7 @@ module.exports = {
   resetFlightFetch,
   setRecommendationDeps,
   resetRecommendationDeps,
+  resetRecommendationRateLimits,
+  RECOMMENDATION_IP_LIMIT,
+  RECOMMENDATION_USER_LIMIT,
 };
