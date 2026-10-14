@@ -19,8 +19,9 @@ it's unset — get a key at https://serpapi.com. Node loads `.env` itself via
 `--env-file`. `.env` is gitignored; never commit it.
 
 Node 22+ (CommonJS, `require`) — `firebase-admin@14` requires it, and CI runs
-Node 22. Dependencies: `express`, `cors`, `firebase-admin` and `node-fetch@2` —
-v2 is deliberate, it's the last CommonJS release of the package.
+Node 22. Dependencies: `express`, `cors`, `express-rate-limit`, `firebase-admin`
+and `node-fetch@2` — v2 is deliberate, it's the last CommonJS release of the
+package.
 `firebase-admin` is used only through its modular entry points
 (`firebase-admin/app`, `/auth`, `/firestore`; 14.x removed the legacy
 `admin.*` namespace). It is only initialized lazily by `/recommendations`
@@ -75,3 +76,7 @@ call by accident, and CI (which has neither) always skips it. See
 - `POST /recommendations` must verify the Firebase ID token before any
   Firestore or Gemini work and take the uid only from the verified token. Never
   forward upstream error text, `raw`, or tokens to the client or logs.
+- Keep `/recommendations` rate-limited with `express-rate-limit` middleware in
+  the route chain (per-IP first, per-uid after auth): each call spends Gemini
+  quota, and CodeQL's `js/missing-rate-limiting` fails CI on an authorized
+  route without it.

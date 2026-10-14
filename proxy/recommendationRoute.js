@@ -57,31 +57,56 @@ function parseBody(body) {
   return { groupId, search, travelResults };
 }
 
+function sendError(res, error, status = STATUS_BY_ERROR[error]) {
+  return res.status(status).json({ ok: false, error, message: MESSAGES[error] });
+}
+
 /**
+ * Verifies the Firebase ID token and stores the uid in `res.locals.uid`, so the
+ * per-user rate limiter can key on it before the handler runs.
+ *
  * @param {{
  *   verifyIdToken: (authorizationHeader?: string) => Promise<{uid: string}>,
+ *   log?: (line: string) => void,
+ * }} deps
+ */
+function createAuthenticateMiddleware({ verifyIdToken, log = console.error }) {
+  return async function authenticate(req, res, next) {
+    try {
+      ({ uid: res.locals.uid } = await verifyIdToken(req.get('Authorization')));
+    } catch {
+      log('recommendations failed: unauthenticated');
+      return sendError(res, 'unauthenticated');
+    }
+    return next();
+  };
+}
+
+/** express-rate-limit `handler`: it has already set the Retry-After header. */
+function rateLimitedHandler(req, res) {
+  return sendError(res, 'rate_limited');
+}
+
+/**
+ * Runs after `createAuthenticateMiddleware`; the caller's uid is `res.locals.uid`.
+ *
+ * @param {{
  *   loadRawData: (args: {uid: string, groupId: string, travelResults: object[]}) => Promise<object>,
  *   geminiClient: {generateRecommendation: Function},
  *   log?: (line: string) => void,
  * }} deps
  */
-function createRecommendationsHandler({ verifyIdToken, loadRawData, geminiClient, log = console.error }) {
+function createRecommendationsHandler({ loadRawData, geminiClient, log = console.error }) {
   return async function recommendationsHandler(req, res) {
     const startedAt = Date.now();
     const fail = (error, { status = STATUS_BY_ERROR[error], retryAfterSeconds } = {}) => {
       log(`recommendations failed: ${error} (${Date.now() - startedAt}ms)`);
       if (Number.isFinite(retryAfterSeconds)) res.set('Retry-After', String(retryAfterSeconds));
-      return res.status(status).json({ ok: false, error, message: MESSAGES[error] });
+      return sendError(res, error, status);
     };
 
     try {
-      let uid;
-      try {
-        ({ uid } = await verifyIdToken(req.get('Authorization')));
-      } catch {
-        return fail('unauthenticated');
-      }
-
+      const { uid } = res.locals;
       const body = parseBody(req.body);
       if (!body) return fail('invalid_input');
 
@@ -125,7 +150,13 @@ function bodyErrorHandler(err, req, res, next) {
   const tooLarge = err && err.type === 'entity.too.large';
   if (!tooLarge && !(err && err.type === 'entity.parse.failed')) return next(err);
   const error = tooLarge ? 'payload_too_large' : 'invalid_input';
-  return res.status(STATUS_BY_ERROR[error]).json({ ok: false, error, message: MESSAGES[error] });
+  return sendError(res, error);
 }
 
-module.exports = { createRecommendationsHandler, bodyErrorHandler, STATUS_BY_ERROR };
+module.exports = {
+  createAuthenticateMiddleware,
+  createRecommendationsHandler,
+  rateLimitedHandler,
+  bodyErrorHandler,
+  STATUS_BY_ERROR,
+};

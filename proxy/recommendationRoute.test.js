@@ -5,7 +5,14 @@ const assert = require('node:assert/strict');
 
 process.env.SERPAPI_KEY = 'test-serpapi-key';
 
-const { app, setRecommendationDeps, resetRecommendationDeps } = require('./server');
+const {
+  app,
+  setRecommendationDeps,
+  resetRecommendationDeps,
+  resetRecommendationRateLimits,
+  RECOMMENDATION_IP_LIMIT,
+  RECOMMENDATION_USER_LIMIT,
+} = require('./server');
 const { createGeminiClient } = require('./geminiClient');
 const { createRecommendationDataLoader } = require('./recommendationData');
 
@@ -69,6 +76,7 @@ const geminiReply = (text) => async () => ({
 });
 
 function setup({ geminiFetch, loadRawData, geminiClient } = {}) {
+  resetRecommendationRateLimits();
   const geminiRequests = [];
   const calls = { verify: 0, load: 0 };
   const firestore = fakeFirestore(DOCS);
@@ -289,4 +297,29 @@ test('an unexpected throw returns 500 upstream_error', async () => {
   const res = await post(BODY);
   assert.equal(res.status, 500);
   assert.equal(res.body.error, 'upstream_error');
+});
+
+test('a user over the per-user limit gets 429 rate_limited without another Gemini call', async () => {
+  const { geminiRequests } = setup();
+  for (let i = 0; i < RECOMMENDATION_USER_LIMIT; i += 1) {
+    assert.equal((await post(BODY)).status, 200);
+  }
+  const res = await post(BODY);
+  assert.equal(res.status, 429);
+  assert.equal(res.body.ok, false);
+  assert.equal(res.body.error, 'rate_limited');
+  assert.equal(typeof res.body.message, 'string');
+  assert.match(res.headers.get('retry-after'), /^\d+$/);
+  assert.equal(geminiRequests.length, RECOMMENDATION_USER_LIMIT);
+});
+
+test('a client IP over the per-IP limit gets 429 before its token is checked', async () => {
+  const { calls } = setup();
+  for (let i = 0; i < RECOMMENDATION_IP_LIMIT; i += 1) {
+    assert.equal((await post(BODY, { token: 'bad-token' })).status, 401);
+  }
+  const res = await post(BODY);
+  assert.equal(res.status, 429);
+  assert.equal(res.body.error, 'rate_limited');
+  assert.equal(calls.verify, RECOMMENDATION_IP_LIMIT);
 });
