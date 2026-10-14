@@ -3,16 +3,19 @@ import '../models/group.dart';
 import '../models/schedule.dart';
 import '../models/trip_location.dart';
 import '../services/place_service.dart';
+import '../services/recommendation_service.dart';
 import '../services/schedule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/confirmation_dialog.dart';
 import '../widgets/gradient_app_bar.dart';
 import 'groups/group_preferences_page.dart';
 import '../widgets/trip_location_picker.dart';
+import '../widgets/suggestions_section.dart';
 import 'itinerary_builder.dart';
 import 'trip_map_page.dart';
 
-/// Itinerary landing page ("Schedule Builder"): an AI advisor panel, the plan
+/// Itinerary landing page ("Schedule Builder"): an AI advisor panel (FR-104
+/// suggestions for the group, via [SuggestionsSection]), the plan
 /// for one selected day, and an "Add to Trip" panel with a button per item
 /// type (activity, flight, hotel). Adding asks for the date, so days are
 /// created as items land on them, and items are only listed in the Day Plan
@@ -22,8 +25,8 @@ import 'trip_map_page.dart';
 /// it. Members suggest; the admin decides: a member's item goes to the
 /// Suggestions panel until the admin approves it into the Day Plan or rejects
 /// it, and only the admin edits or removes what's on the itinerary. The
-/// Firestore rules enforce the same split. The advisor panel is a placeholder until the Gemini integration
-/// exists. Panels stack below [_wideBreakpoint], add panel first, so the part
+/// Firestore rules enforce the same split.
+/// Panels stack below [_wideBreakpoint], add panel first, so the part
 /// that does something stays on top at phone width.
 const double _wideBreakpoint = 760;
 
@@ -44,12 +47,19 @@ String formatScheduleDay(DateTime date) {
 
 /// Where "Plan Itinerary" on a trip goes.
 class ScheduleBuilderPage extends StatefulWidget {
-  const ScheduleBuilderPage({super.key, required this.group, ScheduleService? service, this.placeService})
-      : _service = service;
+  const ScheduleBuilderPage({
+    super.key,
+    required this.group,
+    ScheduleService? service,
+    this.placeService,
+    RecommendationService? recommendationService,
+  })  : _service = service,
+        _recommendationService = recommendationService;
 
   final Group group;
   final ScheduleService? _service;
   final PlaceService? placeService;
+  final RecommendationService? _recommendationService;
 
   @override
   State<ScheduleBuilderPage> createState() => _ScheduleBuilderPageState();
@@ -57,6 +67,12 @@ class ScheduleBuilderPage extends StatefulWidget {
 
 class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   late final ScheduleService _service = widget._service ?? ScheduleService();
+  late final RecommendationService _recommendationService =
+      widget._recommendationService ?? RecommendationService();
+
+  // Kept in state so the advisor survives the wide/narrow layout swap
+  // instead of refetching from Gemini.
+  final _advisorKey = GlobalKey();
 
   String get _groupId => widget.group.id;
 
@@ -251,7 +267,11 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                   final itinerary = items.where((i) => !i.isSuggestion).toList();
                   final suggestions = items.where((i) => i.isSuggestion).toList();
 
-                  const advisor = _AdvisorPanel();
+                  final advisor = _AdvisorPanel(
+                    key: _advisorKey,
+                    service: _recommendationService,
+                    groupId: _groupId,
+                  );
                   final dayPlan = _DayPlanPanel(
                     days: days,
                     selectedDay: selectedDay,
@@ -319,7 +339,7 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    const Expanded(child: advisor),
+                                    Expanded(child: advisor),
                                     const SizedBox(width: 16),
                                     Expanded(child: dayPlan),
                                     const SizedBox(width: 16),
@@ -454,7 +474,10 @@ BoxDecoration _innerCard() => BoxDecoration(
     );
 
 class _AdvisorPanel extends StatelessWidget {
-  const _AdvisorPanel();
+  const _AdvisorPanel({super.key, required this.service, required this.groupId});
+
+  final RecommendationService service;
+  final String groupId;
 
   @override
   Widget build(BuildContext context) {
@@ -462,14 +485,11 @@ class _AdvisorPanel extends StatelessWidget {
       title: 'AI Advisor',
       subtitle: 'Powered by Gemini',
       children: [
-        Icon(Icons.auto_awesome_rounded,
-            size: 40, color: AppColors.textMuted.withValues(alpha: 0.6)),
-        const SizedBox(height: 12),
-        Text(
-          'Coming soon — suggested flights, hotels, and activities based on '
-          'your group\'s preferences will appear here.',
-          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-          textAlign: TextAlign.center,
+        SuggestionsSection(
+          service: service,
+          searchContext: SearchContext(groupId: groupId),
+          embedded: true,
+          heading: 'Ideas for this trip',
         ),
       ],
     );
