@@ -70,6 +70,15 @@ class SearchContext {
   final String? departureDate;
   final String groupId;
   final List<dynamic> travelResults;
+
+  /// Whether [other] would send the same request, so callers can skip a
+  /// refetch (each one is a billed Gemini call) when nothing changed.
+  bool sameRequestAs(SearchContext other) =>
+      groupId == other.groupId &&
+      origin == other.origin &&
+      destination == other.destination &&
+      departureDate == other.departureDate &&
+      jsonEncode(travelResults) == jsonEncode(other.travelResults);
 }
 
 /// Calls the proxy's `/recommendations` endpoint for FR-104 travel
