@@ -8,14 +8,18 @@ import 'login_page.dart';
 import 'groups/my_groups_page.dart';
 import 'amadeus_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/settings_panel.dart';
 import '../services/airport_service.dart';
 import '../widgets/airport_search_field.dart';
  
 enum SearchType { flights, hotels }
  
 class itinerary_builder extends StatefulWidget {
-  const itinerary_builder({super.key});
- 
+  const itinerary_builder({super.key, this.initialSearchType = SearchType.flights});
+
+  /// Which way the Flights/Hotels toggle on the last step starts out.
+  final SearchType initialSearchType;
+
   @override
   State<itinerary_builder> createState() => _itineraryState();
 }
@@ -37,7 +41,7 @@ class _itineraryState extends State<itinerary_builder> {
   DateTime? _departureDate;
   DateTime? _returnDate;
   int _passengers = 1;
-  SearchType _searchType = SearchType.flights;
+  late SearchType _searchType = widget.initialSearchType;
   bool _loading = false;
  
   void updateDisplay(int display) {
@@ -317,6 +321,7 @@ class _itineraryState extends State<itinerary_builder> {
               }
             },
           ),
+          const SettingsButton(),
           const SizedBox(width: 8),
         ],
       ),

@@ -7,11 +7,22 @@ app.use(cors());
 app.use('/airports', require('./airports').createAirportRouter());
  
 const SERPAPI_KEY = process.env.SERPAPI_KEY;
-if (!SERPAPI_KEY) {
+if (!SERPAPI_KEY && require.main === module) {
   console.error(
     'Missing SERPAPI_KEY. Set it in the environment (see proxy/.env.example) before starting the proxy.'
   );
   process.exit(1);
+}
+
+// Used by /flights so the SerpApi request can be mocked in automated tests.
+let flightFetch = fetch;
+
+function setFlightFetch(mockFetch) {
+  flightFetch = mockFetch;
+}
+
+function resetFlightFetch() {
+  flightFetch = fetch;
 }
  
 // GET /flights?origin=&destination=&departureDate=&adults=&returnDate=
@@ -21,6 +32,19 @@ if (!SERPAPI_KEY) {
 // (type=2) same as before.
 app.get('/flights', async (req, res) => {
   const { origin, destination, departureDate, adults, returnDate } = req.query;
+
+  if (!origin || !destination || !departureDate) {
+    return res.status(400).json({
+      error: 'origin, destination, and departureDate are required',
+    });
+  }
+
+  if (adults !== undefined && !/^\d+$/.test(adults)) {
+    return res.status(400).json({
+      error: 'adults must be numeric',
+    });
+  }
+
   const url = new URL('https://serpapi.com/search');
   url.searchParams.set('engine', 'google_flights');
   url.searchParams.set('departure_id', origin);
@@ -38,11 +62,16 @@ app.get('/flights', async (req, res) => {
   url.searchParams.set('api_key', SERPAPI_KEY);
  
   try {
-    const response = await fetch(url.toString());
+    const response = await flightFetch(url.toString());
     const data = await response.json();
-    res.json(data['best_flights'] ?? data['other_flights'] ?? []);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+
+    if (data['best_flights']?.length) {
+      res.json(data['best_flights']);
+    } else {
+      res.json(data['other_flights'] ?? []);
+    }
+  } catch {
+    res.status(500).json({ error: 'Unable to complete the search. Please try again later.' });
   }
 });
  
@@ -74,8 +103,8 @@ app.get('/flights/return', async (req, res) => {
     const response = await fetch(url.toString());
     const data = await response.json();
     res.json(data['best_flights'] ?? data['other_flights'] ?? []);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.status(500).json({ error: 'Unable to complete the search. Please try again later.' });
   }
 });
  
@@ -114,8 +143,8 @@ app.get('/flights/booking', async (req, res) => {
     const response = await fetch(url.toString());
     const data = await response.json();
     res.json(data['booking_options'] ?? []);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.status(500).json({ error: 'Unable to complete the search. Please try again later.' });
   }
 });
 
@@ -143,10 +172,18 @@ app.get('/hotels', async (req, res) => {
     const data = await response.json();
 
     res.json(data['properties'] ?? []);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.status(500).json({ error: 'Unable to complete the search. Please try again later.' });
   }
 });
 
- 
-app.listen(3000, () => console.log('Proxy running on http://localhost:3000'));
+if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, '0.0.0.0', () => console.log(`Proxy listening on port ${port}`));
+}
+
+module.exports = {
+  app,
+  setFlightFetch,
+  resetFlightFetch,
+};

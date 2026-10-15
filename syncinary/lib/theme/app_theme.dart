@@ -241,7 +241,13 @@ class GradientButton extends StatelessWidget {
                         Icon(icon, color: AppColors.textPrimary, size: 20),
                         const SizedBox(width: 10),
                       ],
-                      Text(label, style: AppTextStyles.button),
+                      Flexible(
+                        child: Text(
+                          label,
+                          style: AppTextStyles.button,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ],
                   ),
           ),
@@ -342,7 +348,7 @@ ThemeData buildAppTheme() {
       scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: AppTextStyles.title,
-      iconTheme: IconThemeData(color: AppColors.textPrimary),
+      iconTheme: IconThemeData(color: AppColors.textMuted),
     ),
     cardTheme: CardThemeData(
       color: AppColors.surface,
