@@ -225,4 +225,26 @@ void main() {
       expect((result as RecommendationFailure).error, RecommendationError.unreachable);
     });
   });
+
+  test('SearchContext.sameRequestAs compares every request field, including result contents', () {
+    const base = SearchContext(groupId: 'g1', destination: 'SFO', travelResults: [
+      {'type': 'flight', 'name': 'UA 500'},
+    ]);
+    expect(
+        base.sameRequestAs(const SearchContext(groupId: 'g1', destination: 'SFO', travelResults: [
+          {'type': 'flight', 'name': 'UA 500'},
+        ])),
+        isTrue);
+    expect(
+        base.sameRequestAs(const SearchContext(groupId: 'g1', destination: 'SFO', travelResults: [
+          {'type': 'flight', 'name': 'UA 501'},
+        ])),
+        isFalse);
+    expect(base.sameRequestAs(const SearchContext(groupId: 'g2', destination: 'SFO')), isFalse);
+    expect(
+        base.sameRequestAs(const SearchContext(groupId: 'g1', destination: 'LAX', travelResults: [
+          {'type': 'flight', 'name': 'UA 500'},
+        ])),
+        isFalse);
+  });
 }

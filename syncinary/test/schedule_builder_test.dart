@@ -83,11 +83,13 @@ Future<ScheduleService> _pumpPage(
   required RecommendationService advisor,
   double width = 1000,
   bool settle = true,
+  Future<void> Function(ScheduleService service)? seed,
 }) async {
   tester.view.physicalSize = Size(width, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final service = _service(FakeFirebaseFirestore());
+  if (seed != null) await seed(service);
   await tester.pumpWidget(makeTestableWidget(
     ScheduleBuilderPage(group: _nycGroup(), service: service, recommendationService: advisor),
   ));
@@ -412,20 +414,59 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('schedule updates and layout changes do not refetch', (tester) async {
+    testWidgets('[104-1] the one initial request carries the scheduled items as travel results',
+        (tester) async {
+      final requests = <http.Request>[];
+      await _pumpPage(tester, advisor: _advisor(requests, () async => _suggestions()),
+          seed: (service) => service.addItem('nyc',
+              date: DateTime(2026, 5, 3),
+              type: ScheduleItemType.flight,
+              title: 'UA 500',
+              details: 'IND -> SFO'));
+
+      final body = jsonDecode(requests.single.body) as Map<String, dynamic>;
+      expect(body['travelResults'], [
+        {'type': 'flight', 'name': 'UA 500 (IND -> SFO)', 'departureTime': '2026-05-03'},
+      ]);
+    });
+
+    testWidgets('schedule changes refetch with the new items; layout changes do not',
+        (tester) async {
       final requests = <http.Request>[];
       final service = await _pumpPage(tester,
           advisor: _advisor(requests, () async => _suggestions()));
+      expect(requests, hasLength(1));
 
       await service.addItem('nyc',
           date: DateTime(2026, 5, 3), type: ScheduleItemType.activity, title: 'Hike');
       await tester.pumpAndSettle();
       expect(find.text('Hike'), findsOneWidget);
+      expect(requests, hasLength(2));
+      final body = jsonDecode(requests.last.body) as Map<String, dynamic>;
+      expect(body['travelResults'], [
+        {'type': 'activity', 'name': 'Hike', 'departureTime': '2026-05-03'},
+      ]);
 
       tester.view.physicalSize = const Size(500, 1600);
       await tester.pumpAndSettle();
       expect(find.text('Miami'), findsOneWidget);
-      expect(requests, hasLength(1));
+      expect(requests, hasLength(2));
     });
+  });
+
+  test('scheduleItemsAsTravelResults orders by day and omits empty details', () {
+    ScheduleItem item(String day, ScheduleItemType type, String title, [String details = '']) =>
+        ScheduleItem(id: title, day: day, type: type, title: title, details: details);
+
+    expect(
+      scheduleItemsAsTravelResults([
+        item('2026-05-04', ScheduleItemType.hotel, 'Hilton', 'Downtown'),
+        item('2026-05-03', ScheduleItemType.activity, 'Hike'),
+      ]),
+      [
+        {'type': 'activity', 'name': 'Hike', 'departureTime': '2026-05-03'},
+        {'type': 'hotel', 'name': 'Hilton (Downtown)', 'departureTime': '2026-05-04'},
+      ],
+    );
   });
 }

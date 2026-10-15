@@ -191,6 +191,9 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                     key: _advisorKey,
                     service: _recommendationService,
                     groupId: _groupId,
+                    // Null until the first snapshot, so the advisor's one
+                    // initial request already includes the schedule.
+                    items: itemsSnapshot.hasData ? items : null,
                   );
                   final dayPlan = _DayPlanPanel(
                     days: days,
@@ -350,27 +353,57 @@ BoxDecoration _innerCard() => BoxDecoration(
       border: Border.all(color: AppColors.border),
     );
 
+/// Sends the group's planned flights, hotels and activities as the request's
+/// travel results, so suggestions build on what is already scheduled. The
+/// advisor refetches only when those items change.
 class _AdvisorPanel extends StatelessWidget {
-  const _AdvisorPanel({super.key, required this.service, required this.groupId});
+  const _AdvisorPanel({
+    super.key,
+    required this.service,
+    required this.groupId,
+    required this.items,
+  });
 
   final RecommendationService service;
   final String groupId;
 
+  /// Null while the schedule is still loading.
+  final List<ScheduleItem>? items;
+
   @override
   Widget build(BuildContext context) {
+    final items = this.items;
     return _Panel(
       title: 'AI Advisor',
       subtitle: 'Powered by Gemini',
       children: [
         SuggestionsSection(
           service: service,
-          searchContext: SearchContext(groupId: groupId),
+          searchContext: items == null
+              ? null
+              : SearchContext(groupId: groupId, travelResults: scheduleItemsAsTravelResults(items)),
           embedded: true,
           heading: 'Ideas for this trip',
         ),
       ],
     );
   }
+}
+
+/// Maps schedule items onto the travel-result fields the proxy accepts
+/// (`type`, `name`, `departureTime`), earliest day first so the client's
+/// result cap keeps the start of the trip.
+@visibleForTesting
+List<Map<String, String>> scheduleItemsAsTravelResults(List<ScheduleItem> items) {
+  final sorted = [...items]..sort((a, b) => a.day.compareTo(b.day));
+  return [
+    for (final item in sorted)
+      {
+        'type': scheduleItemTypeToString(item.type),
+        'name': item.details.isEmpty ? item.title : '${item.title} (${item.details})',
+        'departureTime': item.day,
+      },
+  ];
 }
 
 /// Everything the group has planned for [selectedDay], with edit/remove
