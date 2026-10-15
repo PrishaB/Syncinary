@@ -15,7 +15,9 @@
  * load it locally (see `proxy/README.md`); there is no `dotenv` dependency.
  */
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+// gemini-2.0-flash was retired (404). Larger flash models were often overloaded
+// (503) or slower than the timeout on the free tier; flash-lite answered in ~3s.
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_TIMEOUT_MS = 20000;
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com';
 

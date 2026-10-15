@@ -1,8 +1,9 @@
 # AGENTS.md — flight proxy
 
 A ~30-line Express service. It exists so the SerpApi key isn't shipped inside
-the Flutter app. One route: `GET /flights` → SerpApi Google Flights, returning
-the `best_flights` / `other_flights` array as JSON. Run commands from this
+the Flutter app. `GET /flights` → SerpApi Google Flights, returning the
+`best_flights` / `other_flights` array as JSON; `POST /recommendations` → the
+Gemini recommendation pipeline (see `README.md`). Run commands from this
 directory (`proxy/`).
 
 ## Setup / run
@@ -14,16 +15,20 @@ node --env-file=.env server.js # listens on http://localhost:3000
 ```
 
 `server.js` reads `SERPAPI_KEY` from the environment and exits immediately if
-it's unset — get a key at https://serpapi.com. Node 20.6+ can load `.env`
-itself via `--env-file`; on older Node 18, export the var another way
-(`export SERPAPI_KEY=...` or a tool like `dotenv-cli`). `.env` is gitignored;
-never commit it.
+it's unset — get a key at https://serpapi.com. Node loads `.env` itself via
+`--env-file`. `.env` is gitignored; never commit it.
 
-Node 18+ (CommonJS, `require`). Dependencies: `express`, `cors`, and
-`node-fetch@2` — v2 is deliberate, it's the last CommonJS release of the
+Node 22+ (CommonJS, `require`) — `firebase-admin@14` requires it, and CI runs
+Node 22. Dependencies: `express`, `cors`, `express-rate-limit`, `firebase-admin`
+and `node-fetch@2` — v2 is deliberate, it's the last CommonJS release of the
 package.
+`firebase-admin` is used only through its modular entry points
+(`firebase-admin/app`, `/auth`, `/firestore`; 14.x removed the legacy
+`admin.*` namespace). It is only initialized lazily by `/recommendations`
+(needs `GOOGLE_APPLICATION_CREDENTIALS`, see `.env.example`); `/flights` and
+the tests never touch it.
 
-`node_modules/` is **committed** (~650 files) on purpose so `node server.js`
+`node_modules/` is **committed** (~5.6k files, ~68 MB) on purpose so `node server.js`
 works without an `npm install` step. That's about the runtime
 `dependencies` only — CI (`.github/workflows/ci.yml`) runs `npm ci` fresh in
 this directory for every push/PR, which is also how the `eslint` /
@@ -68,3 +73,10 @@ call by accident, and CI (which has neither) always skips it. See
   commit's finding in `.gitleaksignore`.
 - Never forward the SerpApi key to the client, and don't log full upstream
   responses that may carry it.
+- `POST /recommendations` must verify the Firebase ID token before any
+  Firestore or Gemini work and take the uid only from the verified token. Never
+  forward upstream error text, `raw`, or tokens to the client or logs.
+- Keep `/recommendations` rate-limited with `express-rate-limit` middleware in
+  the route chain (per-IP first, per-uid after auth): each call spends Gemini
+  quota, and CodeQL's `js/missing-rate-limiting` fails CI on an authorized
+  route without it.
