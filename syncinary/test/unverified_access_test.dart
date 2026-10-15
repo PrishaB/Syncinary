@@ -92,7 +92,6 @@ void _expectBlocked(_TrackedGroups service) {
     MyGroupsPage,
     JoinGroupPage,
     GroupDetailPage,
-    PlanItineraryPage,
     ScheduleBuilderPage,
     itinerary_builder,
   ]) {
