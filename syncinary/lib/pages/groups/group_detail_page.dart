@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/group.dart';
 import '../../services/group_service.dart';
@@ -126,7 +125,15 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   }
 
   void _planItinerary(Group group) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ScheduleBuilderPage(group: group)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScheduleBuilderPage(
+          group: group,
+          service: _service.scheduleService,
+        ),
+      ),
+    );
   }
 
   void _trackCosts(Group group) {
@@ -144,10 +151,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
             icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
             tooltip: 'Log out',
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
+              await _service.auth.signOut();
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  MaterialPageRoute(builder: (_) => LoginPage(auth: _service.auth, groupService: _service)),
                   (route) => false,
                 );
               }
