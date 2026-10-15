@@ -60,6 +60,37 @@ void main() {
       expect(body['search']['startDate'], '2026-10-01');
     });
 
+    test('a group-only context sends no search fields', () async {
+      http.Request? captured;
+      final client = MockClient((request) async {
+        captured = request;
+        return http.Response(jsonEncode(_successBody()), 200);
+      });
+      final service = RecommendationService(client: client, idTokenProvider: () async => null);
+
+      await service.fetchRecommendations(const SearchContext(groupId: 'g1'));
+
+      final body = jsonDecode(captured!.body) as Map<String, dynamic>;
+      expect(body['groupId'], 'g1');
+      expect(body['search'], isEmpty);
+      expect(body['travelResults'], isEmpty);
+    });
+
+    test('a partial context sends only the fields it has', () async {
+      http.Request? captured;
+      final client = MockClient((request) async {
+        captured = request;
+        return http.Response(jsonEncode(_successBody()), 200);
+      });
+      final service = RecommendationService(client: client, idTokenProvider: () async => null);
+
+      await service.fetchRecommendations(
+          const SearchContext(groupId: 'g1', origin: 'JFK', departureDate: '2026-10-01'));
+
+      final search = (jsonDecode(captured!.body) as Map<String, dynamic>)['search'] as Map;
+      expect(search, {'startDate': '2026-10-01'});
+    });
+
     test('omits the Authorization header when there is no token', () async {
       http.Request? captured;
       final client = MockClient((request) async {
@@ -193,5 +224,27 @@ void main() {
       expect(result, isA<RecommendationFailure>());
       expect((result as RecommendationFailure).error, RecommendationError.unreachable);
     });
+  });
+
+  test('SearchContext.sameRequestAs compares every request field, including result contents', () {
+    const base = SearchContext(groupId: 'g1', destination: 'SFO', travelResults: [
+      {'type': 'flight', 'name': 'UA 500'},
+    ]);
+    expect(
+        base.sameRequestAs(const SearchContext(groupId: 'g1', destination: 'SFO', travelResults: [
+          {'type': 'flight', 'name': 'UA 500'},
+        ])),
+        isTrue);
+    expect(
+        base.sameRequestAs(const SearchContext(groupId: 'g1', destination: 'SFO', travelResults: [
+          {'type': 'flight', 'name': 'UA 501'},
+        ])),
+        isFalse);
+    expect(base.sameRequestAs(const SearchContext(groupId: 'g2', destination: 'SFO')), isFalse);
+    expect(
+        base.sameRequestAs(const SearchContext(groupId: 'g1', destination: 'LAX', travelResults: [
+          {'type': 'flight', 'name': 'UA 500'},
+        ])),
+        isFalse);
   });
 }

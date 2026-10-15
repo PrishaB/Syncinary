@@ -4,38 +4,56 @@ import '../models/recommendation.dart';
 import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 
-/// FR-104 suggestions panel: fetches once in [initState] and renders one of
-/// four states — loading, success, empty, or error with retry. It owns its
+/// FR-104 suggestions panel: fetches when it first has a [searchContext], and
+/// again only when the context would send a different request. Renders one
+/// of four states — loading, success, empty, or error with retry. It owns its
 /// future independently of whatever page embeds it, so a slow or failed
 /// recommendation never blocks the rest of that page's content.
+///
+/// A null [searchContext] means the host is still loading what goes in the
+/// request; the panel shows the loading state without fetching.
+/// [embedded] drops the outer card, for hosts that already sit in one.
 class SuggestionsSection extends StatefulWidget {
   const SuggestionsSection({
     super.key,
     required this.service,
     required this.searchContext,
+    this.embedded = false,
+    this.heading = 'Suggestions for you',
   });
 
   final RecommendationService service;
-  final SearchContext searchContext;
+  final SearchContext? searchContext;
+  final bool embedded;
+  final String heading;
 
   @override
   State<SuggestionsSection> createState() => _SuggestionsSectionState();
 }
 
 class _SuggestionsSectionState extends State<SuggestionsSection> {
-  late Future<RecommendationResult> _future;
+  Future<RecommendationResult>? _future;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.service.fetchRecommendations(widget.searchContext);
+    _fetch();
   }
 
-  void _retry() {
-    setState(() {
-      _future = widget.service.fetchRecommendations(widget.searchContext);
-    });
+  @override
+  void didUpdateWidget(SuggestionsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final searchContext = widget.searchContext;
+    final old = oldWidget.searchContext;
+    if (searchContext != null && (old == null || !searchContext.sameRequestAs(old))) _fetch();
   }
+
+  void _fetch() {
+    final searchContext = widget.searchContext;
+    if (searchContext != null) _future = widget.service.fetchRecommendations(searchContext);
+  }
+
+  void _retry() => setState(_fetch);
 
   @override
   Widget build(BuildContext context) {
@@ -61,13 +79,15 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
     );
   }
 
-  Widget _card({required Key key, required Widget child}) => Container(
-        key: key,
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: AppDecorations.glassCard(),
-        child: child,
-      );
+  Widget _card({required Key key, required Widget child}) => widget.embedded
+      ? KeyedSubtree(key: key, child: child)
+      : Container(
+          key: key,
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: AppDecorations.glassCard(),
+          child: child,
+        );
 
   Widget _loadingCard() => _card(
         key: const Key('suggestions-loading'),
@@ -79,8 +99,10 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
               child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accentEnd),
             ),
             const SizedBox(width: 14),
-            Text('Finding suggestions…',
-                style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+            Expanded(
+              child: Text('Finding suggestions…',
+                  style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+            ),
           ],
         ),
       );
@@ -141,7 +163,9 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
               children: [
                 const Icon(Icons.auto_awesome_rounded, color: AppColors.accentEnd, size: 20),
                 const SizedBox(width: 10),
-                Text('Suggestions for you', style: AppTextStyles.title.copyWith(fontSize: 16)),
+                Expanded(
+                  child: Text(widget.heading, style: AppTextStyles.title.copyWith(fontSize: 16)),
+                ),
               ],
             ),
             const SizedBox(height: 10),
