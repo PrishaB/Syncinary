@@ -196,8 +196,8 @@ app.get('/hotels', async (req, res) => {
 // are only touched by /recommendations. Tests swap them via setRecommendationDeps.
 const defaultRecommendationDeps = {
   verifyIdToken: (header) => require('./firebaseAdmin').verifyIdTokenFromHeader(header),
-  loadRawData: (args) =>
-    createRecommendationDataLoader(require('./firebaseAdmin').getFirestore()).loadRawData(args),
+  loadRawData: async (args) =>
+    createRecommendationDataLoader(await require('./firebaseAdmin').getFirestore()).loadRawData(args),
   geminiClient: { generateRecommendation: (args) => createGeminiClient().generateRecommendation(args) },
 };
 let recommendationDeps = defaultRecommendationDeps;

@@ -18,7 +18,27 @@ function getApp() {
   return adminApp;
 }
 
-function getFirestore() {
+let credentialsChecked;
+
+/**
+ * Rejects (so the route answers 503) unless credentials can produce an access
+ * token. Without this, Firestore's gRPC client also leaves its own rejections
+ * unhandled when credentials are missing, and Node exits on those.
+ */
+async function ensureCredentials() {
+  if (!credentialsChecked) {
+    credentialsChecked = getApp().options.credential.getAccessToken();
+    // Don't cache a failure: a later call retries, e.g. once ADC becomes available.
+    credentialsChecked.catch(() => {
+      credentialsChecked = undefined;
+    });
+  }
+  await credentialsChecked;
+}
+
+/** @returns {Promise<import('firebase-admin/firestore').Firestore>} */
+async function getFirestore() {
+  await ensureCredentials();
   return require('firebase-admin/firestore').getFirestore(getApp());
 }
 
