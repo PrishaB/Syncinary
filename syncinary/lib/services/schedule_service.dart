@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/schedule.dart';
+import '../models/trip_location.dart';
 
 /// Firestore-backed data access for a trip's day-by-day schedule.
 ///
@@ -75,7 +76,11 @@ class ScheduleService {
     required ScheduleItemType type,
     required String title,
     String details = '',
+    TripLocation? location,
   }) {
+    if (location != null && !location.isValid) {
+      throw ArgumentError('Invalid trip location');
+    }
     final batch = _firestore.batch();
     final dayKey = _setDay(batch, groupId, date);
     batch.set(_items(groupId).doc(), {
@@ -85,6 +90,7 @@ class ScheduleService {
       'details': details,
       'addedBy': currentUserId,
       'createdAt': FieldValue.serverTimestamp(),
+      if (location != null) 'location': location.toMap(),
     });
     return batch.commit();
   }
@@ -97,14 +103,31 @@ class ScheduleService {
     required DateTime date,
     required String title,
     required String details,
+    TripLocation? location,
+    bool clearLocation = false,
   }) {
+    if (location != null && !location.isValid) {
+      throw ArgumentError('Invalid trip location');
+    }
     final batch = _firestore.batch();
     final dayKey = _setDay(batch, groupId, date);
-    batch.update(_items(groupId).doc(itemId),
-        {'day': dayKey, 'title': title, 'details': details});
+    batch.update(_items(groupId).doc(itemId), {
+      'day': dayKey,
+      'title': title,
+      'details': details,
+      if (location != null) 'location': location.toMap(),
+      if (clearLocation) 'location': FieldValue.delete(),
+    });
     return batch.commit();
   }
 
   Future<void> deleteItem(String groupId, String itemId) =>
       _items(groupId).doc(itemId).delete();
+
+  /// Updates only the location so a concurrent title/date edit is preserved.
+  Future<void> setItemLocation(
+      String groupId, String itemId, TripLocation location) {
+    if (!location.isValid) throw ArgumentError('Invalid trip location');
+    return _items(groupId).doc(itemId).update({'location': location.toMap()});
+  }
 }
