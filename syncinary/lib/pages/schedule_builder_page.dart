@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import '../models/group.dart';
 import '../models/schedule.dart';
+import '../services/recommendation_service.dart';
 import '../services/schedule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/confirmation_dialog.dart';
 import '../widgets/gradient_app_bar.dart';
+import '../widgets/suggestions_section.dart';
 import 'itinerary_builder.dart';
 
-/// Itinerary landing page ("Schedule Builder"): an AI advisor panel, the plan
+/// Itinerary landing page ("Schedule Builder"): an AI advisor panel (FR-104
+/// suggestions for the group, via [SuggestionsSection]), the plan
 /// for one selected day, and an "Add to Trip" panel with a button per item
 /// type (activity, flight, hotel). Adding asks for the date, so days are
 /// created as items land on them, and items are only listed in the Day Plan.
 /// The schedule is shared by the whole group and live (Firestore via
 /// [ScheduleService]), and every entry is labelled with the member who added
-/// it. The advisor panel is a placeholder until the Gemini integration
-/// exists. Panels stack below [_wideBreakpoint], add panel first, so the part
+/// it. Panels stack below [_wideBreakpoint], add panel first, so the part
 /// that does something stays on top at phone width.
 const double _wideBreakpoint = 760;
 
@@ -35,11 +37,17 @@ String formatScheduleDay(DateTime date) {
 
 /// Where "Plan Itinerary" on a trip goes.
 class ScheduleBuilderPage extends StatefulWidget {
-  const ScheduleBuilderPage({super.key, required this.group, ScheduleService? service})
-      : _service = service;
+  const ScheduleBuilderPage({
+    super.key,
+    required this.group,
+    ScheduleService? service,
+    RecommendationService? recommendationService,
+  })  : _service = service,
+        _recommendationService = recommendationService;
 
   final Group group;
   final ScheduleService? _service;
+  final RecommendationService? _recommendationService;
 
   @override
   State<ScheduleBuilderPage> createState() => _ScheduleBuilderPageState();
@@ -47,6 +55,12 @@ class ScheduleBuilderPage extends StatefulWidget {
 
 class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   late final ScheduleService _service = widget._service ?? ScheduleService();
+  late final RecommendationService _recommendationService =
+      widget._recommendationService ?? RecommendationService();
+
+  // Kept in state so the advisor survives the wide/narrow layout swap
+  // instead of refetching from Gemini.
+  final _advisorKey = GlobalKey();
 
   String get _groupId => widget.group.id;
 
@@ -173,7 +187,14 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
 
                   final selectedDay = _selectedDay(days);
 
-                  const advisor = _AdvisorPanel();
+                  final advisor = _AdvisorPanel(
+                    key: _advisorKey,
+                    service: _recommendationService,
+                    groupId: _groupId,
+                    // Null until the first snapshot, so the advisor's one
+                    // initial request already includes the schedule.
+                    items: itemsSnapshot.hasData ? items : null,
+                  );
                   final dayPlan = _DayPlanPanel(
                     days: days,
                     selectedDay: selectedDay,
@@ -211,7 +232,7 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    const Expanded(child: advisor),
+                                    Expanded(child: advisor),
                                     const SizedBox(width: 16),
                                     Expanded(child: dayPlan),
                                     const SizedBox(width: 16),
@@ -332,27 +353,57 @@ BoxDecoration _innerCard() => BoxDecoration(
       border: Border.all(color: AppColors.border),
     );
 
+/// Sends the group's planned flights, hotels and activities as the request's
+/// travel results, so suggestions build on what is already scheduled. The
+/// advisor refetches only when those items change.
 class _AdvisorPanel extends StatelessWidget {
-  const _AdvisorPanel();
+  const _AdvisorPanel({
+    super.key,
+    required this.service,
+    required this.groupId,
+    required this.items,
+  });
+
+  final RecommendationService service;
+  final String groupId;
+
+  /// Null while the schedule is still loading.
+  final List<ScheduleItem>? items;
 
   @override
   Widget build(BuildContext context) {
+    final items = this.items;
     return _Panel(
       title: 'AI Advisor',
       subtitle: 'Powered by Gemini',
       children: [
-        Icon(Icons.auto_awesome_rounded,
-            size: 40, color: AppColors.textMuted.withValues(alpha: 0.6)),
-        const SizedBox(height: 12),
-        Text(
-          'Coming soon — suggested flights, hotels, and activities based on '
-          'your group\'s preferences will appear here.',
-          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-          textAlign: TextAlign.center,
+        SuggestionsSection(
+          service: service,
+          searchContext: items == null
+              ? null
+              : SearchContext(groupId: groupId, travelResults: scheduleItemsAsTravelResults(items)),
+          embedded: true,
+          heading: 'Ideas for this trip',
         ),
       ],
     );
   }
+}
+
+/// Maps schedule items onto the travel-result fields the proxy accepts
+/// (`type`, `name`, `departureTime`), earliest day first so the client's
+/// result cap keeps the start of the trip.
+@visibleForTesting
+List<Map<String, String>> scheduleItemsAsTravelResults(List<ScheduleItem> items) {
+  final sorted = [...items]..sort((a, b) => a.day.compareTo(b.day));
+  return [
+    for (final item in sorted)
+      {
+        'type': scheduleItemTypeToString(item.type),
+        'name': item.details.isEmpty ? item.title : '${item.title} (${item.details})',
+        'departureTime': item.day,
+      },
+  ];
 }
 
 /// Everything the group has planned for [selectedDay], with edit/remove
