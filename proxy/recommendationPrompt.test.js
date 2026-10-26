@@ -327,3 +327,41 @@ test('filter -> prompt -> client chain sends the prompt followed by the exact fi
   const appendedJson = sentText.slice(promptResult.prompt.length + 2); // skip the "\n\n" separator
   assert.deepEqual(JSON.parse(appendedJson), filterResult.payload);
 });
+
+test('[104-3] changing only preferences, only budget or only search history changes the Gemini request and only that payload section', async () => {
+  const baseRaw = () => ({
+    users: { u1: { preferences: { activities: ['hiking'] } } },
+    groups: { g1: { memberIds: ['u1'], budget: { min: 100, max: 500 } } },
+    previousSearches: [{ groupId: 'g1', destination: 'Denver', query: 'cabins' }],
+  });
+  // The requester's own preferences also appear under memberPreferences.
+  const variants = {
+    preferences: [['requestingUserPreferences', 'memberPreferences'], (raw) => { raw.users.u1.preferences.activities = ['snorkeling']; }],
+    budget: [['budgetConstraints'], (raw) => { raw.groups.g1.budget.max = 5000; }],
+    searchHistory: [['previousSearches'], (raw) => { raw.previousSearches[0].destination = 'Miami'; }],
+  };
+
+  async function sentRequest(raw) {
+    const { payload } = buildRecommendationPayload({ requestingUserId: 'u1', groupId: 'g1' }, raw);
+    let text;
+    const fetchImpl = async (url, init) => {
+      text = JSON.parse(init.body).contents[0].parts[0].text;
+      return { status: 200, ok: true, headers: { get: () => null }, json: async () => ({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }) };
+    };
+    const client = createGeminiClient({ apiKey: 'test-key', fetchImpl });
+    await client.generateRecommendation({ payload, prompt: buildRecommendationPrompt(payload).prompt });
+    return { payload, text };
+  }
+
+  const base = await sentRequest(baseRaw());
+  for (const [name, [sections, mutate]] of Object.entries(variants)) {
+    const raw = baseRaw();
+    mutate(raw);
+    const changed = await sentRequest(raw);
+    assert.notEqual(changed.text, base.text, name);
+    for (const key of Object.keys(base.payload)) {
+      if (sections.includes(key)) assert.notDeepEqual(changed.payload[key], base.payload[key], key);
+      else assert.deepEqual(changed.payload[key], base.payload[key], key);
+    }
+  }
+});

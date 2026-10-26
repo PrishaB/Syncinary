@@ -15,6 +15,8 @@ const {
 } = require('./server');
 const { createGeminiClient } = require('./geminiClient');
 const { createRecommendationDataLoader } = require('./recommendationData');
+const { buildRecommendationPayload } = require('./llmDataFilter');
+const { buildRecommendationPrompt, RECOMMENDATION_OUTPUT_SCHEMA } = require('./recommendationPrompt');
 
 const UID = 'u1';
 const GEMINI_KEY = 'test-gemini-key-do-not-leak';
@@ -75,11 +77,11 @@ const geminiReply = (text) => async () => ({
   json: async () => ({ candidates: [{ content: { parts: [{ text }] } }] }),
 });
 
-function setup({ geminiFetch, loadRawData, geminiClient } = {}) {
+function setup({ geminiFetch, loadRawData, geminiClient, docs = DOCS } = {}) {
   resetRecommendationRateLimits();
   const geminiRequests = [];
   const calls = { verify: 0, load: 0 };
-  const firestore = fakeFirestore(DOCS);
+  const firestore = fakeFirestore(docs);
   const loader = createRecommendationDataLoader(firestore);
   setRecommendationDeps({
     log: () => {},
@@ -128,7 +130,7 @@ async function post(body, { token = 'good-token', raw } = {}) {
 
 test.afterEach(() => resetRecommendationDeps());
 
-test('POST /recommendations with a valid token returns the parsed recommendation', async () => {
+test('[104-4] POST /recommendations with a valid token returns the parsed recommendation', async () => {
   const { geminiRequests } = setup();
   const res = await post(BODY);
   assert.equal(res.status, 200);
@@ -192,13 +194,31 @@ test('an unknown group returns 404', async () => {
   assert.equal(res.body.error, 'unknown_group');
 });
 
-test('a non-member gets 403 and member user docs are never read', async () => {
+test('[104-3] a non-member gets 403 and member user docs are never read', async () => {
   const { firestore, geminiRequests } = setup();
   const res = await post({ ...BODY, groupId: 'g2' });
   assert.equal(res.status, 403);
   assert.equal(res.body.error, 'not_a_member');
   assert.equal(firestore.calls.getAll, 0);
   assert.equal(geminiRequests.length, 0);
+});
+
+test('[104-3] a non-member never reaches Gemini even when the loader returns the whole group', async () => {
+  const geminiClient = { calls: 0, generateRecommendation: async () => (geminiClient.calls += 1) };
+  setup({
+    geminiClient,
+    loadRawData: async () => ({
+      groups: { g2: { memberIds: ['other', 'u2'], budget: { max: 500 } } },
+      users: { other: { preferences: { activities: ['LEAK_pref'] } }, u2: DOCS['users/u2'] },
+      previousSearches: [],
+      travelResults: [],
+    }),
+  });
+  const res = await post({ ...BODY, groupId: 'g2' });
+  assert.equal(res.status, 403);
+  assert.equal(res.body.error, 'not_a_member');
+  // The filter refuses before buildRecommendationPrompt runs, so Gemini is never called.
+  assert.equal(geminiClient.calls, 0);
 });
 
 test('no preferences, search or results returns 422 empty_payload', async () => {
@@ -262,7 +282,7 @@ test('a missing Gemini key returns 503 missing_api_key', async () => {
   }
 });
 
-test('Gemini replies that are not valid JSON or the wrong shape return 502', async () => {
+test('[104-4] Gemini replies that are not valid JSON or the wrong shape return 502', async () => {
   setup({ geminiFetch: geminiReply('not json') });
   const notJson = await post(BODY);
   assert.equal(notJson.status, 502);
@@ -322,4 +342,99 @@ test('a client IP over the per-IP limit gets 429 before its token is checked', a
   assert.equal(res.status, 429);
   assert.equal(res.body.error, 'rate_limited');
   assert.equal(calls.verify, RECOMMENDATION_IP_LIMIT);
+});
+
+const FULL_DOCS = {
+  'groups/g1': {
+    name: 'Trip',
+    inviteCode: 'LEAK_invite',
+    memberIds: [UID, 'u2'],
+    budget: { min: 500, max: 2000, note: 'LEAK_note' },
+    availableDates: { start: '2026-06-01', end: '2026-06-10' },
+    sharedPreferences: { activities: ['hiking'] },
+  },
+  'users/u1': { username: 'LEAK_name', email: 'LEAK_email', preferences: { activities: ['museums'], preferredDestinations: ['Lisbon'] } },
+  'users/u2': { username: 'LEAK_name2', email: 'LEAK_email2', preferences: { activities: ['beach'] } },
+};
+
+const FULL_REPLY = {
+  ...VALID_REPLY,
+  activities: [
+    {
+      id: 'a1',
+      destinationId: 'd1',
+      name: 'Tram 28',
+      category: 'sightseeing',
+      description: 'Ride the tram',
+      estimatedCostPerPerson: { amount: 4, currency: 'USD' },
+      durationHours: 2,
+    },
+  ],
+  itinerary: [
+    {
+      day: 1,
+      date: '2026-06-01',
+      destinationId: 'd1',
+      items: [{ timeOfDay: 'morning', activityId: 'a1', title: 'Tram 28', notes: null }],
+    },
+  ],
+  assumptions: ['Flights are booked'],
+  warnings: ['Peak season'],
+};
+
+test('[104-4] Firestore docs flow through filter, prompt and Gemini client to a schema-valid response', async () => {
+  const requests = [];
+  setup({
+    docs: FULL_DOCS,
+    geminiFetch: (url, init) => {
+      requests.push(init.body);
+      return geminiReply(JSON.stringify(FULL_REPLY))();
+    },
+  });
+  const res = await post(BODY);
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.data, FULL_REPLY);
+  for (const key of Object.keys(RECOMMENDATION_OUTPUT_SCHEMA)) assert.ok(key in res.body.data, key);
+  assert.equal(requests.length, 1);
+
+  const rawData = await createRecommendationDataLoader(fakeFirestore(FULL_DOCS)).loadRawData({
+    uid: UID,
+    groupId: 'g1',
+    travelResults: BODY.travelResults,
+  });
+  const { payload } = buildRecommendationPayload(
+    { requestingUserId: UID, groupId: 'g1', currentSearch: BODY.search },
+    rawData,
+  );
+  const { prompt } = buildRecommendationPrompt(payload);
+  const sent = JSON.parse(requests[0]).contents[0].parts[0].text;
+  assert.ok(sent.startsWith(prompt));
+  assert.deepEqual(JSON.parse(sent.slice(prompt.length + 2)), payload);
+  assert.ok(!sent.includes('LEAK_'));
+});
+
+test('[104-4] malformed Gemini output is rejected with 502 and never returned or echoed', async () => {
+  const valid = JSON.stringify(VALID_REPLY);
+  const missingSummary = { ...VALID_REPLY };
+  delete missingSummary.summary;
+  const badEnum = {
+    ...FULL_REPLY,
+    itinerary: [{ ...FULL_REPLY.itinerary[0], items: [{ ...FULL_REPLY.itinerary[0].items[0], timeOfDay: 'midnight' }] }],
+  };
+  const cases = [
+    ['prose', 'SECRET_model_prose here is a trip', 'invalid_json'],
+    ['empty string', '', 'invalid_response'],
+    ['top-level array', `[${valid}]`, 'schema_mismatch'],
+    ['missing required key', JSON.stringify(missingSummary), 'schema_mismatch'],
+    ['bad enum', JSON.stringify(badEnum), 'schema_mismatch'],
+    ['steered summary only', '{"summary":"SECRET_steered"}', 'schema_mismatch'],
+  ];
+  for (const [label, text, error] of cases) {
+    setup({ geminiFetch: geminiReply(text) });
+    const res = await post(BODY);
+    assert.equal(res.status, 502, label);
+    assert.equal(res.body.error, error, label);
+    assert.ok(!('data' in res.body), label);
+    assert.ok(!JSON.stringify(res.body).includes('SECRET'), label);
+  }
 });
