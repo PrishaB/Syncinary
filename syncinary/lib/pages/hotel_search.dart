@@ -4,17 +4,19 @@ import '../widgets/settings_panel.dart';
 
 /// Hotel results returned by the existing /hotels proxy endpoint.
 ///
-/// [onHotelSelected] can be connected to the itinerary flow later. Until it
-/// is provided, the Add to Trip actions are disabled
+/// [onHotelSelected] adds a hotel to the itinerary.
+/// [onHotelBook] starts the separate booking flow.
 class HotelSearch extends StatefulWidget {
   const HotelSearch({
     super.key,
     required this.initialResults,
     this.onHotelSelected,
+    this.onHotelBook,
   });
 
   final List<dynamic> initialResults;
   final ValueChanged<Map<String, dynamic>>? onHotelSelected;
+  final ValueChanged<Map<String, dynamic>>? onHotelBook;
 
   @override
   State<HotelSearch> createState() => _HotelSearchState();
@@ -309,64 +311,99 @@ class _HotelSearchState extends State<HotelSearch> {
           const SizedBox(height: 16),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              if (nightlyPrice != null)
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  spacing: 5,
                   children: [
-                    if (nightlyPrice != null)
-                      Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.end,
-                        spacing: 5,
-                        children: [
-                          Text(nightlyPrice, style: AppTextStyles.title.copyWith(
-                            color: AppColors.accentEnd,
-                            fontSize: 23,
-                          )),
-                          Text('/ night', style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          )),
-                        ],
-                      )
-                    else
-                      Text('Price unavailable', style: AppTextStyles.caption),
-                    if (totalPrice != null) ...[
-                      const SizedBox(height: 5),
-                      Text('$totalPrice total for stay',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          )),
-                    ],
+                    Text(nightlyPrice, style: AppTextStyles.title.copyWith(
+                      color: AppColors.accentEnd,
+                      fontSize: 23,
+                    )),
+                    Text('/ night', style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    )),
                   ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Tooltip(
+                )
+              else
+                Text('Price unavailable', style: AppTextStyles.caption),
+              if (totalPrice != null) ...[
+                const SizedBox(height: 5),
+                Text('$totalPrice total for stay',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    )),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackButtons = constraints.maxWidth < 370;
+              final addButton = Tooltip(
                 message: widget.onHotelSelected == null
                     ? 'Itinerary selection is not connected yet'
-                    : 'Add hotel to your trip',
-                child: ElevatedButton.icon(
+                    : 'Add hotel to your itinerary',
+                child: OutlinedButton.icon(
                   onPressed: widget.onHotelSelected == null
                       ? null
                       : () => widget.onHotelSelected!(hotel),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.accentEnd,
+                    side: const BorderSide(color: AppColors.accentEnd),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add to Itinerary'),
+                ),
+              );
+              final bookButton = Tooltip(
+                message: widget.onHotelBook == null
+                    ? 'Booking is not connected yet'
+                    : 'Book this hotel',
+                child: ElevatedButton.icon(
+                  onPressed: widget.onHotelBook == null
+                      ? null
+                      : () => widget.onHotelBook!(hotel),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accentStart,
                     foregroundColor: AppColors.textPrimary,
                     disabledBackgroundColor: AppColors.surfaceLight,
                     disabledForegroundColor: AppColors.textMuted,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add to Trip'),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: const Text('Book'),
                 ),
-              ),
-            ],
+              );
+              if (stackButtons) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    addButton,
+                    const SizedBox(height: 10),
+                    bookButton,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: addButton),
+                  const SizedBox(width: 10),
+                  Expanded(child: bookButton),
+                ],
+              );
+            },
           ),
         ],
       ),
