@@ -183,7 +183,7 @@ function checkFitsProfile(data, profile) {
 
 // --- Deterministic: payload isolation and targeting ---
 
-test("each profile's payload carries only its own preferences, budget, and search history", () => {
+test("[104-3] each profile's payload carries only its own preferences, budget, and search history", () => {
   const rawData = buildRawData();
   for (const profile of PROFILES) {
     const result = buildRecommendationPayload(requestContextFor(profile), rawData);
@@ -206,7 +206,7 @@ test('shared dates and travel results are identical across profiles', () => {
   }
 });
 
-test('payloads are pairwise distinct in exactly the profile-specific sections', () => {
+test('[104-3] payloads are pairwise distinct in exactly the profile-specific sections', () => {
   const rawData = buildRawData();
   const payloads = PROFILES.map((p) => buildRecommendationPayload(requestContextFor(p), rawData).payload);
   for (let i = 0; i < payloads.length; i++) {
@@ -253,7 +253,7 @@ test('prompts are identical text across profiles -- payload values never appear 
 
 // --- Deterministic: request/response routing through geminiClient ---
 
-test("each profile gets its own reply back through the Gemini client, and request bodies differ", async () => {
+test("[104-3] each profile gets its own reply back through the Gemini client, and request bodies differ", async () => {
   const rawData = buildRawData();
   const sentTexts = [];
 
