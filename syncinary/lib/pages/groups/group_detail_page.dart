@@ -1,7 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/group.dart';
 import '../../services/group_service.dart';
+import '../../services/user_preferences_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/confirmation_dialog.dart';
 import '../../widgets/gradient_app_bar.dart';
@@ -9,15 +9,21 @@ import '../../widgets/success_overlay.dart';
 import '../schedule_builder_page.dart';
 import '../login_page.dart';
 import '../trip_expenses_page.dart';
+import '../user_preferences_page.dart';
 import 'invite_members_dialog.dart';
 import 'transfer_admin_dialog.dart';
 
 class GroupDetailPage extends StatefulWidget {
-  const GroupDetailPage({super.key, required this.group, GroupService? service})
-      : _service = service;
+  const GroupDetailPage({
+    super.key,
+    required this.group,
+    GroupService? service,
+    this.preferencesService,
+  }) : _service = service;
 
   final Group group;
   final GroupService? _service;
+  final UserPreferencesService? preferencesService;
 
   @override
   State<GroupDetailPage> createState() => _GroupDetailPageState();
@@ -119,7 +125,15 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   }
 
   void _planItinerary(Group group) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ScheduleBuilderPage(group: group)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScheduleBuilderPage(
+          group: group,
+          service: _service.scheduleService,
+        ),
+      ),
+    );
   }
 
   void _trackCosts(Group group) {
@@ -137,10 +151,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
             icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
             tooltip: 'Log out',
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
+              await _service.auth.signOut();
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  MaterialPageRoute(builder: (_) => LoginPage(auth: _service.auth, groupService: _service)),
                   (route) => false,
                 );
               }
@@ -235,6 +249,19 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                       onPressed: () => _trackCosts(group),
                       label: 'Track Costs',
                       icon: Icons.payments_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    GradientButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UserPreferencesPage(
+                            service: widget.preferencesService,
+                          ),
+                        ),
+                      ),
+                      label: 'Set Preferences',
+                      icon: Icons.tune_rounded,
                     ),
 
                     const SizedBox(height: 32),

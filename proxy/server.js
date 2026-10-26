@@ -70,8 +70,8 @@ app.get('/flights', async (req, res) => {
     } else {
       res.json(data['other_flights'] ?? []);
     }
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.status(500).json({ error: 'Unable to complete the search. Please try again later.' });
   }
 });
  
@@ -103,8 +103,8 @@ app.get('/flights/return', async (req, res) => {
     const response = await fetch(url.toString());
     const data = await response.json();
     res.json(data['best_flights'] ?? data['other_flights'] ?? []);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.status(500).json({ error: 'Unable to complete the search. Please try again later.' });
   }
 });
  
@@ -143,8 +143,8 @@ app.get('/flights/booking', async (req, res) => {
     const response = await fetch(url.toString());
     const data = await response.json();
     res.json(data['booking_options'] ?? []);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.status(500).json({ error: 'Unable to complete the search. Please try again later.' });
   }
 });
 
@@ -172,13 +172,14 @@ app.get('/hotels', async (req, res) => {
     const data = await response.json();
 
     res.json(data['properties'] ?? []);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch {
+    res.status(500).json({ error: 'Unable to complete the search. Please try again later.' });
   }
 });
 
 if (require.main === module) {
-  app.listen(3000, () => console.log('Proxy running on http://localhost:3000'));
+  const port = process.env.PORT || 3000;
+  app.listen(port, '0.0.0.0', () => console.log(`Proxy listening on port ${port}`));
 }
 
 module.exports = {

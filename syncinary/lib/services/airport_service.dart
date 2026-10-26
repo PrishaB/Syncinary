@@ -25,10 +25,14 @@ class AirportSuggestions {
 class AirportService {
   AirportService({http.Client? client}) : _client = client ?? http.Client();
   final http.Client _client;
+  static const _proxyUrl = String.fromEnvironment(
+    'PROXY_URL',
+    defaultValue: 'http://localhost:3000',
+  );
 
   Future<AirportSuggestions> search(String query) async {
     final uri = Uri.parse(
-      'http://localhost:3000/airports',
+      '$_proxyUrl/airports',
     ).replace(queryParameters: {'q': query});
     final response = await _client
         .get(uri)
