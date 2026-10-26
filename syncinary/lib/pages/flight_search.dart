@@ -19,6 +19,7 @@ class flight_search extends StatefulWidget {
     this.returnDate,
     this.adults = 1,
     this.isReturnLeg = false,
+    this.onFlightSelected,
     this.recommendationService,
     this.searchContext,
   });
@@ -30,6 +31,10 @@ class flight_search extends StatefulWidget {
   final String departureDate;
   final String? returnDate;
   final int adults;
+
+  /// Called when a flight is added to the itinerary.
+  /// Without a callback, the Add to Itinerary button is disabled.
+  final ValueChanged<Map<String, dynamic>>? onFlightSelected;
 
   /// True when this screen is showing return-leg options for a round trip
   /// (as opposed to the initial outbound-leg list). Tapping a card here
@@ -84,6 +89,7 @@ class _flightSearchState extends State<flight_search> {
               returnDate: widget.returnDate,
               adults: widget.adults,
               isReturnLeg: true,
+              onFlightSelected: widget.onFlightSelected,
             ),
           ),
         );
@@ -257,6 +263,11 @@ class _flightSearchState extends State<flight_search> {
                                          ? 'Select Return'
                                          : 'Select Flight',
                                  onSelect: () => _handleOfferTap(offer),
+                                 onAddToItinerary: widget.onFlightSelected == null || offer is! Map
+                                     ? null
+                                     : () => widget.onFlightSelected!(
+                                           Map<String, dynamic>.from(offer),
+                                         ),
                                ),
                              );
                            },
@@ -281,12 +292,14 @@ class _FlightCard extends StatelessWidget {
   const _FlightCard({
     required this.offer,
     required this.onSelect,
+    this.onAddToItinerary,
     required this.buttonLabel,
     required this.isLoading,
   });
 
   final dynamic offer;
   final VoidCallback onSelect;
+  final VoidCallback? onAddToItinerary;
   final String buttonLabel;
   final bool isLoading;
 
@@ -422,35 +435,63 @@ class _FlightCard extends StatelessWidget {
           const SizedBox(height: 24),
           Divider(color: AppColors.textMuted.withValues(alpha: 0.2)),
           const SizedBox(height: 12),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('\$$price',
-                        style: AppTextStyles.title.copyWith(
-                            fontSize: 22, color: AppColors.accentEnd)),
-                    const SizedBox(height: 4),
-                    Text('Listed price', style: AppTextStyles.caption),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: IgnorePointer(
-                  ignoring: isLoading,
-                  child: Opacity(
-                    opacity: isLoading ? 0.5 : 1,
-                    child: GradientButton(
-                      onPressed: onSelect,
-                      label: buttonLabel,
-                      icon: Icons.arrow_forward_rounded,
-                    ),
+              Text('\$$price',
+                  style: AppTextStyles.title.copyWith(
+                      fontSize: 22, color: AppColors.accentEnd)),
+              const SizedBox(height: 4),
+              Text('Listed price', style: AppTextStyles.caption),
+            ],
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final addButton = OutlinedButton.icon(
+                onPressed: isLoading ? null : onAddToItinerary,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add to Itinerary'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.accentEnd,
+                  side: const BorderSide(color: AppColors.accentEnd),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ),
-            ],
+              );
+              final selectButton = IgnorePointer(
+                ignoring: isLoading,
+                child: Opacity(
+                  opacity: isLoading ? 0.5 : 1,
+                  child: GradientButton(
+                    onPressed: onSelect,
+                    label: buttonLabel,
+                    icon: Icons.arrow_forward_rounded,
+                  ),
+                ),
+              );
+
+              if (constraints.maxWidth < 420) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    addButton,
+                    const SizedBox(height: 10),
+                    selectButton,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: addButton),
+                  const SizedBox(width: 10),
+                  Expanded(child: selectButton),
+                ],
+              );
+            },
           ),
         ],
       ),

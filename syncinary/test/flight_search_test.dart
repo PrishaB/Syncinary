@@ -78,7 +78,7 @@ void main() {
     expect(find.text('4h 30m'), findsOneWidget);
     expect(find.text('Nonstop'), findsOneWidget);
     expect(find.text('\$350'), findsOneWidget);
-    expect(find.text('Select Flight'), findsOneWidget);
+    expect(find.text('Book Flight'), findsOneWidget);
   });
 
   testWidgets('Flight search displays empty state', (tester) async {
