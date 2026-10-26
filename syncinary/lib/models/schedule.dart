@@ -11,6 +11,17 @@ ScheduleItemType scheduleItemTypeFromString(String? value) => switch (value) {
 
 String scheduleItemTypeToString(ScheduleItemType type) => type.name;
 
+/// A member's item is a suggestion until the trip admin approves it; only
+/// approved items are on the itinerary (the Day Plan).
+enum ScheduleItemStatus { suggested, approved }
+
+/// Missing values (items saved before suggestions existed) read as approved,
+/// so existing itineraries stay put.
+ScheduleItemStatus scheduleItemStatusFromString(String? value) =>
+    value == 'suggested' ? ScheduleItemStatus.suggested : ScheduleItemStatus.approved;
+
+String scheduleItemStatusToString(ScheduleItemStatus status) => status.name;
+
 /// Formats a calendar date as the `yyyy-MM-dd` key used for schedule days.
 String scheduleDayKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-'
@@ -47,6 +58,7 @@ class ScheduleDay {
 ///   title: string,
 ///   details: string,
 ///   addedBy: uid,
+///   status: 'suggested' | 'approved',   // missing on legacy docs = approved
 ///   createdAt: Timestamp,
 /// }
 /// ```
@@ -58,6 +70,7 @@ class ScheduleItem {
     required this.title,
     required this.details,
     this.addedBy = '',
+    this.status = ScheduleItemStatus.approved,
   });
 
   final String id;
@@ -69,6 +82,10 @@ class ScheduleItem {
   /// Uid of the group member who added this item; empty on legacy docs.
   final String addedBy;
 
+  final ScheduleItemStatus status;
+
+  bool get isSuggestion => status == ScheduleItemStatus.suggested;
+
   factory ScheduleItem.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const {};
     return ScheduleItem(
@@ -78,6 +95,7 @@ class ScheduleItem {
       title: data['title'] as String? ?? '',
       details: data['details'] as String? ?? '',
       addedBy: data['addedBy'] as String? ?? '',
+      status: scheduleItemStatusFromString(data['status'] as String?),
     );
   }
 }

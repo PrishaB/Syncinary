@@ -57,7 +57,7 @@ class ScheduleService {
     return key;
   }
 
-  /// Removes the day and every item scheduled on it.
+  /// Admin only: removes the day and every item scheduled on it.
   Future<void> deleteDay(String groupId, String dayKey) async {
     final items = await _items(groupId).where('day', isEqualTo: dayKey).get();
     final batch = _firestore.batch();
@@ -69,12 +69,16 @@ class ScheduleService {
   }
 
   /// Adds an item on [date], creating that day if the trip doesn't have it yet.
+  ///
+  /// Members add with [ScheduleItemStatus.suggested]; only the admin may add
+  /// [ScheduleItemStatus.approved] items (the Firestore rules enforce this).
   Future<void> addItem(
     String groupId, {
     required DateTime date,
     required ScheduleItemType type,
     required String title,
     String details = '',
+    ScheduleItemStatus status = ScheduleItemStatus.approved,
   }) {
     final batch = _firestore.batch();
     final dayKey = _setDay(batch, groupId, date);
@@ -84,27 +88,71 @@ class ScheduleService {
       'title': title,
       'details': details,
       'addedBy': currentUserId,
+      'status': scheduleItemStatusToString(status),
       'createdAt': FieldValue.serverTimestamp(),
     });
     return batch.commit();
   }
 
+  /// Admin only: moves a suggestion onto the itinerary. Rejecting one is
+  /// [deleteItem].
+  Future<void> approveItem(String groupId, String itemId) => _items(groupId)
+      .doc(itemId)
+      .update({'status': scheduleItemStatusToString(ScheduleItemStatus.approved)});
+
   /// Saves edits to an item, moving it to [date] (and creating that day) if
-  /// the date changed. The day it moved from is kept, even if now empty.
+  /// the date changed. The day it moved from is removed if that left it empty.
   Future<void> updateItem(
     String groupId,
     String itemId, {
     required DateTime date,
     required String title,
     required String details,
-  }) {
+  }) async {
+    final ref = _items(groupId).doc(itemId);
+    final oldDay = (await ref.get()).data()?['day'] as String?;
     final batch = _firestore.batch();
     final dayKey = _setDay(batch, groupId, date);
-    batch.update(_items(groupId).doc(itemId),
-        {'day': dayKey, 'title': title, 'details': details});
-    return batch.commit();
+    batch.update(ref, {'day': dayKey, 'title': title, 'details': details});
+    await batch.commit();
+    if (oldDay != null && oldDay != dayKey) await _removeDayIfEmpty(groupId, oldDay);
   }
 
-  Future<void> deleteItem(String groupId, String itemId) =>
-      _items(groupId).doc(itemId).delete();
+  /// Removes an item (also how a suggestion is rejected or withdrawn), and
+  /// its day if nothing else is planned or suggested on it.
+  Future<void> deleteItem(String groupId, String itemId) async {
+    final ref = _items(groupId).doc(itemId);
+    final day = (await ref.get()).data()?['day'] as String?;
+    await ref.delete();
+    if (day != null) await _removeDayIfEmpty(groupId, day);
+  }
+
+  /// Admin only: deletes every day doc with nothing planned or suggested on
+  /// it. Catches days emptied while cleanup couldn't run, e.g. a member
+  /// withdrawing the last suggestion (members can't delete days).
+  Future<void> removeEmptyDays(String groupId) async {
+    final days = await _days(groupId).get();
+    final items = await _items(groupId).get();
+    final usedKeys = items.docs.map((d) => d.data()['day']).toSet();
+    final empty = days.docs.where((d) => !usedKeys.contains(d.id)).toList();
+    if (empty.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final day in empty) {
+      batch.delete(day.reference);
+    }
+    await batch.commit();
+  }
+
+  /// Deletes the day doc once no items are left on it. Only the admin may
+  /// delete days, so when a member withdraws the last suggestion the doc
+  /// stays; the page hides days without items, so it doesn't show either way.
+  Future<void> _removeDayIfEmpty(String groupId, String dayKey) async {
+    final remaining = await _items(groupId).where('day', isEqualTo: dayKey).limit(1).get();
+    if (remaining.docs.isNotEmpty) return;
+    try {
+      await _days(groupId).doc(dayKey).delete();
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') rethrow;
+    }
+  }
 }
