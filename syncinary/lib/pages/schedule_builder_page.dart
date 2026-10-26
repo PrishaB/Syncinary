@@ -10,8 +10,8 @@ import 'itinerary_builder.dart';
 /// Itinerary landing page ("Schedule Builder"): an AI advisor panel, the plan
 /// for one selected day, and an "Add to Trip" panel with a button per item
 /// type (activity, flight, hotel). Adding asks for the date, so days are
-/// created as items land on them, and items are only listed in the Day Plan
-/// or, while pending, in Suggestions.
+/// created as items land on them, and a day with nothing planned or suggested
+/// on it is dropped from the schedule.
 /// The schedule is shared by the whole group and live (Firestore via
 /// [ScheduleService]), and every entry is labelled with the member who added
 /// it. Members suggest; the admin decides: a member's item goes to the
@@ -54,6 +54,14 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
 
   String get _groupId => widget.group.id;
 
+  @override
+  void initState() {
+    super.initState();
+    // Clear out days left empty (only the admin may delete days). Best
+    // effort: empty days are hidden on the page anyway.
+    if (_isAdmin) _service.removeEmptyDays(_groupId).catchError((_) {});
+  }
+
   /// The day shown in the Day Plan panel. Null, or a day that has since been
   /// removed, falls back to the first day of the trip.
   String? _selectedDayKey;
@@ -66,6 +74,20 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   }
 
   void _selectDay(ScheduleDay day) => setState(() => _selectedDayKey = day.key);
+
+  /// The trip's days, in order, keeping only those with something planned or
+  /// suggested on them, so a day disappears as soon as its last item goes.
+  /// Built from the items (not just the day docs) so a day still shows if its
+  /// doc is missing.
+  static List<ScheduleDay> _daysWithItems(List<ScheduleDay> dayDocs, List<ScheduleItem> items) {
+    final docsByKey = {for (final d in dayDocs) d.key: d};
+    final days = <ScheduleDay>[];
+    for (final key in items.map((i) => i.day).toSet()) {
+      final date = docsByKey[key]?.date ?? DateTime.tryParse(key);
+      if (date != null) days.add(docsByKey[key] ?? ScheduleDay(key: key, date: date));
+    }
+    return days..sort((a, b) => a.date.compareTo(b.date));
+  }
 
   /// Only the admin adds straight to the itinerary, approves suggestions, and
   /// edits or removes itinerary items.
@@ -218,8 +240,8 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
               return StreamBuilder<List<ScheduleItem>>(
                 stream: _service.itemsStream(_groupId),
                 builder: (context, itemsSnapshot) {
-                  final days = daysSnapshot.data ?? const <ScheduleDay>[];
                   final items = itemsSnapshot.data ?? const <ScheduleItem>[];
+                  final days = _daysWithItems(daysSnapshot.data ?? const [], items);
 
                   final selectedDay = _selectedDay(days);
                   final isAdmin = _isAdmin;
