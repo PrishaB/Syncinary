@@ -9,7 +9,7 @@ directory (`proxy/`).
 ## Setup / run
 
 ```bash
-npm install                    # rarely needed — see below
+npm ci                         # required — see below
 cp .env.example .env           # fill in SERPAPI_KEY, once
 node --env-file=.env server.js # listens on http://localhost:3000
 ```
@@ -28,16 +28,13 @@ package.
 (needs `GOOGLE_APPLICATION_CREDENTIALS`, see `.env.example`); `/flights` and
 the tests never touch it.
 
-`node_modules/` is **committed** (~5.6k files, ~68 MB) on purpose so `node server.js`
-works without an `npm install` step. That's about the runtime
-`dependencies` only — CI (`.github/workflows/ci.yml`) runs `npm ci` fresh in
-this directory for every push/PR, which is also how the `eslint` /
-`@eslint/js` / `globals` devDependencies are resolved (not committed).
-Adding a runtime dependency still means committing `node_modules` too, so add
-one only if you genuinely need it. Dependabot npm PRs update only
-`package*.json`: before merging one, run `npm ci --omit=dev` and commit the
-refreshed `node_modules`. A later plain `npm install` rewrites the committed
-`node_modules/.package-lock.json` to list dev dependencies; don't commit that.
+Run `npm ci` before starting the server. Older runtime dependencies (`express`, `cors`,
+`node-fetch`) are still vendored in `node_modules/` from before, but newer ones
+(`firebase-admin`, `express-rate-limit`) are **not** committed, so `node server.js`
+fails with `Cannot find module` until you install. Don't commit `node_modules`
+changes: `package.json` + `package-lock.json` pin exact versions, and CI
+(`.github/workflows/ci.yml`) and the `Dockerfile` both run `npm ci` themselves.
+Dependabot npm PRs only need `package*.json`.
 
 ## Lint & test
 
