@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/schedule.dart';
+import 'group_preferences_service.dart';
 
 /// Firestore-backed data access for a trip's day-by-day schedule.
 ///
@@ -18,6 +19,9 @@ class ScheduleService {
   final FirebaseAuth _auth;
 
   String get currentUserId => _auth.currentUser!.uid;
+
+  GroupPreferencesService get groupPreferencesService =>
+      GroupPreferencesService(firestore: _firestore, auth: _auth);
 
   DocumentReference<Map<String, dynamic>> _group(String groupId) =>
       _firestore.collection('groups').doc(groupId);
