@@ -73,8 +73,6 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   bool get _isAdmin =>
       widget.group.memberById(_service.currentUserId)?.role == GroupRole.admin;
 
-  /// "Added by …" / "Suggested by …" for [item], or null for items saved
-  /// before `addedBy` was read.
   void _openGroupPreferences() {
     Navigator.push(
       context,
@@ -88,7 +86,8 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
     );
   }
 
-  /// "Added by …" for [item], or null for items saved before `addedBy` was read.
+  /// "Added by …" / "Suggested by …" for [item], or null for items saved
+  /// before `addedBy` was read.
   String? _attribution(ScheduleItem item) {
     if (item.addedBy.isEmpty) return null;
     final verb = item.isSuggestion ? 'Suggested' : 'Added';
@@ -269,6 +268,7 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                     onWithdraw: isAdmin
                         ? null
                         : (item) => _discardSuggestion(item, reject: false),
+                  );
                   final preferencesLink = Align(
                     alignment: Alignment.centerRight,
                     child: OutlinedButton.icon(
