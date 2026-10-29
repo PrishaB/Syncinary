@@ -254,11 +254,12 @@ behind #132.
 Copy `.env.example` to `.env` and fill in `GEMINI_API_KEY`, then run:
 
 ```
+npm ci
 node --env-file=.env server.js
 ```
 
-There's no `dotenv` dependency — `proxy/node_modules/` is committed to this
-repo, so native env-file loading (`--env-file`) avoids growing that further.
+There's no `dotenv` dependency — Node's native env-file loading (`--env-file`)
+does the job without another package.
 Without `--env-file`, `GEMINI_API_KEY` is simply unset and calls return
 `missing_api_key`.
 
