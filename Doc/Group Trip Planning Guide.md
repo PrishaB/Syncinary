@@ -17,6 +17,10 @@ The example below uses four travelers. For a group of three, omit one
 participant. For a group of five or six, invite the additional participants
 and include them in the relevant cost splits.
 
+If multiple groups are planning the same example trip, number the groups from
+1 through 4 so invitations, schedules, and expenses are easy to tell apart.
+Groups 1 and 3 use email invitations. Groups 2 and 4 use invite codes.
+
 ## Example trip
 
 **Trip:** Austin food, music, and outdoor weekend  
@@ -44,9 +48,13 @@ results, links, and displayed prices are for planning purposes.
 - Use an email address for each traveler that can receive account
   verification email.
 - Open [syncinary.com](https://syncinary.com) in a browser.
-- Choose a new group name such as `Austin Weekend 2026`.
-- Have the group organizer's invite code available to share, or use the
-  invitation flow provided in the app.
+- Use the assigned group number as the group name: `Group 1`, `Group 2`,
+  `Group 3`, or `Group 4`.
+- Use the invitation method assigned to that group:
+  - **Groups 1 and 3 — Email invitations:** the organizer sends invitations
+    to each traveler's email address.
+  - **Groups 2 and 4 — Invite codes:** the organizer shares the group's
+    invite code and each traveler joins with that code.
 - If live flight or hotel data is temporarily unavailable, continue with the
   group, preferences, schedule, and expenses using clearly labeled sample
   entries. Do not treat an empty search as a selected travel option.
@@ -59,21 +67,23 @@ results, links, and displayed prices are for planning purposes.
 2. The trip organizer signs in and advances through all onboarding slides.
 3. The other travelers each create and verify their own accounts, then sign in
    on separate browser sessions or devices.
-4. Each traveler confirms that their session opens their own groups and does
-   not expose another traveler's account data.
+4. Each traveler verifies that they can only view groups they are a member of
+   and cannot access groups belonging exclusively to other travelers.
 
 ### 2. Create and join the shared group
 
-1. The trip organizer creates `Austin Weekend 2026`.
-2. The organizer opens the group and shares the invite code or sends
-   invitations.
-3. The other travelers join using the available join flow.
+1. The trip organizer creates the assigned group, named `Group 1`, `Group 2`,
+   `Group 3`, or `Group 4`.
+2. For Groups 1 and 3, the organizer sends email invitations to the other
+   travelers. For Groups 2 and 4, the organizer shares the invite code.
+3. The other travelers join using the invitation method selected for this
+   group.
 4. Everyone reopens the group and confirms that the member list shows all
    travelers.
 5. The organizer confirms the admin label. A member confirms that they are
    shown as a member rather than an admin.
-6. The organizer renames the group to `Austin Weekend Trip`, and everyone
-   verifies that the new name appears.
+6. The organizer confirms that the assigned group number remains visible and
+   everyone verifies that the correct group appears in their group list.
 
 ### 3. Save individual preferences
 
@@ -136,9 +146,12 @@ From the group detail page, open **Plan Itinerary** and add these entries:
    day.
 3. Have Traveler 4 remove the live music entry, then add it back with
    corrected details.
-4. Have everyone leave and reopen the schedule to confirm that changes are
-   shared.
-5. If map or advisor areas are shown as unavailable, use the labeled
+4. Once everyone has added their assigned item, have each traveler leave and
+   reopen their own itinerary. Each traveler confirms that all five group
+   entries appear, including entries added by the other travelers.
+5. Have everyone reopen the schedule again after the edit and removal steps to
+   confirm that those changes are shared.
+6. If map or advisor areas are shown as unavailable, use the labeled
    alternatives instead of treating them as completed features.
 
 ### 7. Track and split costs
