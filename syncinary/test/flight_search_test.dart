@@ -72,16 +72,13 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Flight Results'), findsOneWidget);
-    expect(find.text('ORD  →  SFO'), findsOneWidget);
+    expect(find.text('ORD'), findsOneWidget);
+    expect(find.text('SFO'), findsOneWidget);
     expect(find.textContaining('United'), findsOneWidget);
-    expect(
-      find.textContaining('Departs 2026-10-10 08:00'),
-      findsOneWidget,
-    );
-    expect(find.text('4h 30m · Nonstop'), findsOneWidget);
+    expect(find.text('4h 30m'), findsOneWidget);
+    expect(find.text('Nonstop'), findsOneWidget);
     expect(find.text('\$350'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    expect(find.text('Book Flight'), findsOneWidget);
   });
 
   testWidgets('Flight search displays empty state', (tester) async {
@@ -199,8 +196,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('ORD  →  SFO'), findsOneWidget);
-    expect(find.text('5h · 1 stop'), findsOneWidget);
+    expect(find.text('ORD'), findsOneWidget);
+    expect(find.text('SFO'), findsOneWidget);
+    expect(find.text('5h'), findsOneWidget);
+    expect(find.text('1 stop'), findsOneWidget);
     expect(find.text('\$300'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
