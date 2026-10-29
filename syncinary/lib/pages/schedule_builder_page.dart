@@ -5,6 +5,7 @@ import '../services/schedule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/confirmation_dialog.dart';
 import '../widgets/gradient_app_bar.dart';
+import 'groups/group_preferences_page.dart';
 import 'itinerary_builder.dart';
 
 /// Itinerary landing page ("Schedule Builder"): an AI advisor panel, the plan
@@ -74,6 +75,20 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
 
   /// "Added by …" / "Suggested by …" for [item], or null for items saved
   /// before `addedBy` was read.
+  void _openGroupPreferences() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GroupPreferencesPage(
+          groupId: _groupId,
+          groupName: widget.group.name,
+          service: _service.groupPreferencesService,
+        ),
+      ),
+    );
+  }
+
+  /// "Added by …" for [item], or null for items saved before `addedBy` was read.
   String? _attribution(ScheduleItem item) {
     if (item.addedBy.isEmpty) return null;
     final verb = item.isSuggestion ? 'Suggested' : 'Added';
@@ -254,6 +269,13 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                     onWithdraw: isAdmin
                         ? null
                         : (item) => _discardSuggestion(item, reject: false),
+                  final preferencesLink = Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton.icon(
+                      onPressed: _openGroupPreferences,
+                      icon: const Icon(Icons.bar_chart_rounded),
+                      label: const Text('Group Preferences'),
+                    ),
                   );
                   final mapView = Align(
                     alignment: Alignment.centerRight,
@@ -275,6 +297,8 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                           padding: padding,
                           child: Column(
                             children: [
+                              preferencesLink,
+                              const SizedBox(height: 16),
                               IntrinsicHeight(
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -307,6 +331,8 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            preferencesLink,
+                            const SizedBox(height: 16),
                             addPanel,
                             const SizedBox(height: 20),
                             suggestionsPanel,
