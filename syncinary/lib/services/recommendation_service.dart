@@ -8,9 +8,12 @@ import '../models/recommendation.dart';
 /// Error codes a `/recommendations` call can fail with. Mirrors the `reason`
 /// values from `proxy/llmDataFilter.js` (`allowed:false`), the codes from
 /// `proxy/recommendationPrompt.js` (`PROMPT_ERRORS`/`RESPONSE_ERRORS`) and
-/// `proxy/geminiClient.js` (`GEMINI_ERRORS`), plus two client-only codes for
-/// failures the proxy never gets a chance to report.
+/// `proxy/geminiClient.js` (`GEMINI_ERRORS`), the route's own
+/// `unauthenticated`, plus two client-only codes for failures the proxy never
+/// gets a chance to report.
 abstract final class RecommendationError {
+  // recommendationRoute.js: missing/invalid Firebase ID token
+  static const unauthenticated = 'unauthenticated';
   // llmDataFilter.js `reason`
   static const invalidInput = 'invalid_input';
   static const unknownGroup = 'unknown_group';
@@ -68,11 +71,9 @@ class SearchContext {
 }
 
 /// Calls the proxy's `/recommendations` endpoint for FR-104 travel
-/// suggestions. That route doesn't exist yet (#46) — every call fails with
-/// [RecommendationError.unreachable] until a follow-up issue wires it up to
-/// `llmDataFilter.js` -> `recommendationPrompt.js` -> `geminiClient.js`. This
-/// class exists so the UI has a stable, testable contract to build against
-/// in the meantime.
+/// suggestions. The route runs `llmDataFilter.js` -> `recommendationPrompt.js`
+/// -> `geminiClient.js`; if the proxy isn't running the call fails with
+/// [RecommendationError.unreachable].
 ///
 /// Preferences, budget, available dates and search history are never sent
 /// from the client — `llmDataFilter.buildRecommendationPayload` is designed
