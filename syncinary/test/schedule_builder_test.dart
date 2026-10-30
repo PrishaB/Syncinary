@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
@@ -14,13 +15,36 @@ Widget makeTestableWidget(Widget child) {
   return MaterialApp(theme: buildAppTheme(), home: child);
 }
 
-ScheduleService _service(FakeFirebaseFirestore firestore) => ScheduleService(
+ScheduleService _service(FakeFirebaseFirestore firestore, {String uid = 'me-uid'}) =>
+    ScheduleService(
       firestore: firestore,
       auth: MockFirebaseAuth(
-        mockUser: MockUser(uid: 'me-uid', email: 'me@syncinary.app', displayName: 'You'),
+        mockUser: MockUser(uid: uid, email: '$uid@syncinary.app', displayName: uid),
         signedIn: true,
       ),
     );
+
+/// 'me-uid' is the admin; Alex and Sam are regular members.
+Group _rolesGroup() => Group(
+      id: 'nyc',
+      name: 'NYC Trip',
+      members: [
+        GroupMember(id: 'me-uid', username: 'Jordan', email: 'me@syncinary.app', role: GroupRole.admin),
+        GroupMember(id: 'alex-uid', username: 'Alex', email: 'alex@syncinary.app', role: GroupRole.user),
+        GroupMember(id: 'sam-uid', username: 'Sam', email: 'sam@syncinary.app', role: GroupRole.user),
+      ],
+    );
+
+CollectionReference<Map<String, dynamic>> _itemsRef(FakeFirebaseFirestore firestore) =>
+    firestore.collection('groups').doc('nyc').collection('scheduleItems');
+
+/// The card showing [title] in the Day Plan (itinerary) or the Suggestions panel.
+Finder _dayPlanCard(String title) => find.ancestor(
+    of: find.text(title),
+    matching: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_ScheduleItemCard'));
+Finder _suggestionCard(String title) => find.ancestor(
+    of: find.text(title),
+    matching: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_SuggestionCard'));
 
 Group _nycGroup() => Group(
       id: 'nyc',
@@ -58,6 +82,195 @@ void main() {
     }
     expect(scheduleItemTypeFromString('flight'), ScheduleItemType.flight);
     expect(scheduleItemTypeFromString(null), ScheduleItemType.activity);
+  });
+
+  test('[101-4] Schedule item status round-trips, and a missing status reads as approved', () {
+    for (final status in ScheduleItemStatus.values) {
+      expect(scheduleItemStatusFromString(scheduleItemStatusToString(status)), status);
+    }
+    expect(scheduleItemStatusFromString(null), ScheduleItemStatus.approved);
+  });
+
+  test('[101-4] addItem stores the status and approveItem moves a suggestion onto the itinerary',
+      () async {
+    final firestore = FakeFirebaseFirestore();
+    final member = _service(firestore, uid: 'alex-uid');
+    await member.addItem('nyc',
+        date: DateTime(2026, 5, 3),
+        type: ScheduleItemType.activity,
+        title: 'MoMA',
+        status: ScheduleItemStatus.suggested);
+
+    var docs = (await _itemsRef(firestore).get()).docs;
+    expect(docs.single.data()['status'], 'suggested');
+    expect(docs.single.data()['addedBy'], 'alex-uid');
+    expect(ScheduleItem.fromDoc(docs.single).isSuggestion, isTrue);
+
+    await _service(firestore).approveItem('nyc', docs.single.id);
+    docs = (await _itemsRef(firestore).get()).docs;
+    expect(docs.single.data()['status'], 'approved');
+    expect(docs.single.data()['addedBy'], 'alex-uid'); // still credited to the suggester
+  });
+
+  testWidgets('[501-10] A member suggests: the item goes to Suggestions, not the Day Plan',
+      (tester) async {
+    final firestore = FakeFirebaseFirestore();
+    final service = _service(firestore, uid: 'alex-uid');
+    await _service(firestore).addItem('nyc',
+        date: DateTime(2026, 5, 3), type: ScheduleItemType.hotel, title: 'Hilton, Times Square');
+
+    await tester.pumpWidget(
+        makeTestableWidget(ScheduleBuilderPage(group: _rolesGroup(), service: service)));
+    await tester.pumpAndSettle();
+
+    // ── The add buttons and form say "Suggest" ──
+    expect(find.text('Suggest Activity'), findsOneWidget);
+    expect(find.text('Suggest Flight'), findsOneWidget);
+    expect(find.text('Suggest Hotel'), findsOneWidget);
+    expect(find.text('Add Activity'), findsNothing);
+    expect(find.text('No suggestions pending.'), findsOneWidget);
+
+    await tester.tap(find.text('Suggest Activity'));
+    await tester.pumpAndSettle();
+    expect(find.text('Suggest Activity'), findsNWidgets(2)); // button + dialog title
+    await tester.enterText(find.widgetWithText(TextField, 'Activity'), 'MoMA');
+    await tester.tap(find.text('Suggest'));
+    await tester.pumpAndSettle();
+
+    // ── Listed as a suggestion, credited to the member, not on the itinerary ──
+    expect(_suggestionCard('MoMA'), findsOneWidget);
+    expect(_dayPlanCard('MoMA'), findsNothing);
+    expect(find.text('No activities planned yet.'), findsOneWidget);
+    expect(find.text('Suggested by you'), findsOneWidget);
+    expect(find.text('No suggestions pending.'), findsNothing);
+    expect(find.descendant(of: _suggestionCard('MoMA'), matching: find.text('Sunday, May 3rd')),
+        findsOneWidget);
+
+    final stored =
+        (await _itemsRef(firestore).where('title', isEqualTo: 'MoMA').get()).docs.single.data();
+    expect(stored['status'], 'suggested');
+    expect(stored['addedBy'], 'alex-uid');
+  });
+
+  testWidgets('[501-10] A member cannot edit or remove the itinerary, approve, or touch others\' suggestions',
+      (tester) async {
+    final firestore = FakeFirebaseFirestore();
+    final admin = _service(firestore);
+    await admin.addItem('nyc',
+        date: DateTime(2026, 5, 3), type: ScheduleItemType.hotel, title: 'Hilton, Times Square');
+    await _service(firestore, uid: 'sam-uid').addItem('nyc',
+        date: DateTime(2026, 5, 3),
+        type: ScheduleItemType.activity,
+        title: 'Central Park',
+        status: ScheduleItemStatus.suggested);
+    final alex = _service(firestore, uid: 'alex-uid');
+    await alex.addItem('nyc',
+        date: DateTime(2026, 5, 3),
+        type: ScheduleItemType.activity,
+        title: 'MoMA',
+        status: ScheduleItemStatus.suggested);
+
+    await tester.pumpWidget(
+        makeTestableWidget(ScheduleBuilderPage(group: _rolesGroup(), service: alex)));
+    await tester.pumpAndSettle();
+
+    // ── Approved item: visible, credited, but no controls ──
+    expect(_dayPlanCard('Hilton, Times Square'), findsOneWidget);
+    expect(find.text('Added by Jordan'), findsOneWidget);
+    expect(find.byTooltip('Edit'), findsNothing);
+    expect(find.byTooltip('Remove'), findsNothing);
+    expect(find.byTooltip('Remove day'), findsNothing);
+
+    // ── Suggestions: everyone's are visible; only your own can be withdrawn ──
+    expect(find.text('Suggested by Sam'), findsOneWidget);
+    expect(find.text('Suggested by you'), findsOneWidget);
+    expect(find.byTooltip('Approve'), findsNothing);
+    expect(find.byTooltip('Reject'), findsNothing);
+    expect(find.descendant(of: _suggestionCard('Central Park'), matching: find.byTooltip('Withdraw')),
+        findsNothing);
+
+    final withdraw = find.descendant(of: _suggestionCard('MoMA'), matching: find.byTooltip('Withdraw'));
+    await tester.ensureVisible(withdraw);
+    await tester.tap(withdraw);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Withdraw').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('MoMA'), findsNothing);
+    final titles = (await _itemsRef(firestore).get()).docs.map((d) => d.data()['title']);
+    expect(titles, unorderedEquals(['Hilton, Times Square', 'Central Park']));
+  });
+
+  testWidgets('[501-10] The admin approves a suggestion into the Day Plan or rejects it',
+      (tester) async {
+    final firestore = FakeFirebaseFirestore();
+    final alex = _service(firestore, uid: 'alex-uid');
+    await alex.addItem('nyc',
+        date: DateTime(2026, 5, 3),
+        type: ScheduleItemType.activity,
+        title: 'MoMA',
+        status: ScheduleItemStatus.suggested);
+    await alex.addItem('nyc',
+        date: DateTime(2026, 5, 3),
+        type: ScheduleItemType.flight,
+        title: 'NK 99, ORD → LGA',
+        status: ScheduleItemStatus.suggested);
+
+    await tester.pumpWidget(makeTestableWidget(
+        ScheduleBuilderPage(group: _rolesGroup(), service: _service(firestore))));
+    await tester.pumpAndSettle();
+
+    // Admin's add buttons still say "Add"; suggestions are labelled with the suggester.
+    expect(find.text('Add Activity'), findsOneWidget);
+    expect(find.text('Suggest Activity'), findsNothing);
+    expect(find.text('Suggested by Alex'), findsNWidgets(2));
+    expect(find.byTooltip('Withdraw'), findsNothing);
+    expect(find.text('No activities planned yet.'), findsOneWidget);
+
+    // ── Approve: moves into the Day Plan, still credited to Alex ──
+    final approve = find.descendant(of: _suggestionCard('MoMA'), matching: find.byTooltip('Approve'));
+    await tester.ensureVisible(approve);
+    await tester.tap(approve);
+    await tester.pumpAndSettle();
+    expect(_dayPlanCard('MoMA'), findsOneWidget);
+    expect(_suggestionCard('MoMA'), findsNothing);
+    expect(find.text('Added by Alex'), findsOneWidget);
+    expect(find.descendant(of: _dayPlanCard('MoMA'), matching: find.byTooltip('Edit')),
+        findsOneWidget);
+
+    // ── Reject: deleted ──
+    final reject =
+        find.descendant(of: _suggestionCard('NK 99, ORD → LGA'), matching: find.byTooltip('Reject'));
+    await tester.ensureVisible(reject);
+    await tester.tap(reject);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reject').last);
+    await tester.pumpAndSettle();
+    expect(find.text('NK 99, ORD → LGA'), findsNothing);
+    expect(find.text('No suggestions pending.'), findsOneWidget);
+
+    final docs = (await _itemsRef(firestore).get()).docs;
+    expect(docs.single.data()['title'], 'MoMA');
+    expect(docs.single.data()['status'], 'approved');
+  });
+
+  testWidgets('[101-4] Items saved before suggestions existed (no status) stay in the Day Plan',
+      (tester) async {
+    final firestore = FakeFirebaseFirestore();
+    final service = _service(firestore, uid: 'alex-uid');
+    await service.addDay('nyc', DateTime(2026, 5, 3));
+    await _itemsRef(firestore).add({
+      'day': '2026-05-03', 'type': 'activity', 'title': 'Empire State Building',
+      'details': '', 'addedBy': 'sam-uid', 'createdAt': DateTime(2026, 1, 1),
+    });
+
+    await tester.pumpWidget(
+        makeTestableWidget(ScheduleBuilderPage(group: _rolesGroup(), service: service)));
+    await tester.pumpAndSettle();
+
+    expect(_dayPlanCard('Empire State Building'), findsOneWidget);
+    expect(find.text('Added by Sam'), findsOneWidget);
+    expect(find.text('No suggestions pending.'), findsOneWidget);
   });
 
   testWidgets('[101-4] Add Activity / Flight / Hotel save on the chosen date and show only in the Day Plan',
@@ -108,6 +321,9 @@ void main() {
     final stored = await firestore.collection('groups').doc('nyc').collection('scheduleItems').get();
     expect(stored.docs.map((d) => d.data()['type']), containsAll(['hotel', 'flight', 'activity']));
     expect(stored.docs.every((d) => d.data()['day'] == '2026-05-03'), isTrue);
+    // The admin's items skip the suggestion step.
+    expect(stored.docs.every((d) => d.data()['status'] == 'approved'), isTrue);
+    expect(find.text('No suggestions pending.'), findsOneWidget);
 
     // ── Edit the hotel ──
     final hotelCard = find.ancestor(

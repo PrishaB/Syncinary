@@ -11,10 +11,14 @@ import 'itinerary_builder.dart';
 /// Itinerary landing page ("Schedule Builder"): an AI advisor panel, the plan
 /// for one selected day, and an "Add to Trip" panel with a button per item
 /// type (activity, flight, hotel). Adding asks for the date, so days are
-/// created as items land on them, and items are only listed in the Day Plan.
+/// created as items land on them, and items are only listed in the Day Plan
+/// or, while pending, in Suggestions.
 /// The schedule is shared by the whole group and live (Firestore via
 /// [ScheduleService]), and every entry is labelled with the member who added
-/// it. The advisor panel is a placeholder until the Gemini integration
+/// it. Members suggest; the admin decides: a member's item goes to the
+/// Suggestions panel until the admin approves it into the Day Plan or rejects
+/// it, and only the admin edits or removes what's on the itinerary. The
+/// Firestore rules enforce the same split. The advisor panel is a placeholder until the Gemini integration
 /// exists. Panels stack below [_wideBreakpoint], add panel first, so the part
 /// that does something stays on top at phone width.
 const double _wideBreakpoint = 760;
@@ -64,6 +68,11 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
 
   void _selectDay(ScheduleDay day) => setState(() => _selectedDayKey = day.key);
 
+  /// Only the admin adds straight to the itinerary, approves suggestions, and
+  /// edits or removes itinerary items.
+  bool get _isAdmin =>
+      widget.group.memberById(_service.currentUserId)?.role == GroupRole.admin;
+
   void _openGroupPreferences() {
     Navigator.push(
       context,
@@ -77,12 +86,14 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
     );
   }
 
-  /// "Added by …" for [item], or null for items saved before `addedBy` was read.
+  /// "Added by …" / "Suggested by …" for [item], or null for items saved
+  /// before `addedBy` was read.
   String? _attribution(ScheduleItem item) {
     if (item.addedBy.isEmpty) return null;
-    if (item.addedBy == _service.currentUserId) return 'Added by you';
+    final verb = item.isSuggestion ? 'Suggested' : 'Added';
+    if (item.addedBy == _service.currentUserId) return '$verb by you';
     final name = widget.group.memberById(item.addedBy)?.username ?? 'a former member';
-    return 'Added by $name';
+    return '$verb by $name';
   }
 
   void _showError(String action, Object e) {
@@ -116,10 +127,13 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   }
 
   /// Adds an item on the date picked in the dialog (defaulting to the day open
-  /// in the Day Plan), then shows that day so the new item is visible.
+  /// in the Day Plan), then shows that day. The admin's item goes straight
+  /// onto the itinerary; a member's becomes a suggestion.
   Future<void> _addItem(ScheduleItemType type, ScheduleDay? selectedDay) async {
+    final suggest = !_isAdmin;
     final result = await _showItemDialog(context,
         type: type,
+        suggest: suggest,
         initialDate: selectedDay?.date ?? DateTime.now(),
         search: switch (type) {
           ScheduleItemType.flight =>
@@ -131,10 +145,46 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
     if (result == null) return;
     try {
       await _service.addItem(_groupId,
-          date: result.date, type: type, title: result.title, details: result.details);
-      if (mounted) setState(() => _selectedDayKey = scheduleDayKey(result.date));
+          date: result.date,
+          type: type,
+          title: result.title,
+          details: result.details,
+          status: suggest ? ScheduleItemStatus.suggested : ScheduleItemStatus.approved);
+      if (!mounted) return;
+      setState(() => _selectedDayKey = scheduleDayKey(result.date));
+      if (suggest) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Suggestion sent — the trip admin will approve or reject it.')));
+      }
     } catch (e) {
-      _showError('add the ${_typeInfo(type).noun}', e);
+      _showError('${suggest ? 'suggest' : 'add'} the ${_typeInfo(type).noun}', e);
+    }
+  }
+
+  Future<void> _approveItem(ScheduleItem item) async {
+    try {
+      await _service.approveItem(_groupId, item.id);
+      if (mounted) setState(() => _selectedDayKey = item.day);
+    } catch (e) {
+      _showError('approve the suggestion', e);
+    }
+  }
+
+  /// Rejecting (admin) and withdrawing (the member who suggested it) both
+  /// delete the suggestion.
+  Future<void> _discardSuggestion(ScheduleItem item, {required bool reject}) async {
+    final confirmed = await showConfirmationDialog(
+      context,
+      message: reject
+          ? 'Reject the suggestion "${item.title}"?'
+          : 'Withdraw your suggestion "${item.title}"?',
+      confirmLabel: reject ? 'Reject' : 'Withdraw',
+    );
+    if (!confirmed) return;
+    try {
+      await _service.deleteItem(_groupId, item.id);
+    } catch (e) {
+      _showError('${reject ? 'reject' : 'withdraw'} the suggestion', e);
     }
   }
 
@@ -186,20 +236,38 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                   final items = itemsSnapshot.data ?? const <ScheduleItem>[];
 
                   final selectedDay = _selectedDay(days);
+                  final isAdmin = _isAdmin;
+                  final itinerary = items.where((i) => !i.isSuggestion).toList();
+                  final suggestions = items.where((i) => i.isSuggestion).toList();
 
                   const advisor = _AdvisorPanel();
                   final dayPlan = _DayPlanPanel(
                     days: days,
                     selectedDay: selectedDay,
-                    items: items,
+                    items: itinerary,
                     attribution: _attribution,
                     onSelectDay: _selectDay,
-                    onDeleteDay: _deleteDay,
-                    onEditItem: (item) => _editItem(item, selectedDay!.date),
-                    onDeleteItem: _deleteItem,
+                    // Removing a day removes its itinerary items, so admin only.
+                    onDeleteDay: isAdmin ? _deleteDay : null,
+                    onEditItem: isAdmin ? (item) => _editItem(item, selectedDay!.date) : null,
+                    onDeleteItem: isAdmin ? _deleteItem : null,
                   );
                   final addPanel = _AddToTripPanel(
+                    suggest: !isAdmin,
                     onAdd: (type) => _addItem(type, selectedDay),
+                  );
+                  final suggestionsPanel = _SuggestionsPanel(
+                    suggestions: suggestions,
+                    attribution: _attribution,
+                    onApprove: isAdmin ? _approveItem : null,
+                    onReject: isAdmin
+                        ? (item) => _discardSuggestion(item, reject: true)
+                        : null,
+                    // A member can take back their own pending suggestion.
+                    currentUserId: _service.currentUserId,
+                    onWithdraw: isAdmin
+                        ? null
+                        : (item) => _discardSuggestion(item, reject: false),
                   );
                   final preferencesLink = Align(
                     alignment: Alignment.centerRight,
@@ -239,7 +307,16 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                                     const SizedBox(width: 16),
                                     Expanded(child: dayPlan),
                                     const SizedBox(width: 16),
-                                    Expanded(child: addPanel),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          addPanel,
+                                          const SizedBox(height: 16),
+                                          suggestionsPanel,
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -257,6 +334,8 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                             preferencesLink,
                             const SizedBox(height: 16),
                             addPanel,
+                            const SizedBox(height: 20),
+                            suggestionsPanel,
                             const SizedBox(height: 20),
                             dayPlan,
                             const SizedBox(height: 20),
@@ -381,8 +460,9 @@ class _AdvisorPanel extends StatelessWidget {
   }
 }
 
-/// Everything the group has planned for [selectedDay], with edit/remove
-/// controls. This is the only place schedule items are listed.
+/// The final itinerary for [selectedDay]. Edit/remove controls (and Remove
+/// day) appear only when their callback is set, i.e. for the admin.
+/// Suggestions are listed in [_SuggestionsPanel] instead.
 class _DayPlanPanel extends StatelessWidget {
   const _DayPlanPanel({
     required this.days,
@@ -400,9 +480,9 @@ class _DayPlanPanel extends StatelessWidget {
   final List<ScheduleItem> items;
   final String? Function(ScheduleItem) attribution;
   final ValueChanged<ScheduleDay> onSelectDay;
-  final ValueChanged<ScheduleDay> onDeleteDay;
-  final ValueChanged<ScheduleItem> onEditItem;
-  final ValueChanged<ScheduleItem> onDeleteItem;
+  final ValueChanged<ScheduleDay>? onDeleteDay;
+  final ValueChanged<ScheduleItem>? onEditItem;
+  final ValueChanged<ScheduleItem>? onDeleteItem;
 
   @override
   Widget build(BuildContext context) {
@@ -464,12 +544,13 @@ class _DayPlanPanel extends StatelessWidget {
                 ),
               ),
             ),
-            IconButton(
-              tooltip: 'Remove day',
-              icon: const Icon(Icons.delete_outline_rounded,
-                  color: AppColors.textMuted, size: 20),
-              onPressed: () => onDeleteDay(day),
-            ),
+            if (onDeleteDay case final onDeleteDay?)
+              IconButton(
+                tooltip: 'Remove day',
+                icon: const Icon(Icons.delete_outline_rounded,
+                    color: AppColors.textMuted, size: 20),
+                onPressed: () => onDeleteDay(day),
+              ),
           ],
         ),
         const SizedBox(height: 20),
@@ -512,18 +593,70 @@ class _DayPlanPanel extends StatelessWidget {
         _ScheduleItemCard(
           item: item,
           attribution: attribution(item),
-          onEdit: () => onEditItem(item),
-          onDelete: () => onDeleteItem(item),
+          onEdit: onEditItem == null ? null : () => onEditItem!(item),
+          onDelete: onDeleteItem == null ? null : () => onDeleteItem!(item),
         ),
     ];
   }
 }
 
-/// The three ways to add to the trip. Each opens a form that asks for the
-/// date along with the details; the result shows up in the Day Plan.
-class _AddToTripPanel extends StatelessWidget {
-  const _AddToTripPanel({required this.onAdd});
+/// Every pending suggestion, across all days, labelled with its date and who
+/// suggested it. The admin gets Approve / Reject; the member who suggested an
+/// item can withdraw it; everyone else just sees what's pending.
+class _SuggestionsPanel extends StatelessWidget {
+  const _SuggestionsPanel({
+    required this.suggestions,
+    required this.attribution,
+    required this.currentUserId,
+    required this.onApprove,
+    required this.onReject,
+    required this.onWithdraw,
+  });
 
+  final List<ScheduleItem> suggestions;
+  final String? Function(ScheduleItem) attribution;
+  final String currentUserId;
+  final ValueChanged<ScheduleItem>? onApprove;
+  final ValueChanged<ScheduleItem>? onReject;
+  final ValueChanged<ScheduleItem>? onWithdraw;
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = [...suggestions]..sort((a, b) => a.day.compareTo(b.day));
+    return _Panel(
+      title: 'Suggestions',
+      subtitle: onApprove != null
+          ? 'Approve to add to the Day Plan, or reject.'
+          : 'Waiting for the trip admin to approve.',
+      children: [
+        if (sorted.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: _innerCard(),
+            child: const Text('No suggestions pending.', style: AppTextStyles.caption),
+          ),
+        for (final item in sorted)
+          _SuggestionCard(
+            item: item,
+            attribution: attribution(item),
+            onApprove: onApprove == null ? null : () => onApprove!(item),
+            onReject: onReject == null ? null : () => onReject!(item),
+            onWithdraw: onWithdraw != null && item.addedBy == currentUserId
+                ? () => onWithdraw!(item)
+                : null,
+          ),
+      ],
+    );
+  }
+}
+
+/// The three ways to add to the trip. Each opens a form that asks for the
+/// date along with the details. The admin's result shows up in the Day Plan;
+/// a member's ([suggest]) goes to Suggestions.
+class _AddToTripPanel extends StatelessWidget {
+  const _AddToTripPanel({required this.suggest, required this.onAdd});
+
+  final bool suggest;
   final ValueChanged<ScheduleItemType> onAdd;
 
   static const _order = [
@@ -536,12 +669,14 @@ class _AddToTripPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Panel(
       title: 'Add to Trip',
-      subtitle: 'Pick a date and the details — it shows up in the Day Plan.',
+      subtitle: suggest
+          ? 'Pick a date and the details — the trip admin approves it for the Day Plan.'
+          : 'Pick a date and the details — it shows up in the Day Plan.',
       children: [
         for (final type in _order)
           _AddTile(
             icon: _typeInfo(type).icon,
-            label: 'Add ${_capitalized(_typeInfo(type).noun)}',
+            label: '${suggest ? 'Suggest' : 'Add'} ${_capitalized(_typeInfo(type).noun)}',
             onTap: () => onAdd(type),
           ),
       ],
@@ -594,30 +729,100 @@ class _ScheduleItemCard extends StatelessWidget {
 
   final ScheduleItem item;
   final String? attribution;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+
+  /// Null hides the control (members can't change the itinerary).
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      padding: EdgeInsets.fromLTRB(14, 10, onEdit == null && onDelete == null ? 14 : 4, 10),
       decoration: _innerCard(),
       child: Row(
         children: [
           Icon(_typeInfo(item.type).icon, color: AppColors.accentEnd, size: 20),
           const SizedBox(width: 12),
           Expanded(child: _ItemText(item: item, attribution: attribution)),
-          IconButton(
-            tooltip: 'Edit',
-            icon: const Icon(Icons.edit_outlined, color: AppColors.textMuted, size: 18),
-            onPressed: onEdit,
+          if (onEdit != null)
+            IconButton(
+              tooltip: 'Edit',
+              icon: const Icon(Icons.edit_outlined, color: AppColors.textMuted, size: 18),
+              onPressed: onEdit,
+            ),
+          if (onDelete != null)
+            IconButton(
+              tooltip: 'Remove',
+              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+              onPressed: onDelete,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A pending suggestion: what, which day, who suggested it, and whichever of
+/// Approve / Reject / Withdraw the viewer may use (null hides it).
+class _SuggestionCard extends StatelessWidget {
+  const _SuggestionCard({
+    required this.item,
+    required this.attribution,
+    required this.onApprove,
+    required this.onReject,
+    required this.onWithdraw,
+  });
+
+  final ScheduleItem item;
+  final String? attribution;
+  final VoidCallback? onApprove;
+  final VoidCallback? onReject;
+  final VoidCallback? onWithdraw;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = DateTime.tryParse(item.day);
+    final hasActions = onApprove != null || onReject != null || onWithdraw != null;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.fromLTRB(14, 10, hasActions ? 4 : 14, 10),
+      decoration: _innerCard(),
+      child: Row(
+        children: [
+          Icon(_typeInfo(item.type).icon, color: AppColors.accentEnd, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (date != null) ...[
+                  Text(formatScheduleDay(date),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.accentEnd)),
+                  const SizedBox(height: 2),
+                ],
+                _ItemText(item: item, attribution: attribution),
+              ],
+            ),
           ),
-          IconButton(
-            tooltip: 'Remove',
-            icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
-            onPressed: onDelete,
-          ),
+          if (onApprove != null)
+            IconButton(
+              tooltip: 'Approve',
+              icon: const Icon(Icons.check_rounded, color: AppColors.accentEnd, size: 20),
+              onPressed: onApprove,
+            ),
+          if (onReject != null)
+            IconButton(
+              tooltip: 'Reject',
+              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+              onPressed: onReject,
+            ),
+          if (onWithdraw != null)
+            IconButton(
+              tooltip: 'Withdraw',
+              icon: const Icon(Icons.undo_rounded, color: AppColors.textMuted, size: 18),
+              onPressed: onWithdraw,
+            ),
         ],
       ),
     );
@@ -666,6 +871,7 @@ Future<({DateTime date, String title, String details})?> _showItemDialog(
   BuildContext context, {
   required ScheduleItemType type,
   required DateTime initialDate,
+  bool suggest = false,
   String initialTitle = '',
   String initialDetails = '',
   ({String label, VoidCallback onTap})? search,
@@ -688,7 +894,7 @@ Future<({DateTime date, String title, String details})?> _showItemDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('${isEdit ? 'Edit' : 'Add'} ${_capitalized(info.noun)}',
+              Text('${isEdit ? 'Edit' : suggest ? 'Suggest' : 'Add'} ${_capitalized(info.noun)}',
                   style: AppTextStyles.title),
               const SizedBox(height: 18),
               Material(
@@ -775,7 +981,7 @@ Future<({DateTime date, String title, String details})?> _showItemDialog(
                           details: detailsController.text.trim(),
                         ));
                       },
-                      label: 'Save',
+                      label: suggest ? 'Suggest' : 'Save',
                     ),
                   ),
                 ],

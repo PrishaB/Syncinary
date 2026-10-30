@@ -61,7 +61,7 @@ class ScheduleService {
     return key;
   }
 
-  /// Removes the day and every item scheduled on it.
+  /// Admin only: removes the day and every item scheduled on it.
   Future<void> deleteDay(String groupId, String dayKey) async {
     final items = await _items(groupId).where('day', isEqualTo: dayKey).get();
     final batch = _firestore.batch();
@@ -73,12 +73,16 @@ class ScheduleService {
   }
 
   /// Adds an item on [date], creating that day if the trip doesn't have it yet.
+  ///
+  /// Members add with [ScheduleItemStatus.suggested]; only the admin may add
+  /// [ScheduleItemStatus.approved] items (the Firestore rules enforce this).
   Future<void> addItem(
     String groupId, {
     required DateTime date,
     required ScheduleItemType type,
     required String title,
     String details = '',
+    ScheduleItemStatus status = ScheduleItemStatus.approved,
   }) {
     final batch = _firestore.batch();
     final dayKey = _setDay(batch, groupId, date);
@@ -88,10 +92,17 @@ class ScheduleService {
       'title': title,
       'details': details,
       'addedBy': currentUserId,
+      'status': scheduleItemStatusToString(status),
       'createdAt': FieldValue.serverTimestamp(),
     });
     return batch.commit();
   }
+
+  /// Admin only: moves a suggestion onto the itinerary. Rejecting one is
+  /// [deleteItem].
+  Future<void> approveItem(String groupId, String itemId) => _items(groupId)
+      .doc(itemId)
+      .update({'status': scheduleItemStatusToString(ScheduleItemStatus.approved)});
 
   /// Saves edits to an item, moving it to [date] (and creating that day) if
   /// the date changed. The day it moved from is kept, even if now empty.
@@ -109,6 +120,7 @@ class ScheduleService {
     return batch.commit();
   }
 
+  /// Removes an item; also how a suggestion is rejected or withdrawn.
   Future<void> deleteItem(String groupId, String itemId) =>
       _items(groupId).doc(itemId).delete();
 }
