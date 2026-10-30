@@ -48,13 +48,19 @@ Full policy is in `Doc/DevProcesses.md`. Essentials:
 `.github/workflows/ci.yml` runs on every push (any branch), every PR (any
 base) and manual `workflow_dispatch`. Jobs:
 
-- **`flutter`** — in `syncinary/` on Flutter 3.47.2: writes a placeholder
+- **`flutter`** — in `syncinary/` on Flutter 3.47.2 (`FLUTTER_VERSION`): writes a placeholder
   `lib/firebase_options.dart` (the real one is gitignored), then `flutter pub
   get`, `flutter analyze` (any issue, info included, fails), and `flutter test
   --coverage`. `coverage/lcov.info` is uploaded as the `flutter-coverage`
   artifact (no threshold).
 - **`proxy`** — `npm ci`, `npm run lint`, `npm test`, and `npm audit --omit=dev
   --audit-level=high` (see `proxy/AGENTS.md`).
+- **`sbom`** (`SBOM - Syft (CycloneDX)`) — runs `npm ci` in `proxy/`, then
+  Syft over the repo (`.github/` excluded) into a CycloneDX `SBOM.json`.
+  `.github/scripts/sbom-finish.mjs` adds Dart licenses from pub.dev (Syft has
+  no Dart license lookup), sets Flutter SDK packages to `FLUTTER_VERSION`, and
+  fails if any third-party component lacks a version or a license. Uploaded as
+  the `SBOM` artifact. `FLUTTER_VERSION` is set once at the top of `ci.yml`.
 - **`security`** (`Security - gitleaks`) — gitleaks CLI over the commits new in
   the push or PR. A manual dispatch scans the full history. `.gitleaks.toml`
   adds a `serpapi-key` rule to the defaults and allowlists the exact fake key
