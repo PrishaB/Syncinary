@@ -20,7 +20,58 @@ Future<void> tapArrow(WidgetTester tester, String tooltip) async {
 }
 
 void main() {
-  testWidgets('Starts on the first slide with back disabled', (tester) async {
+  testWidgets(
+    '[302-1] Rebuilding the tutorial keeps the current slide visible',
+    (tester) async {
+      await pumpOnboarding(tester);
+      await tapArrow(tester, 'Next slide');
+      final originalState = tester.state(find.byType(OnboardingPage));
+
+      // A changed inherited theme rebuilds the mounted tutorial.
+      await tester.pumpWidget(
+        MaterialApp(theme: ThemeData.light(), home: const OnboardingPage()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.state(find.byType(OnboardingPage)), same(originalState));
+      expect(find.text('Onboarding 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Slide 2 of 3'), findsOneWidget);
+      await tapArrow(tester, 'Next slide');
+      expect(find.text('Onboarding 3'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    '[302-1] Recreating the tutorial shows the first slide and working navigation',
+    (tester) async {
+      await pumpOnboarding(tester);
+      await tapArrow(tester, 'Next slide');
+      final originalState = tester.state(find.byType(OnboardingPage));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+
+      // Recreate the page with fresh state. A browser reload through AuthGate
+      // is a separate system check; this covers only the tutorial widget.
+      await pumpOnboarding(tester);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.state(find.byType(OnboardingPage)),
+        isNot(same(originalState)),
+      );
+      expect(find.text('Onboarding 1'), findsOneWidget);
+      expect(find.bySemanticsLabel('Slide 1 of 3'), findsOneWidget);
+      expect(find.byType(MyGroupsPage), findsNothing);
+      await tapArrow(tester, 'Next slide');
+      expect(find.text('Onboarding 2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('[302-2] Starts on the first slide with back disabled', (
+    tester,
+  ) async {
     await pumpOnboarding(tester);
 
     expect(find.text('Onboarding 1'), findsOneWidget);
@@ -37,25 +88,31 @@ void main() {
     );
   });
 
-  testWidgets('Advances through all three slides and updates progress', (
+  testWidgets(
+    '[302-2] Advances through all three slides and updates progress',
+    (tester) async {
+      await pumpOnboarding(tester);
+
+      for (var slide = 1; slide <= 3; slide++) {
+        expect(find.text('Onboarding $slide'), findsOneWidget);
+        expect(find.bySemanticsLabel('Slide $slide of 3'), findsOneWidget);
+        expect(find.byType(MyGroupsPage), findsNothing);
+        expect(find.textContaining('Placeholder text'), findsOneWidget);
+        expect(find.byType(ErrorWidget), findsNothing);
+        expect(tester.takeException(), isNull);
+        if (slide < 3) await tapArrow(tester, 'Next slide');
+      }
+
+      expect(find.text('Onboarding 1'), findsNothing);
+      expect(find.text('Onboarding 2'), findsNothing);
+      expect(find.byTooltip('Next slide'), findsNothing);
+      expect(find.byTooltip('Go to main screen'), findsOneWidget);
+    },
+  );
+
+  testWidgets('[302-2] Can return from the last slide to the first', (
     tester,
   ) async {
-    await pumpOnboarding(tester);
-
-    for (var slide = 1; slide <= 3; slide++) {
-      expect(find.text('Onboarding $slide'), findsOneWidget);
-      expect(find.bySemanticsLabel('Slide $slide of 3'), findsOneWidget);
-      expect(find.byType(MyGroupsPage), findsNothing);
-      if (slide < 3) await tapArrow(tester, 'Next slide');
-    }
-
-    expect(find.text('Onboarding 1'), findsNothing);
-    expect(find.text('Onboarding 2'), findsNothing);
-    expect(find.byTooltip('Next slide'), findsNothing);
-    expect(find.byTooltip('Go to main screen'), findsOneWidget);
-  });
-
-  testWidgets('Can return from the last slide to the first', (tester) async {
     await pumpOnboarding(tester);
     await tapArrow(tester, 'Next slide');
     await tapArrow(tester, 'Next slide');
@@ -115,7 +172,9 @@ void main() {
     },
   );
 
-  testWidgets('Navigation remains reachable on a small screen', (tester) async {
+  testWidgets('[302-2] Navigation remains reachable on a small screen', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(320, 480));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await pumpOnboarding(tester);

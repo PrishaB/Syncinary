@@ -135,7 +135,7 @@ void _expectAliceAbsent() {
 void main() {
   for (final logoutFromDetail in [false, true]) {
     testWidgets(
-      'Account switch via ${logoutFromDetail ? 'group detail' : 'My Groups'} logout isolates groups, invites and itinerary',
+      '[301-10] Account switch via ${logoutFromDetail ? 'group detail' : 'My Groups'} logout isolates groups, invites and itinerary',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(1100, 1800));
         addTearDown(() => tester.binding.setSurfaceSize(null));

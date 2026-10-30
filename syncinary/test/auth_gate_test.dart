@@ -34,7 +34,7 @@ void _expectOnlyPage(Type page) {
 }
 
 void main() {
-  testWidgets('Signed-out user sees Login', (tester) async {
+  testWidgets('[301-8] Signed-out user sees Login', (tester) async {
     final auth = MockFirebaseAuth();
 
     await _pumpGate(tester, auth);
@@ -45,7 +45,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Signed-in unverified user sees Verify Email', (
+  testWidgets('[301-8] Signed-in unverified user sees Verify Email', (
     tester,
   ) async {
     final auth = MockFirebaseAuth(
@@ -65,7 +65,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Signed-in verified user sees My Groups', (tester) async {
+  testWidgets('[301-8] Signed-in verified user sees My Groups', (tester) async {
     final auth = MockFirebaseAuth(
       signedIn: true,
       mockUser: MockUser(
@@ -84,7 +84,7 @@ void main() {
 
   for (final verified in [false, true]) {
     testWidgets(
-      'Sign-out replaces ${verified ? 'My Groups' : 'Verify Email'} with Login',
+      '[301-8] Sign-out replaces ${verified ? 'My Groups' : 'Verify Email'} with Login',
       (tester) async {
         final auth = MockFirebaseAuth(
           signedIn: true,
