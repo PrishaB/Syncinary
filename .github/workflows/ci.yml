@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Used by the flutter job and recorded in the SBOM.
+  FLUTTER_VERSION: '3.47.2'
+
 jobs:
   flutter:
     name: Flutter (syncinary) - analyze & test
@@ -30,7 +34,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.2'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
@@ -116,6 +120,59 @@ jobs:
 
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
+
+  sbom:
+    name: SBOM - Syft (CycloneDX)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-sbom-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      # Syft reads npm licenses from the installed packages.
+      - name: Install proxy dependencies
+        working-directory: proxy
+        run: npm ci --ignore-scripts
+
+      # Downloads the Syft CLI and verifies its SHA-256.
+      - name: Install Syft
+        run: |
+          v=1.54.1
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o syft.tar.gz "https://github.com/anchore/syft/releases/download/v${v}/syft_${v}_linux_amd64.tar.gz"
+          echo "c069905b391cc4c20a5ba65ad5c10be2a7ba074f8ea6ad203e24d14e303dad47  syft.tar.gz" | sha256sum -c -
+          tar -xzf syft.tar.gz syft
+
+      # Scans syncinary/pubspec.lock and the proxy's npm packages.
+      # .github/ is skipped: its actions are CI tools, not app dependencies.
+      - name: Generate SBOM
+        env:
+          SYFT_FILE_METADATA_SELECTION: none
+        run: |
+          version=$(grep '^version:' syncinary/pubspec.yaml | awk '{print $2}')
+          "$RUNNER_TEMP/syft" dir:. \
+            --exclude './.github/**' \
+            --source-name Syncinary --source-version "$version" \
+            -o cyclonedx-json=SBOM.json
+
+      # Adds Dart licenses from pub.dev and fails if any component lacks a version or license.
+      - name: Add Dart licenses and check SBOM
+        run: node .github/scripts/sbom-finish.mjs SBOM.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: SBOM
+          path: SBOM.json
+          if-no-files-found: error
 
   security:
     name: Security - gitleaks
