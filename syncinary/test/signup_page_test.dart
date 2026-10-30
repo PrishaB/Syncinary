@@ -123,7 +123,7 @@ void main() {
       expect(mockAuth.currentUser, isNotNull);
     });
 
-    testWidgets('Shows friendly error for email-already-in-use code',
+    testWidgets('[301-2] Shows friendly error for email-already-in-use code',
         (tester) async {
       final mockAuth = MockFirebaseAuth(mockUser: mockUser);
       whenCalling(Invocation.method(#createUserWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'email-already-in-use'));
@@ -135,6 +135,9 @@ void main() {
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('This email address is already registered.'), findsOneWidget);
+      expect(mockAuth.currentUser, isNull);
+      expect(find.byType(SignUpPage), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('Shows friendly error for weak-password code',

@@ -74,7 +74,7 @@ Future<void> _disposePage(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('Whitespace-only name never reaches Auth or Firestore', (
+  testWidgets('[301-9] Whitespace-only name never reaches Auth or Firestore', (
     tester,
   ) async {
     final auth = _RecordingAuth();
@@ -100,7 +100,7 @@ void main() {
     'script-style name': '<script>alert("name")</script>',
   };
   for (final entry in names.entries) {
-    testWidgets('${entry.key} is stored as literal profile data', (
+    testWidgets('[301-9] ${entry.key} is stored as literal profile data', (
       tester,
     ) async {
       final auth = _RecordingAuth();
@@ -142,7 +142,7 @@ void main() {
       '  TRAVELER@EXAMPLE.COM  ',
       '  Traveler+Trip@Example.COM  ',
     ]) {
-      testWidgets('$flow normalizes $email before calling Auth', (
+      testWidgets('[301-9] $flow normalizes $email before calling Auth', (
         tester,
       ) async {
         final auth = _RecordingAuth();
@@ -198,7 +198,7 @@ void main() {
     }
 
     testWidgets(
-      '$flow forwards injection-style password unchanged and honors Auth rejection',
+      '[301-9] $flow forwards injection-style password unchanged and honors Auth rejection',
       (tester) async {
         final auth = _RecordingAuth(reject: true);
         final database = FakeFirebaseFirestore();
