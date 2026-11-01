@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/expense.dart';
+import '../models/expense_split.dart';
 
 /// Firestore-backed data access for per-trip expenses.
 ///
@@ -12,8 +13,8 @@ import '../models/expense.dart';
 /// Schema is documented on [Expense] in `models/expense.dart`.
 class ExpenseService {
   ExpenseService({FirebaseFirestore? firestore, FirebaseAuth? auth})
-      : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
@@ -36,21 +37,35 @@ class ExpenseService {
         .map((snap) => snap.docs.map(Expense.fromDoc).toList());
   }
 
-  /// [splitWith] is who owes an equal share of [amount] — just the adder for
-  /// a personal expense, or a chosen subset of the group to split it evenly.
+  /// [splitWith] shares [amount] equally unless [splitPercentages] is supplied.
   Future<void> addExpense(
     String groupId, {
     required String name,
     required double amount,
     required List<String> splitWith,
+    Map<String, double>? splitPercentages,
   }) async {
+    final split = ExpenseSplit(
+      splitWith: splitWith,
+      percentages: splitPercentages,
+    );
+    final error = split.validationError;
+    if (error != null) throw ArgumentError(error);
+    if (name.trim().isEmpty ||
+        !amount.isFinite ||
+        amount <= 0 ||
+        !(amount * 100).isFinite ||
+        (amount * 100).round() == 0) {
+      throw ArgumentError('Enter a name and a valid cost.');
+    }
     final username = await _currentUsername();
     await _expenses(groupId).add({
-      'name': name,
-      'amount': amount,
+      'name': name.trim(),
+      'amount': (amount * 100).round() / 100,
       'addedBy': currentUserId,
       'addedByUsername': username,
-      'splitWith': splitWith,
+      'splitWith': split.splitWith,
+      if (split.percentages != null) 'splitPercentages': split.percentages,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
