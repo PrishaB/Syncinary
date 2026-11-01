@@ -73,7 +73,10 @@ base) and manual `workflow_dispatch`. Jobs:
   On a finding, remove the secret and **rotate it**; don't allowlist it.
 - **`osv`** (`Security - OSV-Scanner`) — checks `syncinary/pubspec.lock` and
   `proxy/package-lock.json` (dev dependencies included) against OSV.dev and
-  fails on any known vulnerability. Fix by upgrading the package.
+  fails on any known vulnerability. Fix by upgrading the package. Only if no
+  fixed version is usable and the advisory isn't exploitable here, add it to
+  `osv-scanner.toml` with a reason and an `ignoreUntil` date (currently:
+  GHSA-g3hv-75wg-m249, dev-only `minimatch` via ESLint, until 2027-02-01).
 - **`codeql`** (`Security - CodeQL`) — CodeQL default security queries for the
   proxy's JavaScript and for the workflow files (`actions`); Dart isn't
   supported. Fails on any finding; results also appear in the Security tab.

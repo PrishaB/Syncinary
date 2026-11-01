@@ -1,0 +1,7 @@
+# OSV-Scanner config, passed with --config in ci.yml.
+# Each ignore needs a reason and an ignoreUntil date; see Doc/SBOM_Vulnerability_Analysis.md.
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-02-01T00:00:00Z
+reason = "minimatch 3.1.5 is dev-only (via eslint), never shipped, gets no untrusted patterns, and lacks the vulnerable firstPhasePreProcess code. No eslint release uses minimatch >= 11.0.1 yet; remove once one does."

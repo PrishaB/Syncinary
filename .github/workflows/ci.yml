@@ -272,8 +272,9 @@ jobs:
           chmod +x osv-scanner
 
       # Fails on any known vulnerability in either lockfile, dev dependencies included.
+      # osv-scanner.toml lists ignored advisories, each with a reason and an expiry.
       - name: Scan lockfiles
-        run: ./osv-scanner scan source -L syncinary/pubspec.lock -L proxy/package-lock.json
+        run: ./osv-scanner scan source --config osv-scanner.toml -L syncinary/pubspec.lock -L proxy/package-lock.json
 
   codeql:
     name: Security - CodeQL (${{ matrix.language }})
