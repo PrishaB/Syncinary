@@ -61,6 +61,10 @@ base) and manual `workflow_dispatch`. Jobs:
   no Dart license lookup), sets Flutter SDK packages to `FLUTTER_VERSION`, and
   fails if any third-party component lacks a version or a license. Uploaded as
   the `SBOM` artifact. `FLUTTER_VERSION` is set once at the top of `ci.yml`.
+  Grype then scans `SBOM.json` and fails on any high or critical
+  vulnerability; its JSON report is uploaded as `grype-results`. The SBOM
+  holds only shipped dependencies (no proxy dev deps), so OSV-Scanner still
+  covers the dev tooling. Analysis: `Doc/SBOM_Vulnerability_Analysis.md`.
 - **`security`** (`Security - gitleaks`) — gitleaks CLI over the commits new in
   the push or PR. A manual dispatch scans the full history. `.gitleaks.toml`
   adds a `serpapi-key` rule to the defaults and allowlists the exact fake key
@@ -69,7 +73,10 @@ base) and manual `workflow_dispatch`. Jobs:
   On a finding, remove the secret and **rotate it**; don't allowlist it.
 - **`osv`** (`Security - OSV-Scanner`) — checks `syncinary/pubspec.lock` and
   `proxy/package-lock.json` (dev dependencies included) against OSV.dev and
-  fails on any known vulnerability. Fix by upgrading the package.
+  fails on any known vulnerability. Fix by upgrading the package. Only if no
+  fixed version is usable and the advisory isn't exploitable here, add it to
+  `osv-scanner.toml` with a reason and an `ignoreUntil` date (currently:
+  GHSA-g3hv-75wg-m249, dev-only `minimatch` via ESLint, until 2027-02-01).
 - **`codeql`** (`Security - CodeQL`) — CodeQL default security queries for the
   proxy's JavaScript and for the workflow files (`actions`); Dart isn't
   supported. Fails on any finding; results also appear in the Security tab.
