@@ -184,9 +184,10 @@ jobs:
           tar -xzf grype.tar.gz grype
 
       # Checks every SBOM component against Grype's vulnerability database.
+      # Fails on high or critical findings, like the proxy's npm audit.
       - name: Scan SBOM with Grype
         run: |
-          "$RUNNER_TEMP/grype" sbom:SBOM.json -o table -o json=grype.json
+          "$RUNNER_TEMP/grype" sbom:SBOM.json --fail-on high -o table -o json=grype.json
 
       - name: Upload Grype results
         if: always()

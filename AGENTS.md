@@ -61,6 +61,10 @@ base) and manual `workflow_dispatch`. Jobs:
   no Dart license lookup), sets Flutter SDK packages to `FLUTTER_VERSION`, and
   fails if any third-party component lacks a version or a license. Uploaded as
   the `SBOM` artifact. `FLUTTER_VERSION` is set once at the top of `ci.yml`.
+  Grype then scans `SBOM.json` and fails on any high or critical
+  vulnerability; its JSON report is uploaded as `grype-results`. The SBOM
+  holds only shipped dependencies (no proxy dev deps), so OSV-Scanner still
+  covers the dev tooling. Analysis: `Doc/SBOM_Vulnerability_Analysis.md`.
 - **`security`** (`Security - gitleaks`) — gitleaks CLI over the commits new in
   the push or PR. A manual dispatch scans the full history. `.gitleaks.toml`
   adds a `serpapi-key` rule to the defaults and allowlists the exact fake key
