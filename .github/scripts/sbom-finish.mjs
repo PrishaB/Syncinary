@@ -72,9 +72,15 @@ const jobs = pub.map((c) => async () => {
     return;
   }
   if (!c.licenses?.length) {
-    const licenses = await pubLicenses(c.name, c.version);
-    if (licenses) c.licenses = licenses;
+  const licenses = await pubLicenses(c.name, c.version);
+
+  if (licenses) {
+    c.licenses = licenses;
+  } else if (c.name === '_fe_analyzer_shared') {
+    // Fallback for this package when pub.dev omits license tags.
+    c.licenses = [{ license: { id: 'BSD-3-Clause' } }];
   }
+}
 });
 
 // Runs the pub.dev lookups 8 at a time.
