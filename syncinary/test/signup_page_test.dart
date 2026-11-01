@@ -24,6 +24,13 @@ void main() {
       expect(find.text('Syncinary'), findsOneWidget);
       expect(find.text('Welcome!'), findsOneWidget);
       expect(find.text('Sign up to continue'), findsOneWidget);
+      expect(
+        find.text(
+          'Use at least 8 characters, including a lowercase letter, a number, '
+          'and a special character (e.g. !@#).',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Has three text form fields', (tester) async {
@@ -38,7 +45,8 @@ void main() {
       await tester.pumpWidget(makeTestableWidget(const SignUpPage()));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Please enter your name'), findsOneWidget);
@@ -48,7 +56,8 @@ void main() {
       await tester.pumpWidget(makeTestableWidget(const SignUpPage()));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Please enter your email'), findsOneWidget);
@@ -59,7 +68,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
       await tester.enterText(find.byType(TextFormField).at(1), 'notanemail');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Please enter a valid email'), findsOneWidget);
@@ -70,6 +80,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
       await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Please enter your password'), findsOneWidget);
@@ -81,6 +92,7 @@ void main() {
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
       await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
       await tester.enterText(find.byType(TextFormField).at(2), 'short');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Password must be at least 8 characters'), findsOneWidget);
@@ -90,6 +102,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(makeTestableWidget(const SignUpPage()));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Please enter your name'), findsOneWidget);
@@ -116,7 +129,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'New User');
       await tester.enterText(find.byType(TextFormField).at(1), 'newuser@test.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'securepass123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'securepass123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
@@ -131,7 +145,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Existing User');
       await tester.enterText(find.byType(TextFormField).at(1), 'existing@test.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('This email address is already registered.'), findsOneWidget);
@@ -140,19 +155,31 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Shows friendly error for weak-password code',
-        (tester) async {
-      final mockAuth = MockFirebaseAuth(mockUser: mockUser);
-      whenCalling(Invocation.method(#createUserWithEmailAndPassword, null)).on(mockAuth).thenThrow(FirebaseAuthException(code: 'weak-password'));
-      await tester.pumpWidget(makeTestableWidget(SignUpPage(auth: mockAuth)));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
-      await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'weakpass1');
-      await tester.tap(find.text('Sign Up'));
-      await tester.pumpAndSettle();
-      expect(find.text('The password is too weak. Use at least 8 characters.'), findsOneWidget);
-    });
+    for (final code in ['weak-password', 'password-does-not-meet-requirements']) {
+      testWidgets('[301-9] Shows password requirements for $code', (tester) async {
+        final mockAuth = MockFirebaseAuth(mockUser: mockUser);
+        whenCalling(Invocation.method(#createUserWithEmailAndPassword, null))
+            .on(mockAuth)
+            .thenThrow(FirebaseAuthException(code: code));
+        await tester.pumpWidget(makeTestableWidget(SignUpPage(auth: mockAuth)));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
+        await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
+        await tester.enterText(find.byType(TextFormField).at(2), 'validpass1!');
+        await tester.ensureVisible(find.text('Sign Up'));
+        await tester.tap(find.text('Sign Up'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'Password does not meet the requirements. Use at least 8 characters, '
+            'including a lowercase letter, a number, and a special character '
+            '(e.g. !@#).',
+          ),
+          findsOneWidget,
+        );
+        expect(mockAuth.currentUser, isNull);
+      });
+    }
 
     testWidgets('Shows friendly error for invalid-email code',
         (tester) async {
@@ -162,7 +189,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
       await tester.enterText(find.byType(TextFormField).at(1), 'bad@email.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Please enter a valid email address.'), findsOneWidget);
@@ -176,7 +204,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
       await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Too many attempts. Please try again later.'), findsOneWidget);
@@ -190,7 +219,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
       await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('Sign-up failed. Please try again.'), findsOneWidget);
@@ -204,7 +234,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
       await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pumpAndSettle();
       expect(find.text('An unexpected error occurred. Please try again.'), findsOneWidget);
@@ -217,7 +248,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test User');
       await tester.enterText(find.byType(TextFormField).at(1), 'test@test.com');
-      await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+      await tester.enterText(find.byType(TextFormField).at(2), 'password123!');
+      await tester.ensureVisible(find.text('Sign Up'));
       await tester.tap(find.text('Sign Up'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));

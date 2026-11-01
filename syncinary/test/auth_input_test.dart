@@ -46,7 +46,7 @@ Future<void> _submit(
   required FakeFirebaseFirestore database,
   String name = 'Traveler',
   String email = 'traveler@example.com',
-  String password = 'password123',
+  String password = 'password123!',
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -74,6 +74,101 @@ Future<void> _disposePage(WidgetTester tester) async {
 }
 
 void main() {
+  final invalidPasswords = {
+    'seven characters': (
+      password: 'abcd12!',
+      error: 'Password must be at least 8 characters',
+    ),
+    'no lowercase letter': (
+      password: 'PASSWORD1!',
+      error: 'Password must include a lowercase letter',
+    ),
+    'no number': (
+      password: 'password!!',
+      error: 'Password must include a number',
+    ),
+    'no special character': (
+      password: 'password123',
+      error: 'Password must include a special character (e.g. !@#)',
+    ),
+    'whitespace instead of a special character': (
+      password: 'password1 ',
+      error: 'Password must include a special character (e.g. !@#)',
+    ),
+    'emoji instead of a special character': (
+      password: 'password1😀',
+      error: 'Password must include a special character (e.g. !@#)',
+    ),
+    'symbols outside the Firebase special-character set': (
+      password: 'password1+-=',
+      error: 'Password must include a special character (e.g. !@#)',
+    ),
+  };
+  for (final entry in invalidPasswords.entries) {
+    testWidgets('[301-9] Signup rejects ${entry.key} before calling Auth', (
+      tester,
+    ) async {
+      final auth = _RecordingAuth();
+      final database = FakeFirebaseFirestore();
+      await _submit(
+        tester,
+        signup: true,
+        auth: auth,
+        database: database,
+        password: entry.value.password,
+      );
+
+      expect(find.text(entry.value.error), findsOneWidget);
+      expect(auth.signups, isEmpty);
+      expect(auth.currentUser, isNull);
+      expect((await database.collection('users').get()).docs, isEmpty);
+      await _disposePage(tester);
+    });
+  }
+
+  for (final password in ['abcdef1!', '  abcdef1!  ']) {
+    testWidgets(
+      '[301-1] Signup accepts a compliant password unchanged: "$password"',
+      (tester) async {
+        final auth = _RecordingAuth();
+        final database = FakeFirebaseFirestore();
+        await _submit(
+          tester,
+          signup: true,
+          auth: auth,
+          database: database,
+          password: password,
+        );
+
+        expect(auth.signups, [
+          (email: 'traveler@example.com', password: password),
+        ]);
+        expect((await database.collection('users').get()).docs, hasLength(1));
+        expect(find.byType(VerifyEmailPage), findsOneWidget);
+        await _disposePage(tester);
+      },
+    );
+  }
+
+  testWidgets('[301-4] Existing users can sign in with a legacy password', (
+    tester,
+  ) async {
+    final auth = _RecordingAuth();
+    await _submit(
+      tester,
+      signup: false,
+      auth: auth,
+      database: FakeFirebaseFirestore(),
+      password: 'password',
+    );
+
+    expect(auth.logins, [
+      (email: 'traveler@example.com', password: 'password'),
+    ]);
+    expect(find.byType(VerifyEmailPage), findsOneWidget);
+    await _disposePage(tester);
+  });
+
   testWidgets('[301-9] Whitespace-only name never reaches Auth or Firestore', (
     tester,
   ) async {
@@ -157,7 +252,7 @@ void main() {
 
         final requests = signup ? auth.signups : auth.logins;
         expect(requests, [
-          (email: email.trim().toLowerCase(), password: 'password123'),
+          (email: email.trim().toLowerCase(), password: 'password123!'),
         ]);
         expect(auth.currentUser, isNotNull);
         expect(find.byType(VerifyEmailPage), findsOneWidget);
