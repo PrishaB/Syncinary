@@ -1,5 +1,5 @@
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:syncinary/pages/amadeus_service.dart';
 
 void main() {
@@ -17,8 +17,8 @@ void main() {
   });
 
   test('SerpApi failure throws an exception', () async {
-    expect(
-      () => service.searchFlights(
+    await expectLater(
+      service.searchFlights(
         origin: 'ERR',
         destination: 'SFO',
         departureDate: date,
