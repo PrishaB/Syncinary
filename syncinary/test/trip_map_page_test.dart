@@ -34,7 +34,10 @@ class _FailedTile extends Fake implements TileImage {}
 
 class _StreamService extends ScheduleService {
   _StreamService(this.controller)
-    : super(firestore: FakeFirebaseFirestore(), auth: MockFirebaseAuth());
+    : super(
+        firestore: FakeFirebaseFirestore(),
+        auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 'me')),
+      );
   final StreamController<List<ScheduleItem>> controller;
   @override
   Stream<List<ScheduleItem>> itemsStream(String groupId) => controller.stream;
@@ -43,7 +46,18 @@ class _StreamService extends ScheduleService {
 void main() {
   late FakeFirebaseFirestore db;
   late ScheduleService service;
-  final group = Group(id: 'trip', name: 'New York weekend', members: []);
+  final group = Group(
+    id: 'trip',
+    name: 'New York weekend',
+    members: [
+      GroupMember(
+        id: 'me',
+        username: 'Me',
+        email: 'me@example.com',
+        role: GroupRole.admin,
+      ),
+    ],
+  );
   const hotel = TripLocation(
     name: 'Hotel',
     address: 'Times Square',
@@ -57,8 +71,11 @@ void main() {
     longitude: -73.963,
   );
 
-  setUp(() {
+  setUp(() async {
     db = FakeFirebaseFirestore();
+    await db.collection('groups').doc('trip').set({
+      'members': {'me': group.members.single.toMap()},
+    });
     service = ScheduleService(
       firestore: db,
       auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 'me')),
@@ -87,9 +104,9 @@ void main() {
       });
 
   Widget app(Widget child) => MaterialApp(theme: buildAppTheme(), home: child);
-  Widget map({PlaceService? places}) => app(
+  Widget map({PlaceService? places, Group? tripGroup}) => app(
     TripMapPage(
-      group: group,
+      group: tripGroup ?? group,
       service: service,
       tileProvider: _OfflineTiles(),
       placeService: places,
@@ -113,6 +130,84 @@ void main() {
       expect(find.text('Schedule Builder'), findsOneWidget);
     },
   );
+
+  testWidgets('[202-4] suggestions join the map only after approval', (
+    tester,
+  ) async {
+    await add('Hotel stay', '2026-10-25', ScheduleItemType.hotel, hotel);
+    await add(
+      'Pending museum',
+      '2026-10-26',
+      ScheduleItemType.activity,
+      museum,
+    );
+    final pending = db
+        .collection('groups')
+        .doc('trip')
+        .collection('scheduleItems')
+        .doc('Pending museum');
+    await pending.update({'status': 'suggested'});
+    await tester.pumpWidget(map());
+    await tester.pumpAndSettle();
+    expect(find.text('1 of 1 stops on map'), findsOneWidget);
+    expect(find.byKey(const ValueKey('stop-Pending museum')), findsNothing);
+    expect(find.byKey(const ValueKey('marker-Pending museum')), findsNothing);
+    final days = tester
+          .widget<DropdownButton<String>>(
+            find.byType(DropdownButton<String>),
+        )
+        .items!;
+    expect(days.map((day) => day.value), ['', '2026-10-25']);
+    expect(
+      tester.widget<PolylineLayer>(find.byType(PolylineLayer)).polylines,
+      isEmpty,
+    );
+
+    await service.approveItem('trip', 'Pending museum');
+    await tester.pumpAndSettle();
+    expect(find.text('2 of 2 stops on map'), findsOneWidget);
+    expect(find.byKey(const ValueKey('marker-Pending museum')), findsOneWidget);
+    expect(
+      tester
+          .widget<PolylineLayer>(find.byType(PolylineLayer))
+          .polylines
+          .single
+          .points,
+      hasLength(2),
+    );
+  });
+
+  testWidgets('[202-3] members can view stops but cannot edit locations', (
+    tester,
+  ) async {
+    await add('Hotel stay', '2026-10-25', ScheduleItemType.hotel, hotel);
+    await add('Missing stop', '2026-10-25', ScheduleItemType.activity, null);
+    final memberGroup = Group(
+      id: 'trip',
+      name: group.name,
+      members: [
+        GroupMember(
+          id: 'me',
+          username: 'Me',
+          email: 'me@example.com',
+          role: GroupRole.user,
+        ),
+      ],
+    );
+    await tester.pumpWidget(map(tripGroup: memberGroup));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Add location'), findsNothing);
+    expect(find.byTooltip('Change location'), findsNothing);
+    await tester.tap(find.text('Missing stop'));
+    await tester.pumpAndSettle();
+    expect(find.text('Find location'), findsNothing);
+    expect(find.byType(Dialog), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('marker-Hotel stay')));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.text('1 of 2 stops on map'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('[202-1] map pans, zooms and fits all stops', (tester) async {
     await add('Hotel stay', '2026-10-25', ScheduleItemType.hotel, hotel);

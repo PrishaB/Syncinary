@@ -23,7 +23,18 @@ void main() {
         MaterialApp(
           theme: buildAppTheme(),
           home: ScheduleBuilderPage(
-            group: Group(id: 'trip', name: 'Trip', members: []),
+            group: Group(
+              id: 'trip',
+              name: 'Trip',
+              members: [
+                GroupMember(
+                  id: 'me',
+                  username: 'Me',
+                  email: 'me@example.com',
+                  role: GroupRole.admin,
+                ),
+              ],
+            ),
             service: service,
           ),
         ),

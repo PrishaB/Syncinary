@@ -40,6 +40,11 @@ void main() {
     '[202-4] locations persist, survive other edits, update and can be removed',
     () async {
       final db = FakeFirebaseFirestore();
+      await db.collection('groups').doc('trip').set({
+        'members': {
+          'me': {'role': 'admin'},
+        },
+      });
       final service = ScheduleService(
         firestore: db,
         auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 'me')),
@@ -82,6 +87,64 @@ void main() {
       expect((await service.itemsStream('trip').first).single.location, isNull);
       await service.deleteItem('trip', item.id);
       expect(await service.itemsStream('trip').first, isEmpty);
+    },
+  );
+
+  test(
+    '[202-3] location writes require a current signed-in trip admin',
+    () async {
+      final db = FakeFirebaseFirestore();
+      final auth = MockFirebaseAuth(
+        signedIn: true,
+        mockUser: MockUser(uid: 'me'),
+      );
+      final service = ScheduleService(firestore: db, auth: auth);
+      final trip = db.collection('groups').doc('trip');
+      final item = trip.collection('scheduleItems').doc('stay');
+      await trip.set({
+        'members': {
+          'me': {'role': 'admin'},
+        },
+      });
+      await item.set({'title': 'Stay', 'details': 'Keep these details'});
+      await service.setItemLocation('trip', 'stay', location);
+      final before = (await item.get()).data();
+      const replacement = TripLocation(
+        name: 'Museum',
+        latitude: 41,
+        longitude: -73,
+      );
+
+      // Read the current role each time, including after an admin is demoted.
+      for (final members in [
+        {
+          'me': {'role': 'user'},
+        },
+        <String, dynamic>{},
+      ]) {
+        await trip.set({'members': members});
+        await expectLater(
+          service.setItemLocation('trip', 'stay', replacement),
+          throwsStateError,
+        );
+        expect((await item.get()).data(), before);
+      }
+      await trip.delete();
+      await expectLater(
+        service.setItemLocation('trip', 'stay', replacement),
+        throwsStateError,
+      );
+      await trip.set({
+        'members': {
+          'me': {'role': 'admin'},
+        },
+      });
+      await auth.signOut();
+      await expectLater(
+        service.setItemLocation('trip', 'stay', replacement),
+        throwsStateError,
+      );
+      expect((await item.get()).data(), before);
     },
   );
 }
