@@ -112,6 +112,7 @@ function describeAvailability(payload) {
     memberPreferences: Object.values(memberPreferences).some(hasOwnKeys),
     budgetConstraints: hasOwnKeys(payload.budgetConstraints),
     availableDates: hasOwnKeys(payload.availableDates),
+    currentSearch: hasOwnKeys(payload.currentSearch),
     previousSearches: Array.isArray(payload.previousSearches) && payload.previousSearches.length > 0,
     travelResults: Array.isArray(payload.travelResults) && payload.travelResults.length > 0,
   };
@@ -134,6 +135,9 @@ function availabilityLines(availability) {
     availability.availableDates
       ? '- availableDates: present — every itinerary day must fall within this range.'
       : '- availableDates: absent — do not assume specific dates; use `date: null` in the itinerary.',
+    availability.currentSearch
+      ? '- currentSearch: present — what the group is searching for right now; centre recommendations on it.'
+      : '- currentSearch: absent — no search is in progress.',
     availability.previousSearches
       ? '- previousSearches: present — prefer new destinations/activities over near-duplicates of these.'
       : '- previousSearches: absent — no search history to deduplicate against.',
@@ -190,6 +194,7 @@ function buildRecommendationPrompt(payload, options) {
         'than optimizing for one member.',
       '- budgetConstraints: { min, max } per person, when present.',
       '- availableDates: { start, end } the trip must fit inside, when present.',
+      '- currentSearch: { destination, startDate, query } the group is searching for right now, when present.',
       '- previousSearches: destinations/queries already searched — prefer variety over repeating these.',
       '- travelResults: real flight/hotel/activity results already fetched — ground your suggestions in these when ' +
         'they are relevant.',
