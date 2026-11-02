@@ -6,7 +6,7 @@
 //     version set to the Flutter SDK used by the build (FLUTTER_VERSION)
 // Then it fails if any third-party component lacks a version or a license.
 //
-// Usage: FLUTTER_VERSION=3.47.2 node .github/scripts/sbom-finish.mjs SBOM.json
+// Usage: FLUTTER_VERSION=3.47.2 node .github/scripts/sbom-finish.mjs Doc/SBOM.json
 
 import { readFile, writeFile } from 'node:fs/promises';
 
