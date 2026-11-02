@@ -153,6 +153,7 @@ jobs:
 
       # Scans syncinary/pubspec.lock and the proxy's npm packages.
       # .github/ is skipped: its actions are CI tools, not app dependencies.
+      # Doc/SBOM.json is skipped so the committed SBOM isn't read as input.
       - name: Generate SBOM
         env:
           SYFT_FILE_METADATA_SELECTION: none
@@ -160,18 +161,19 @@ jobs:
           version=$(grep '^version:' syncinary/pubspec.yaml | awk '{print $2}')
           "$RUNNER_TEMP/syft" dir:. \
             --exclude './.github/**' \
+            --exclude './Doc/SBOM.json' \
             --source-name Syncinary --source-version "$version" \
-            -o cyclonedx-json=SBOM.json
+            -o cyclonedx-json=Doc/SBOM.json
 
       # Adds Dart licenses from pub.dev and fails if any component lacks a version or license.
       - name: Add Dart licenses and check SBOM
-        run: node .github/scripts/sbom-finish.mjs SBOM.json
+        run: node .github/scripts/sbom-finish.mjs Doc/SBOM.json
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v7
         with:
           name: SBOM
-          path: SBOM.json
+          path: Doc/SBOM.json
           if-no-files-found: error
 
       # Downloads the Grype CLI and verifies its SHA-256.
@@ -187,7 +189,7 @@ jobs:
       # Fails on high or critical findings, like the proxy's npm audit.
       - name: Scan SBOM with Grype
         run: |
-          "$RUNNER_TEMP/grype" sbom:SBOM.json --fail-on high -o table -o json=grype.json
+          "$RUNNER_TEMP/grype" sbom:Doc/SBOM.json --fail-on high -o table -o json=grype.json
 
       - name: Upload Grype results
         if: always()
