@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/group.dart';
 import '../models/schedule.dart';
 import 'group_preferences_service.dart';
 import '../models/trip_location.dart';
@@ -140,10 +141,20 @@ class ScheduleService {
   Future<void> deleteItem(String groupId, String itemId) =>
       _items(groupId).doc(itemId).delete();
 
-  /// Updates only the location so a concurrent title/date edit is preserved.
+  /// Admin only: updates the location, preserving concurrent title/date edits.
   Future<void> setItemLocation(
-      String groupId, String itemId, TripLocation location) {
+      String groupId, String itemId, TripLocation location) async {
     if (!location.isValid) throw ArgumentError('Invalid trip location');
-    return _items(groupId).doc(itemId).update({'location': location.toMap()});
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw StateError('Only trip admins can change locations.');
+    await _firestore.runTransaction((transaction) async {
+      final group = Group.fromDoc(await transaction.get(_group(groupId)));
+      if (group.memberById(uid)?.role != GroupRole.admin) {
+        throw StateError('Only trip admins can change locations.');
+      }
+      transaction.update(_items(groupId).doc(itemId), {
+        'location': location.toMap(),
+      });
+    });
   }
 }

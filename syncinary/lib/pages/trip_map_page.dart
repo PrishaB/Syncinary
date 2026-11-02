@@ -38,7 +38,12 @@ class _TripMapPageState extends State<TripMapPage> {
   String? _day;
   String? _selectedId;
 
+  bool get _isAdmin =>
+      widget.group.memberById(widget.service.currentUserId)?.role ==
+      GroupRole.admin;
+
   Future<void> _locate(ScheduleItem item) async {
+    if (!_isAdmin) return;
     final location = await pickTripLocation(
       context,
       initialQuery: item.location?.name ?? item.title,
@@ -121,11 +126,15 @@ class _TripMapPageState extends State<TripMapPage> {
             return const Center(child: CircularProgressIndicator());
           }
           // The service supplies creation order; preserve that order within a day.
-          final indexed = snapshot.data!.indexed.toList()
-            ..sort((a, b) {
-              final day = a.$2.day.compareTo(b.$2.day);
-              return day == 0 ? a.$1.compareTo(b.$1) : day;
-            });
+          final indexed =
+              snapshot.data!
+                  .where((item) => !item.isSuggestion)
+                  .indexed
+                  .toList()
+                ..sort((a, b) {
+                  final day = a.$2.day.compareTo(b.$2.day);
+                  return day == 0 ? a.$1.compareTo(b.$1) : day;
+                });
           final all = indexed.map((entry) => entry.$2).toList();
           final days = all.map((item) => item.day).toSet().toList();
           final day = days.contains(_day) ? _day : null;
@@ -150,7 +159,7 @@ class _TripMapPageState extends State<TripMapPage> {
                 const Text(
                   'Add hotels, activities, or flights in the planner to see your trip here.',
                 ),
-              if (mapped.length < visible.length)
+              if (_isAdmin && mapped.length < visible.length)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 12),
                   child: Text(
@@ -185,14 +194,18 @@ class _TripMapPageState extends State<TripMapPage> {
                     ),
                     onTap: mapped.contains(item)
                         ? () => setState(() => _selectedId = item.id)
-                        : () => _locate(item),
-                    trailing: IconButton(
-                      tooltip: item.location == null
-                          ? 'Add location'
-                          : 'Change location',
-                      icon: const Icon(Icons.edit_location_alt_outlined),
-                      onPressed: () => _locate(item),
-                    ),
+                        : _isAdmin
+                        ? () => _locate(item)
+                        : null,
+                    trailing: !_isAdmin
+                        ? null
+                        : IconButton(
+                            tooltip: item.location == null
+                                ? 'Add location'
+                                : 'Change location',
+                            icon: const Icon(Icons.edit_location_alt_outlined),
+                            onPressed: () => _locate(item),
+                          ),
                   ),
                 ),
               const SizedBox(height: 12),
