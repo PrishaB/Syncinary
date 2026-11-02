@@ -198,6 +198,50 @@ jobs:
           name: grype-results
           path: grype.json
           if-no-files-found: ignore
+  
+  flight-integration:
+    name: Flight Proxy Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Install proxy dependencies
+        working-directory: proxy
+        run: npm ci
+
+      - name: Start stubbed proxy
+        working-directory: proxy
+        run: |
+          node integration_server.js > /tmp/flight-proxy.log 2>&1 &
+          for i in {1..30}; do
+            if curl -s -o /dev/null http://127.0.0.1:3000/flights; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/flight-proxy.log
+          exit 1
+
+      - name: Install Flutter dependencies
+        working-directory: syncinary
+        run: flutter pub get
+
+      - name: Run flight integration tests
+        working-directory: syncinary
+        run: dart test integration_test/flight_proxy_test.dart -r expanded
 
   security:
     name: Security - gitleaks
