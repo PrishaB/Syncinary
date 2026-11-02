@@ -185,11 +185,26 @@ jobs:
           echo "0a9ee97ef5ae2ee953b0a80098105052e846cdbe319a57d808b519c33cd1343d  grype.tar.gz" | sha256sum -c -
           tar -xzf grype.tar.gz grype
 
+      # Regression check for the .grype.yaml ignores (#206): the fixture SBOM holds only
+      # Dart unicode 1.1.9. Without the config it must fail on both CVEs; with it, pass.
+      # The bare run is from $RUNNER_TEMP so Grype doesn't pick up ./.grype.yaml.
+      - name: Check Grype ignore rules
+        run: |
+          fixture="$GITHUB_WORKSPACE/.github/grype-fixtures/unicode-pub.cdx.json"
+          ids='["CVE-2021-42574","CVE-2021-42694"]'
+          if (cd "$RUNNER_TEMP" && ./grype "sbom:$fixture" --fail-on high -q -o json=bare.json); then
+            echo "::error::Fixture no longer triggers the CVEs; the ignore may be stale"; exit 1
+          fi
+          jq -e --argjson ids "$ids" '[.matches[].vulnerability.id] | contains($ids)' "$RUNNER_TEMP/bare.json"
+          "$RUNNER_TEMP/grype" "sbom:$fixture" --config .grype.yaml --fail-on high -q -o json="$RUNNER_TEMP/ignored.json"
+          jq -e --argjson ids "$ids" '[.ignoredMatches[].vulnerability.id] | contains($ids)' "$RUNNER_TEMP/ignored.json"
+
       # Checks every SBOM component against Grype's vulnerability database.
       # Fails on high or critical findings, like the proxy's npm audit.
+      # Ignores (each with a reason) are in .grype.yaml.
       - name: Scan SBOM with Grype
         run: |
-          "$RUNNER_TEMP/grype" sbom:Doc/SBOM.json --fail-on high -o table -o json=grype.json
+          "$RUNNER_TEMP/grype" sbom:Doc/SBOM.json --config .grype.yaml --fail-on high -o table -o json=grype.json
 
       - name: Upload Grype results
         if: always()

@@ -65,6 +65,11 @@ base) and manual `workflow_dispatch`. Jobs:
   vulnerability; its JSON report is uploaded as `grype-results`. The SBOM
   holds only shipped dependencies (no proxy dev deps), so OSV-Scanner still
   covers the dev tooling. Analysis: `Doc/SBOM_Vulnerability_Analysis.md`.
+  Ignores live in `.grype.yaml`, each with a reason, scoped to the package,
+  type and `match-type`. Use them only for false positives. Currently: the
+  Unicode-spec CVEs CPE-matched to Dart `unicode` (#206). A `Check Grype
+  ignore rules` step scans `.github/grype-fixtures/` with and without the
+  config, so a rule that stops matching fails CI.
 - **`security`** (`Security - gitleaks`) — gitleaks CLI over the commits new in
   the push or PR. A manual dispatch scans the full history. `.gitleaks.toml`
   adds a `serpapi-key` rule to the defaults and allowlists the exact fake key
