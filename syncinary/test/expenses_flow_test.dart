@@ -33,17 +33,28 @@ Future<ExpenseService> seedService(
 }
 
 Group _baliGroup() => Group(
-      id: 'bali',
-      name: 'Bali Trip 2026',
-      members: [
-        GroupMember(id: 'me-uid', username: 'You', email: 'me@syncinary.app', role: GroupRole.admin),
-        GroupMember(
-            id: 'alex-uid', username: 'Alex Chen', email: 'alex@syncinary.app', role: GroupRole.user),
-      ],
-    );
+  id: 'bali',
+  name: 'Bali Trip 2026',
+  members: [
+    GroupMember(
+      id: 'me-uid',
+      username: 'You',
+      email: 'me@syncinary.app',
+      role: GroupRole.admin,
+    ),
+    GroupMember(
+      id: 'alex-uid',
+      username: 'Alex Chen',
+      email: 'alex@syncinary.app',
+      role: GroupRole.user,
+    ),
+  ],
+);
 
 void main() {
-  testWidgets('Add and delete expenses from the Trip Expenses page', (tester) async {
+  testWidgets('[103-3] Add and delete expenses from the Trip Expenses page', (
+    tester,
+  ) async {
     final firestore = FakeFirebaseFirestore();
     final service = await seedService(
       firestore,
@@ -53,7 +64,9 @@ void main() {
     );
 
     await tester.pumpWidget(
-      makeTestableWidget(TripExpensesPage(group: _baliGroup(), service: service)),
+      makeTestableWidget(
+        TripExpensesPage(group: _baliGroup(), service: service),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -67,13 +80,18 @@ void main() {
     expect(find.text('0%'), findsNWidgets(2));
 
     // ── Empty submission shows a validation error ──
+    await tester.ensureVisible(find.text('Add'));
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(find.text('Enter a name and a valid cost.'), findsOneWidget);
 
     // ── Add a valid expense ──
-    await tester.enterText(find.widgetWithText(TextField, 'Expense Name'), 'Flight 87');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Expense Name'),
+      'Flight 87',
+    );
     await tester.enterText(find.widgetWithText(TextField, 'Cost'), '600');
+    await tester.ensureVisible(find.text('Add'));
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
 
@@ -88,6 +106,7 @@ void main() {
     expect(find.text('0%'), findsOneWidget);
 
     // ── Delete it (admin can delete anyone's expense) ──
+    await tester.ensureVisible(find.byIcon(Icons.close_rounded));
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Delete "Flight 87"?'), findsOneWidget);
@@ -98,8 +117,9 @@ void main() {
     expect(find.text('No expenses yet.'), findsOneWidget);
   });
 
-  testWidgets('Split an expense evenly among selected members via the dropdown',
-      (tester) async {
+  testWidgets('[103-1] Split an expense evenly using the quick button', (
+    tester,
+  ) async {
     final firestore = FakeFirebaseFirestore();
     final service = await seedService(
       firestore,
@@ -109,27 +129,27 @@ void main() {
     );
 
     await tester.pumpWidget(
-      makeTestableWidget(TripExpensesPage(group: _baliGroup(), service: service)),
+      makeTestableWidget(
+        TripExpensesPage(group: _baliGroup(), service: service),
+      ),
     );
     await tester.pumpAndSettle();
 
-    // ── Switch the "Split cost" dropdown to "Split Evenly With..." ──
-    await tester.tap(find.text('Just Me'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Split Evenly With...'));
+    await tester.ensureVisible(find.text('Divide evenly'));
+    await tester.tap(find.text('Divide evenly'));
     await tester.pumpAndSettle();
 
-    // Both members are preselected by default in the picker dialog.
+    // Both members are selected immediately; chips can change the subset.
     expect(find.text('You'), findsOneWidget);
     expect(find.text('Alex Chen'), findsOneWidget);
-    await tester.tap(find.text('Confirm Selection'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Splitting with: You, Alex Chen'), findsOneWidget);
 
     // ── Add an expense while split-evenly mode is active ──
-    await tester.enterText(find.widgetWithText(TextField, 'Expense Name'), 'Boba');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Expense Name'),
+      'Boba',
+    );
     await tester.enterText(find.widgetWithText(TextField, 'Cost'), '10');
+    await tester.ensureVisible(find.text('Add'));
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
 
@@ -139,28 +159,38 @@ void main() {
     expect(find.text('50%'), findsNWidgets(2));
   });
 
-  test('addExpense writes a document with the current user as author', () async {
-    final firestore = FakeFirebaseFirestore();
-    final service = await seedService(
-      firestore,
-      uid: 'me-uid',
-      email: 'me@syncinary.app',
-      username: 'You',
-    );
+  test(
+    'addExpense writes a document with the current user as author',
+    () async {
+      final firestore = FakeFirebaseFirestore();
+      final service = await seedService(
+        firestore,
+        uid: 'me-uid',
+        email: 'me@syncinary.app',
+        username: 'You',
+      );
 
-    await service.addExpense('bali', name: 'Hotel x4 Nights', amount: 2000, splitWith: [
-      'me-uid',
-    ]);
+      await service.addExpense(
+        'bali',
+        name: 'Hotel x4 Nights',
+        amount: 2000,
+        splitWith: ['me-uid'],
+      );
 
-    final docs = await firestore.collection('groups').doc('bali').collection('expenses').get();
-    expect(docs.docs, hasLength(1));
-    final expense = Expense.fromDoc(docs.docs.first);
-    expect(expense.name, 'Hotel x4 Nights');
-    expect(expense.amount, 2000);
-    expect(expense.addedBy, 'me-uid');
-    expect(expense.addedByUsername, 'You');
-    expect(expense.splitWith, ['me-uid']);
-  });
+      final docs = await firestore
+          .collection('groups')
+          .doc('bali')
+          .collection('expenses')
+          .get();
+      expect(docs.docs, hasLength(1));
+      final expense = Expense.fromDoc(docs.docs.first);
+      expect(expense.name, 'Hotel x4 Nights');
+      expect(expense.amount, 2000);
+      expect(expense.addedBy, 'me-uid');
+      expect(expense.addedByUsername, 'You');
+      expect(expense.splitWith, ['me-uid']);
+    },
+  );
 
   test('addExpense records a custom splitWith list', () async {
     final firestore = FakeFirebaseFirestore();
@@ -178,25 +208,41 @@ void main() {
       splitWith: ['me-uid', 'alex-uid'],
     );
 
-    final docs = await firestore.collection('groups').doc('bali').collection('expenses').get();
+    final docs = await firestore
+        .collection('groups')
+        .doc('bali')
+        .collection('expenses')
+        .get();
     final expense = Expense.fromDoc(docs.docs.single);
     expect(expense.splitWith, ['me-uid', 'alex-uid']);
   });
 
-  test('Expense.fromDoc falls back to [addedBy] when splitWith is missing', () async {
-    final firestore = FakeFirebaseFirestore();
-    await firestore.collection('groups').doc('bali').collection('expenses').doc('old').set({
-      'name': 'Legacy Expense',
-      'amount': 42,
-      'addedBy': 'me-uid',
-      'addedByUsername': 'You',
-    });
+  test(
+    'Expense.fromDoc falls back to [addedBy] when splitWith is missing',
+    () async {
+      final firestore = FakeFirebaseFirestore();
+      await firestore
+          .collection('groups')
+          .doc('bali')
+          .collection('expenses')
+          .doc('old')
+          .set({
+            'name': 'Legacy Expense',
+            'amount': 42,
+            'addedBy': 'me-uid',
+            'addedByUsername': 'You',
+          });
 
-    final doc =
-        await firestore.collection('groups').doc('bali').collection('expenses').doc('old').get();
-    final expense = Expense.fromDoc(doc);
-    expect(expense.splitWith, ['me-uid']);
-  });
+      final doc = await firestore
+          .collection('groups')
+          .doc('bali')
+          .collection('expenses')
+          .doc('old')
+          .get();
+      final expense = Expense.fromDoc(doc);
+      expect(expense.splitWith, ['me-uid']);
+    },
+  );
 
   test('deleteExpense removes the document from Firestore', () async {
     final firestore = FakeFirebaseFirestore();
@@ -207,16 +253,26 @@ void main() {
       username: 'You',
     );
 
-    await service.addExpense('bali', name: 'Empire State Tour', amount: 50, splitWith: [
-      'me-uid',
-    ]);
-    final before =
-        await firestore.collection('groups').doc('bali').collection('expenses').get();
+    await service.addExpense(
+      'bali',
+      name: 'Empire State Tour',
+      amount: 50,
+      splitWith: ['me-uid'],
+    );
+    final before = await firestore
+        .collection('groups')
+        .doc('bali')
+        .collection('expenses')
+        .get();
     final expenseId = before.docs.single.id;
 
     await service.deleteExpense('bali', expenseId);
 
-    final after = await firestore.collection('groups').doc('bali').collection('expenses').get();
+    final after = await firestore
+        .collection('groups')
+        .doc('bali')
+        .collection('expenses')
+        .get();
     expect(after.docs, isEmpty);
   });
 }
