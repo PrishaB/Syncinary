@@ -7,10 +7,11 @@ const vm = require('node:vm');
 // Load the real route handlers with a stubbed upstream and no listening socket.
 function loadRoutes(fetchImpl) {
   const routes = new Map();
-  const app = { use() {}, get: (route, handler) => routes.set(route, handler), listen() {} };
+  const app = { use() {}, set() {}, post() {}, get: (route, handler) => routes.set(route, handler), listen() {} };
+  const express = Object.assign(() => app, { json: () => () => {} });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8'), {
     require: name => {
-      if (name === 'express') return () => app;
+      if (name === 'express') return express;
       if (name === 'node-fetch') return fetchImpl;
       return require(name);
     },
