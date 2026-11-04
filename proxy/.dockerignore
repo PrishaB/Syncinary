@@ -5,5 +5,6 @@
 !package-lock.json
 !server.js
 !airports.js
+!places.js
 !data/
 !data/airports.json

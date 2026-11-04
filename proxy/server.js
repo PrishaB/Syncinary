@@ -5,6 +5,7 @@ const fetch = require('node-fetch');
 const app = express();
 app.use(cors());
 app.use('/airports', require('./airports').createAirportRouter());
+app.use('/places', require('./places').createPlaceRouter());
  
 const SERPAPI_KEY = process.env.SERPAPI_KEY;
 if (!SERPAPI_KEY && require.main === module) {
