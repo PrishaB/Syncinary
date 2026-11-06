@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'expense_split.dart';
 
 /// Backed by a document in the `groups/{groupId}/expenses` subcollection:
 /// ```
@@ -7,7 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 ///   amount: number,
 ///   addedBy: uid,
 ///   addedByUsername: string,
-///   splitWith: [uid, ...],   // members who owe an equal share; defaults to [addedBy]
+///   splitWith: [uid, ...],   // defaults to [addedBy]
+///   splitPercentages: {uid: number, ...}, // optional; otherwise split equally
 ///   createdAt: Timestamp,
 /// }
 /// ```
@@ -19,6 +21,7 @@ class Expense {
     required this.addedBy,
     required this.addedByUsername,
     required this.splitWith,
+    this.splitPercentages,
   });
 
   final String id;
@@ -27,11 +30,16 @@ class Expense {
   final String addedBy;
   final String addedByUsername;
   final List<String> splitWith;
+  final Map<String, double>? splitPercentages;
+
+  ExpenseSplit get split =>
+      ExpenseSplit(splitWith: splitWith, percentages: splitPercentages);
 
   factory Expense.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const {};
     final addedBy = data['addedBy'] as String? ?? '';
     final rawSplitWith = data['splitWith'] as List?;
+    final rawPercentages = data['splitPercentages'] as Map<String, dynamic>?;
     return Expense(
       id: doc.id,
       name: data['name'] as String? ?? '',
@@ -41,6 +49,9 @@ class Expense {
       splitWith: rawSplitWith != null && rawSplitWith.isNotEmpty
           ? rawSplitWith.cast<String>()
           : [addedBy],
+      splitPercentages: rawPercentages?.map(
+        (id, value) => MapEntry(id, (value as num).toDouble()),
+      ),
     );
   }
 }
