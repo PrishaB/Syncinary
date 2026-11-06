@@ -2,8 +2,6 @@
 
 Team: Ethan Bar, Prisha Boreddy, Jack Burky, Shubhi Agarwal
 
-Related: task walkthrough — [Group Trip Planning Guide](Group%20Trip%20Planning%20Guide.md); commands — [AGENTS.md](../AGENTS.md); proxy deployment and module background — [proxy/README.md](../proxy/README.md).
-
 ## Contents
 
 | # | Section | Covers |
