@@ -18,7 +18,7 @@ This test verifies that an expired password reset link will not work.
 
 ## Preconditions
 
-The User must have a valid existing account.
+- The User must have a valid existing account.
 
 
 ## Test Environment
@@ -34,80 +34,20 @@ The User must have a valid existing account.
 
 | Step | Action | Expected Result | Actual Result | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Request Password Reset and wain 24 Hours | The Password Reset Fails | | Pass / Fail |
+| 1 | Request Password Reset and wait < 24 Hours | The Password Reset Fails | Reset requested at 9:41 PM. At 10:33 AM, the link if invalid| Pass / Fail |
 
 ## Overall Result
 
-**Status:** Pass / Fail
+**Status:** Pass
 
-Summarize the overall outcome of the test.
+12 Hours later, the password reset link is invalidated
 
 ## Issues / Bugs Found
 
-List any bugs discovered during testing.
-
-- Bug ID:
-- Description:
-- Related bug report:
-
-If no bugs were found, write "None."
+None
 
 ## Evidence / Notes
 
-Include any relevant screenshots, logs, observations, or additional notes.
+![password reset](jack_manual_test_images/password_ver.png)
 
 
-# Bug Report
-Only used if the test produced a bug
-
-## Bug Information
-
-| Field | Details |
-| --- | --- |
-| Bug ID | BUG-XXX |
-| Title | |
-| Related Test | MT-XXX |
-| Reported By | |
-| Date Reported | |
-| Severity | Critical / High / Medium / Low |
-| Priority | High / Medium / Low |
-| Status | Open / In Progress / Resolved / Closed |
-
-## Description
-
-Provide a brief description of the problem.
-
-## Environment
-
-| Field | Details |
-| --- | --- |
-| Platform | Web |
-| Browser | |
-| Operating System | |
-| Application Version / Branch | branch name from (git branch --show-current) @ commit number from (git rev-parse --short HEAD) |
-
-## Preconditions
-
-List any conditions necessary to reproduce the bug.
-
-## Steps to Reproduce
-
-1.
-2.
-3.
-
-## Expected Result
-
-Describe what should have happened.
-
-## Actual Result
-
-Describe what actually happened.
-
-## Evidence
-
-Add screenshots, error messages, logs, or other evidence here.
-
-## Additional Notes
-
-Include any other relevant information or suspected causes.
