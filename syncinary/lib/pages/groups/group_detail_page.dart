@@ -31,7 +31,18 @@ class GroupDetailPage extends StatefulWidget {
 
 class _GroupDetailPageState extends State<GroupDetailPage> {
   late final GroupService _service = widget._service ?? GroupService();
+  late final Stream<Group?> _groupStream = _service.groupStream(widget.group.id);
   bool _busy = false;
+  bool _deleting = false;
+  bool _closing = false;
+
+  void _closeDeletedGroup() {
+    if (!mounted || _closing || ModalRoute.of(context)?.isCurrent != true) return;
+    final navigator = Navigator.of(context);
+    if (!navigator.canPop()) return;
+    _closing = true;
+    navigator.pop();
+  }
 
   Future<void> _renameGroup(Group group) async {
     final controller = TextEditingController(text: group.name);
@@ -112,15 +123,28 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       message: 'Confirm deletion of "${group.name}"?',
       confirmLabel: 'Delete',
     );
-    if (!confirmed) return;
-    setState(() => _busy = true);
+    if (!confirmed || !mounted || ModalRoute.of(context)?.isCurrent != true) return;
+    setState(() {
+      _busy = true;
+      _deleting = true;
+    });
     try {
       await _service.deleteGroup(group);
-      if (!mounted) return;
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
       await showSuccessOverlay(context, '${group.name} successfully deleted');
-      if (mounted) Navigator.pop(context);
+      _closeDeletedGroup();
+    } catch (_) {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete trip. Please try again.')),
+      );
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _deleting = false;
+        });
+      }
     }
   }
 
@@ -166,15 +190,18 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           child: StreamBuilder<Group?>(
-            stream: _service.groupStream(widget.group.id),
+            stream: _groupStream,
             initialData: widget.group,
             builder: (context, snapshot) {
               final group = snapshot.data;
               if (group == null) {
-                // Deleted (by this user or another admin) while viewing.
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted && Navigator.canPop(context)) Navigator.pop(context);
-                });
+                // Local deletion owns navigation until its success dialog closes.
+                // Firestore can report the missing group before the write completes.
+                if (!_deleting) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!_deleting) _closeDeletedGroup();
+                  });
+                }
                 return const Center(child: CircularProgressIndicator());
               }
 
