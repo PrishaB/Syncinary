@@ -8,6 +8,13 @@ GroupRole groupRoleFromString(String? value) =>
 String groupRoleToString(GroupRole role) =>
     role == GroupRole.admin ? 'admin' : 'user';
 
+/// Firestore data isn't type-checked, so a field can hold anything. These
+/// treat a wrongly typed value the same as a missing one.
+String? _stringOrNull(Object? value) => value is String ? value : null;
+
+Map<String, dynamic> _mapOrEmpty(Object? value) =>
+    value is Map ? Map<String, dynamic>.from(value) : const {};
+
 class GroupMember {
   GroupMember({
     required this.id,
@@ -23,9 +30,9 @@ class GroupMember {
 
   factory GroupMember.fromMap(String id, Map<String, dynamic> map) => GroupMember(
         id: id,
-        username: map['username'] as String? ?? 'Unknown',
-        email: map['email'] as String? ?? '',
-        role: groupRoleFromString(map['role'] as String?),
+        username: _stringOrNull(map['username']) ?? 'Unknown',
+        email: _stringOrNull(map['email']) ?? '',
+        role: groupRoleFromString(_stringOrNull(map['role'])),
       );
 
   Map<String, dynamic> toMap() => {
@@ -67,13 +74,13 @@ class Group {
 
   factory Group.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const {};
-    final rawMembers = data['members'] as Map<String, dynamic>? ?? const {};
+    final rawMembers = _mapOrEmpty(data['members']);
     return Group(
       id: doc.id,
-      name: data['name'] as String? ?? '',
-      inviteCode: data['inviteCode'] as String?,
+      name: _stringOrNull(data['name']) ?? '',
+      inviteCode: _stringOrNull(data['inviteCode']),
       members: rawMembers.entries
-          .map((e) => GroupMember.fromMap(e.key, Map<String, dynamic>.from(e.value as Map)))
+          .map((e) => GroupMember.fromMap(e.key, _mapOrEmpty(e.value)))
           .toList(),
     );
   }
@@ -105,10 +112,10 @@ class GroupInvite {
     final data = doc.data() ?? const {};
     return GroupInvite(
       id: doc.id,
-      senderUsername: data['senderUsername'] as String? ?? 'Someone',
-      groupId: data['groupId'] as String? ?? '',
-      groupName: data['groupName'] as String? ?? '',
-      role: groupRoleFromString(data['role'] as String?),
+      senderUsername: _stringOrNull(data['senderUsername']) ?? 'Someone',
+      groupId: _stringOrNull(data['groupId']) ?? '',
+      groupName: _stringOrNull(data['groupName']) ?? '',
+      role: groupRoleFromString(_stringOrNull(data['role'])),
     );
   }
 }

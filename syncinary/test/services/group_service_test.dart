@@ -107,6 +107,32 @@ void main() {
     expect(await readGroup(firestore), isNull);
   });
 
+  test('[501-5] two admins removing each other from stale screens still leaves an admin',
+      () async {
+    final firestore = FakeFirebaseFirestore();
+    await seedGroup(firestore, ['a', 'b', 'c'], roles: {'b': 'admin'});
+    final staleGroup = await loadGroup(firestore); // both screens show a and b as admins
+
+    await serviceAs(firestore, 'a').removeMember(staleGroup, staleGroup.memberById('b')!);
+    await serviceAs(firestore, 'b').removeMember(staleGroup, staleGroup.memberById('a')!);
+
+    final data = (await readGroup(firestore))!;
+    expect(data['memberIds'], ['c']);
+    expect(roleIn(data, 'c'), 'admin');
+  });
+
+  test('[501-5] removing a regular member changes no roles', () async {
+    final firestore = FakeFirebaseFirestore();
+    await seedGroup(firestore, ['a', 'b', 'c']);
+
+    final group = await loadGroup(firestore);
+    await serviceAs(firestore, 'a').removeMember(group, group.memberById('b')!);
+
+    final data = (await readGroup(firestore))!;
+    expect(roleIn(data, 'a'), 'admin');
+    expect(roleIn(data, 'c'), 'user');
+  });
+
   test('[501-5] removing a member keeps the remaining join order', () async {
     final firestore = FakeFirebaseFirestore();
     await seedGroup(firestore, ['a', 'd', 'c', 'b']);
