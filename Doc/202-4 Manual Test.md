@@ -36,9 +36,12 @@ List anything that must be true before performing the test.
 
 | Step | Action | Expected Result | Actual Result | Status |
 | --- | --- | --- | --- | --- |
-| 1 | | | | Pass / Fail |
-| 2 | | | | Pass / Fail |
-| 3 | | | | Pass / Fail |
+| 1 | Create a new itinerary and add 5+ unique locations | All 5 locations populate without issue | | Pass / Fail |
+| 2 | Create a new itinerary and add duplicate locations | The duplicate should be ignored | | Pass / Fail |
+| 3 | Create a new itinerary and add 2 locations. View map and add 2 new locations. Insure they are added | The new locations should populate | | Pass / Fail |
+| 4 | Create a new itinerary and add 2 locations. View map and remove 1 location. Insure they are removed | The location should be removed | | Pass / Fail |
+| 5 | Create a new itinerary and add 2 locations. Move one location to a new day. Ensure the order changes | the order of the connections should change | | Pass / Fail |
+| 5 | Create a new itinerary and add a location with no geo data. Ensure it is not plotted | The map should be empty | | Pass / Fail |
 
 ## Overall Result
 
