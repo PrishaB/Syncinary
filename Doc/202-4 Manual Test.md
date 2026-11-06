@@ -28,9 +28,9 @@ List anything that must be true before performing the test.
 | Field | Details |
 | --- | --- |
 | Platform | Web |
-| Browser | |
-| Operating System | |
-| Application Version / Branch | branch name from (git branch --show-current) @ commit number from (git rev-parse --short HEAD) |
+| Browser | Chrome |
+| Operating System | Windows 11 |
+| Application Version / Branch | Version 0.5.0 |
 
 ## Test Steps
 
@@ -60,58 +60,3 @@ If no bugs were found, write "None."
 
 Include any relevant screenshots, logs, observations, or additional notes.
 
-
-# Bug Report
-Only used if the test produced a bug
-
-## Bug Information
-
-| Field | Details |
-| --- | --- |
-| Bug ID | BUG-XXX |
-| Title | |
-| Related Test | MT-XXX |
-| Reported By | |
-| Date Reported | |
-| Severity | Critical / High / Medium / Low |
-| Priority | High / Medium / Low |
-| Status | Open / In Progress / Resolved / Closed |
-
-## Description
-
-Provide a brief description of the problem.
-
-## Environment
-
-| Field | Details |
-| --- | --- |
-| Platform | Web |
-| Browser | |
-| Operating System | |
-| Application Version / Branch | branch name from (git branch --show-current) @ commit number from (git rev-parse --short HEAD) |
-
-## Preconditions
-
-List any conditions necessary to reproduce the bug.
-
-## Steps to Reproduce
-
-1.
-2.
-3.
-
-## Expected Result
-
-Describe what should have happened.
-
-## Actual Result
-
-Describe what actually happened.
-
-## Evidence
-
-Add screenshots, error messages, logs, or other evidence here.
-
-## Additional Notes
-
-Include any other relevant information or suspected causes.
