@@ -9,7 +9,7 @@
 | Requirement ID(s) | FR-301 |
 | Test Level | Unit |
 | Tester | Jack Burky |
-| Date | TBD |
+| Date | 11/5-6/2026 |
 | Priority | Low |
 
 ## Objective
@@ -20,25 +20,21 @@ This test verifies that an expired password reset link will not work.
 
 The User must have a valid existing account.
 
-- 
-- 
 
 ## Test Environment
 
 | Field | Details |
 | --- | --- |
 | Platform | Web |
-| Browser | |
-| Operating System | |
-| Application Version / Branch | branch name from (git branch --show-current) @ commit number from (git rev-parse --short HEAD) |
+| Browser | Chrome |
+| Operating System | Windows 11 |
+| Application Version / Branch | v0.6.0 |
 
 ## Test Steps
 
 | Step | Action | Expected Result | Actual Result | Status |
 | --- | --- | --- | --- | --- |
-| 1 | | | | Pass / Fail |
-| 2 | | | | Pass / Fail |
-| 3 | | | | Pass / Fail |
+| 1 | Request Password Reset and wain 24 Hours | The Password Reset Fails | | Pass / Fail |
 
 ## Overall Result
 
