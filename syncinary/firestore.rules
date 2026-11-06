@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+
+    function groupDoc(groupId) {
+      return get(/databases/$(database)/documents/groups/$(groupId)).data;
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && request.auth.uid == uid;
+      // Account deletion may remove only the caller's own profile.
+      allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /groups/{groupId} {
+      // Helpers for subcollections (read the parent group document).
+      function isMember() {
+        return isSignedIn() && request.auth.uid in groupDoc(groupId).memberIds;
+      }
+      function isAdmin() {
+        return isMember() && groupDoc(groupId).members[request.auth.uid].role == 'admin';
+      }
+
+      function isAdminOf(data) {
+        return isSignedIn() && request.auth.uid in data.memberIds &&
+          data.members[request.auth.uid].role == 'admin';
+      }
+      // The write touches only membership fields and the caller's own entry.
+      function onlyMyMembershipChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['memberIds', 'members']) &&
+               request.resource.data.members.diff(resource.data.members).affectedKeys()
+                 .hasOnly([request.auth.uid]);
+      }
+      // A member removes exactly themselves.
+      function isLeaving() {
+        return request.auth.uid in resource.data.memberIds &&
+          onlyMyMembershipChanged() &&
+          !(request.auth.uid in request.resource.data.members) &&
+          request.resource.data.memberIds.toSet() ==
+            resource.data.memberIds.toSet().difference([request.auth.uid].toSet());
+      }
+      // A non-member adds exactly themselves.
+      function isJoining() {
+        return !(request.auth.uid in resource.data.memberIds) &&
+          onlyMyMembershipChanged() &&
+          request.resource.data.memberIds.toSet() ==
+            resource.data.memberIds.toSet().union([request.auth.uid].toSet()) &&
+          request.resource.data.members[request.auth.uid].role in ['user', 'admin'];
+      }
+
+      allow read: if isSignedIn() && request.auth.uid in resource.data.memberIds;
+      allow create: if isSignedIn() &&
+        request.resource.data.memberIds == [request.auth.uid] &&
+        request.resource.data.members[request.auth.uid].role == 'admin';
+      allow update: if isSignedIn() &&
+        (isAdminOf(resource.data) || isLeaving() || isJoining());
+      allow delete: if isAdminOf(resource.data) ||
+        (isSignedIn() && resource.data.memberIds == [request.auth.uid]);
+
+      match /expenses/{expenseId} {
+        allow read: if isMember();
+        allow create: if isMember() && request.resource.data.addedBy == request.auth.uid;
+        allow delete: if isMember() &&
+          (resource.data.addedBy == request.auth.uid || isAdmin());
+      }
+
+      match /scheduleDays/{dayId} {
+        allow read, create, delete: if isMember();
+        allow update: if isMember() && request.resource.data.date == resource.data.date;
+      }
+      match /scheduleItems/{itemId} {
+        allow read, delete: if isMember();
+        allow create: if isMember() && request.resource.data.addedBy == request.auth.uid;
+        allow update: if isMember() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['day', 'title', 'details']);
+      }
+    }
+
+    match /inviteCodes/{code} {
+      // Exact code lookup only; listing all codes is not allowed.
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() &&
+        groupDoc(request.resource.data.groupId).members[request.auth.uid].role == 'admin';
+      allow update, delete: if false;
+    }
+
+    match /invites/{inviteId} {
+      allow read, delete: if isSignedIn() &&
+        (resource.data.recipientEmail == request.auth.token.email.lower() ||
+         resource.data.senderUid == request.auth.uid);
+      allow create: if isSignedIn() &&
+        request.resource.data.senderUid == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.auth.uid in groupDoc(request.resource.data.groupId).memberIds &&
+        (request.resource.data.role == 'user' ||
+         groupDoc(request.resource.data.groupId).members[request.auth.uid].role == 'admin');
+    }
+  }
+}
