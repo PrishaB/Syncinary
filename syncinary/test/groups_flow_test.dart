@@ -8,6 +8,7 @@ import 'package:syncinary/models/group.dart';
 import 'package:syncinary/pages/groups/group_detail_page.dart';
 import 'package:syncinary/pages/groups/join_group_page.dart';
 import 'package:syncinary/pages/groups/my_groups_page.dart';
+import 'package:syncinary/pages/groups/transfer_admin_dialog.dart';
 import 'package:syncinary/services/group_service.dart';
 import 'package:syncinary/theme/app_theme.dart';
 
@@ -433,7 +434,32 @@ void main() {
         {'me-uid': 'user', 'alex-uid': 'user', 'jordan-uid': 'admin'});
   });
 
-  test('[501-7] transferAdmin to a member who was already removed does not bring them back',
+  test('[501-7] transferAdmin to a member who already left throws, keeps the admin, '
+      'and does not bring them back', () async {
+    final firestore = FakeFirebaseFirestore();
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    final staleGroup = await seedGroup(firestore, 'bali', {
+      'me-uid': memberData('You', 'admin'),
+      'alex-uid': memberData('Alex Chen', 'user'),
+      'jordan-uid': memberData('Jordan Lee', 'user'),
+    });
+    final alex = staleGroup.memberById('alex-uid')!;
+
+    await me.removeMember(staleGroup, alex);
+    // The screen still showed Alex.
+    await expectLater(
+      me.transferAdmin(staleGroup, alex),
+      throwsA(isA<MemberNotFoundException>()
+          .having((e) => e.username, 'username', 'Alex Chen')),
+    );
+
+    expect(await rolesOf(firestore, 'bali'), {'me-uid': 'admin', 'jordan-uid': 'user'});
+    final doc = await firestore.collection('groups').doc('bali').get();
+    expect(doc.data()!['memberIds'], isNot(contains('alex-uid')));
+  });
+
+  test('[501-7] transferAdmin by a user who is no longer admin throws and changes nothing',
       () async {
     final firestore = FakeFirebaseFirestore();
     final me =
@@ -441,15 +467,56 @@ void main() {
     final staleGroup = await seedGroup(firestore, 'bali', {
       'me-uid': memberData('You', 'admin'),
       'alex-uid': memberData('Alex Chen', 'user'),
+      'jordan-uid': memberData('Jordan Lee', 'user'),
     });
-    final alex = staleGroup.memberById('alex-uid')!;
 
-    await me.removeMember(staleGroup, alex);
-    await me.transferAdmin(staleGroup, alex); // the screen still showed Alex
+    await me.transferAdmin(staleGroup, staleGroup.memberById('jordan-uid')!);
+    // `staleGroup` still says "me" is admin, but the stored group doesn't.
+    await expectLater(
+      me.transferAdmin(staleGroup, staleGroup.memberById('alex-uid')!),
+      throwsA(isA<NotAdminException>()),
+    );
 
-    expect(await membersOf(firestore, 'bali'), isNot(contains('alex-uid')));
-    final doc = await firestore.collection('groups').doc('bali').get();
-    expect(doc.data()!['memberIds'], isNot(contains('alex-uid')));
+    expect(await rolesOf(firestore, 'bali'),
+        {'me-uid': 'user', 'alex-uid': 'user', 'jordan-uid': 'admin'});
+  });
+
+  testWidgets('[501-7] transfer dialog shows an error and keeps the admin when the member left',
+      (tester) async {
+    final firestore = FakeFirebaseFirestore();
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    final staleGroup = await seedGroup(firestore, 'bali', {
+      'me-uid': memberData('You', 'admin'),
+      'alex-uid': memberData('Alex Chen', 'user'),
+      'jordan-uid': memberData('Jordan Lee', 'user'),
+    });
+    await me.removeMember(staleGroup, staleGroup.memberById('alex-uid')!);
+
+    await pumpPage(
+      tester,
+      Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => showTransferAdminDialog(context, staleGroup, me),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Alex Chen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm Selection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Alex Chen is no longer in this group. Choose someone else.'),
+        findsOneWidget);
+    expect(find.text('Alex Chen'), findsNothing); // dropped from the list
+    expect(find.text('Transfer Admin Status to...'), findsOneWidget); // dialog still open
+    expect(await rolesOf(firestore, 'bali'), {'me-uid': 'admin', 'jordan-uid': 'user'});
   });
 
   test('[501-7] roleOf / isAdmin: admin, user, and non-member (defaults to user)', () async {

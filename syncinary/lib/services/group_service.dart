@@ -10,6 +10,19 @@ class UserNotFoundException implements Exception {
   final String email;
 }
 
+/// Thrown by [GroupService.transferAdmin] when the chosen member is no
+/// longer in the group (e.g. they left while the dialog was open).
+class MemberNotFoundException implements Exception {
+  MemberNotFoundException(this.username);
+  final String username;
+}
+
+/// Thrown by [GroupService.transferAdmin] when the current user is no longer
+/// an admin of the group (e.g. another admin demoted or removed them).
+class NotAdminException implements Exception {
+  const NotAdminException();
+}
+
 /// Firestore-backed data access for the Group feature.
 ///
 /// Stateless wrapper around [FirebaseFirestore] / [FirebaseAuth] — accepts
@@ -92,41 +105,43 @@ class GroupService {
   /// order from Firestore is not join order, so it can't be rebuilt from
   /// `members.keys`).
   ///
-  /// This is a read-then-write rather than a transaction: two admins editing
-  /// membership at the exact same instant could race. Acceptable for a
-  /// small-group travel app; revisit with `runTransaction` (or a Cloud
-  /// Function) if that ever becomes a real concern.
+  /// Runs in a transaction so a membership change made by someone else
+  /// between the read and the write (e.g. a member leaving) can't be
+  /// overwritten: Firestore retries [mutate] against the fresh data instead.
+  /// [mutate] may throw to abort without writing anything.
   Future<void> _updateMembers(
     String groupId,
     void Function(
       Map<String, Map<String, dynamic>> members,
       List<String> joinOrder,
     ) mutate,
-  ) async {
+  ) {
     final ref = _groups.doc(groupId);
-    final snap = await ref.get();
-    final data = Map<String, dynamic>.from(snap.data() ?? const {});
-    final raw = data['members'] as Map<String, dynamic>? ?? const {};
-    final members = raw.map(
-      (key, value) => MapEntry(key, Map<String, dynamic>.from(value as Map)),
-    );
-    final joinOrder = List<String>.from(data['memberIds'] as List? ?? const []);
-    mutate(members, joinOrder);
-    if (members.isEmpty) {
-      await ref.delete();
-    } else {
-      // set() rather than update(): passing a nested map to update() gets
-      // deep-merged by some Firestore client/test implementations instead of
-      // replacing the field outright, which would silently resurrect a
-      // removed member. set() with the full document data avoids that.
-      data['members'] = members;
-      data['memberIds'] = [
-        ...joinOrder.where(members.containsKey),
-        // Safety net: a member missing from memberIds goes to the end.
-        ...members.keys.where((id) => !joinOrder.contains(id)),
-      ];
-      await ref.set(data);
-    }
+    return _firestore.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final data = Map<String, dynamic>.from(snap.data() ?? const {});
+      final raw = data['members'] as Map<String, dynamic>? ?? const {};
+      final members = raw.map(
+        (key, value) => MapEntry(key, Map<String, dynamic>.from(value as Map)),
+      );
+      final joinOrder = List<String>.from(data['memberIds'] as List? ?? const []);
+      mutate(members, joinOrder);
+      if (members.isEmpty) {
+        tx.delete(ref);
+      } else {
+        // set() rather than update(): passing a nested map to update() gets
+        // deep-merged by some Firestore client/test implementations instead of
+        // replacing the field outright, which would silently resurrect a
+        // removed member. set() with the full document data avoids that.
+        data['members'] = members;
+        data['memberIds'] = [
+          ...joinOrder.where(members.containsKey),
+          // Safety net: a member missing from memberIds goes to the end.
+          ...members.keys.where((id) => !joinOrder.contains(id)),
+        ];
+        tx.set(ref, data);
+      }
+    });
   }
 
   Future<Group> createGroup(String name) async {
@@ -172,10 +187,21 @@ class GroupService {
   Future<void> removeMember(Group group, GroupMember member) =>
       _updateMembers(group.id, (members, _) => members.remove(member.id));
 
+  /// Makes [newAdmin] the admin and demotes the current user. Both checks run
+  /// against the group as stored now, not the possibly stale [group], and
+  /// happen before either role changes, so a failed transfer never leaves
+  /// the group without an admin.
+  ///
+  /// Throws [NotAdminException] if the current user is no longer an admin,
+  /// or [MemberNotFoundException] if [newAdmin] is no longer in the group.
   Future<void> transferAdmin(Group group, GroupMember newAdmin) =>
       _updateMembers(group.id, (members, _) {
-        members[currentUserId]?['role'] = 'user';
-        members[newAdmin.id]?['role'] = 'admin';
+        final me = members[currentUserId];
+        final target = members[newAdmin.id];
+        if (me == null || me['role'] != 'admin') throw const NotAdminException();
+        if (target == null) throw MemberNotFoundException(newAdmin.username);
+        me['role'] = 'user';
+        target['role'] = 'admin';
       });
 
   /// Looks the invitee up in `users` by email and creates a pending invite

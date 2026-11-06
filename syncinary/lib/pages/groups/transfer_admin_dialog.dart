@@ -31,22 +31,52 @@ class _TransferAdminDialog extends StatefulWidget {
 class _TransferAdminDialogState extends State<_TransferAdminDialog> {
   GroupMember? _selected;
   bool _busy = false;
+  String? _error;
+
+  /// Set once a transfer fails because the current user isn't an admin any
+  /// more; there is nothing left to retry, so Confirm stays disabled.
+  bool _notAdmin = false;
+
+  /// Members found to have left since the dialog opened. [widget.group] is a
+  /// snapshot, so they're hidden here rather than offered again.
+  final Set<String> _gone = {};
 
   Future<void> _confirm() async {
     final selected = _selected;
     if (selected == null) return;
-    setState(() => _busy = true);
-    await widget.service.transferAdmin(widget.group, selected);
-    if (!mounted) return;
-    setState(() => _busy = false);
-    Navigator.of(context).pop(true);
-    await showSuccessOverlay(context, '${selected.username} is now the admin');
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.service.transferAdmin(widget.group, selected);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+      await showSuccessOverlay(context, '${selected.username} is now the admin');
+    } on MemberNotFoundException catch (e) {
+      if (mounted) {
+        setState(() {
+          _gone.add(selected.id);
+          _selected = null;
+          _error = '${e.username} is no longer in this group. Choose someone else.';
+        });
+      }
+    } on NotAdminException {
+      if (mounted) {
+        setState(() {
+          _notAdmin = true;
+          _error = "You're no longer an admin of this group.";
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final others = widget.group.members
-        .where((m) => m.id != widget.service.currentUserId)
+        .where((m) => m.id != widget.service.currentUserId && !_gone.contains(m.id))
         .toList();
 
     return Dialog(
@@ -122,6 +152,12 @@ class _TransferAdminDialogState extends State<_TransferAdminDialog> {
                   ),
                 );
               }),
+            if (_error != null) ...[
+              const SizedBox(height: 4),
+              Text(_error!,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.caption.copyWith(color: Colors.white)),
+            ],
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
@@ -133,7 +169,7 @@ class _TransferAdminDialogState extends State<_TransferAdminDialog> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
-                onPressed: _selected == null || _busy ? null : _confirm,
+                onPressed: _selected == null || _busy || _notAdmin ? null : _confirm,
                 child: Text('Confirm Selection',
                     style: AppTextStyles.button.copyWith(color: AppColors.accentStart)),
               ),
