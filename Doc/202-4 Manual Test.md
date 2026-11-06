@@ -9,19 +9,19 @@
 | Requirement ID(s) | FR-202 |
 | Test Level | Integration |
 | Tester | Jack Burky |
-| Date | |
+| Date | 11/5/2026 |
 | Priority | Medium |
 
 ## Objective
 
-Describe what functionality or user workflow this test is intended to verify.
+This test is to verify the functionality of the map view feature. It is difficut to automatically test correctness so, it will be manually done.
 
 ## Preconditions
 
 List anything that must be true before performing the test.
 
-- 
-- 
+- The map view functionality must be fully complete
+- The map view must be deployed to the live enviroment
 
 ## Test Environment
 
