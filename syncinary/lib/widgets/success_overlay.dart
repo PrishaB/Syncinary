@@ -21,11 +21,11 @@ Future<void> showSuccessOverlay(BuildContext context, String message) {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
           decoration: BoxDecoration(
-            gradient: AppColors.brandGradient,
+            gradient: AppColors.of(context).brandGradient,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: AppColors.accentStart.withValues(alpha: 0.4),
+                color: AppColors.of(context).accentStart.withValues(alpha: 0.4),
                 blurRadius: 30,
                 offset: const Offset(0, 10),
               ),
@@ -39,7 +39,7 @@ Future<void> showSuccessOverlay(BuildContext context, String message) {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: AppTextStyles.title.copyWith(color: Colors.white),
+                style: AppTextStyles.of(context).title.copyWith(color: Colors.white),
               ),
             ],
           ),

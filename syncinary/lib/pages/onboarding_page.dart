@@ -40,8 +40,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
+          decoration: BoxDecoration(
+            gradient: AppColors.of(context).backgroundGradient,
           ),
           child: SafeArea(
             child: Center(
@@ -58,27 +58,27 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           key: ValueKey(_currentSlide),
                           width: double.infinity,
                           padding: const EdgeInsets.all(28),
-                          decoration: AppDecorations.glassCard(),
+                          decoration: AppDecorations.glassCard(context),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.image_outlined,
                                 size: 80,
-                                color: AppColors.accentEnd,
+                                color: AppColors.of(context).accentEnd,
                               ),
                               const SizedBox(height: 32),
                               Text(
                                 'Onboarding ${_currentSlide + 1}',
                                 textAlign: TextAlign.center,
-                                style: AppTextStyles.headline,
+                                style: AppTextStyles.of(context).headline,
                               ),
                               const SizedBox(height: 16),
-                              const Text(
+                              Text(
                                 'Placeholder text for this onboarding screen. '
                                 'More content will be added here soon.',
                                 textAlign: TextAlign.center,
-                                style: AppTextStyles.body,
+                                style: AppTextStyles.of(context).body,
                               ),
                             ],
                           ),
@@ -98,8 +98,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: index == _currentSlide
-                                    ? AppColors.accentEnd
-                                    : AppColors.border,
+                                    ? AppColors.of(context).accentEnd
+                                    : AppColors.of(context).border,
                               ),
                             ),
                           ),

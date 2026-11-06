@@ -46,7 +46,7 @@ class _GroupPreferencesPageState extends State<GroupPreferencesPage> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: StreamBuilder<GroupPreferencesSummary?>(
             key: ObjectKey(_summary),
@@ -65,7 +65,7 @@ class _GroupPreferencesPageState extends State<GroupPreferencesPage> {
                           denied
                               ? 'Sign in with a verified account that belongs to this group to view its summary.'
                               : 'Could not load group preferences. Please try again.',
-                          style: AppTextStyles.body,
+                          style: AppTextStyles.of(context).body,
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
@@ -87,39 +87,39 @@ class _GroupPreferencesPageState extends State<GroupPreferencesPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(widget.groupName, style: AppTextStyles.headline),
+                        Text(widget.groupName, style: AppTextStyles.of(context).headline),
                         const SizedBox(height: 8),
                         Text(
                           'Plan around what your group enjoys.',
-                          style: AppTextStyles.subtitle,
+                          style: AppTextStyles.of(context).subtitle,
                         ),
                         const SizedBox(height: 24),
                         _SummaryCard(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.groups_outlined,
-                                color: AppColors.accentEnd,
+                                color: AppColors.of(context).accentEnd,
                               ),
                               const SizedBox(height: 12),
                               Text(
                                 '${summary.respondentCount} of ${summary.memberCount} members have shared preferences',
-                                style: AppTextStyles.title,
+                                style: AppTextStyles.of(context).title,
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Only combined responses are shown, without names or individual answers. '
                                 'Each category needs at least ${GroupPreferencesSummary.minimumResponses} responses before results appear.',
-                                style: AppTextStyles.body.copyWith(
-                                  color: AppColors.textSecondary,
+                                style: AppTextStyles.of(context).body.copyWith(
+                                  color: AppColors.of(context).textSecondary,
                                 ),
                               ),
                               if (summary.respondentCount == 0) ...[
                                 const SizedBox(height: 12),
-                                const Text(
+                                Text(
                                   'No preferences shared yet. Members can add theirs using Set Preferences on the group page.',
-                                  style: AppTextStyles.body,
+                                  style: AppTextStyles.of(context).body,
                                 ),
                               ],
                             ],
@@ -201,7 +201,7 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(20),
-    decoration: AppDecorations.glassCard(),
+    decoration: AppDecorations.glassCard(context),
     child: child,
   );
 }
@@ -221,11 +221,11 @@ class _PreferenceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(summary.field.title, style: AppTextStyles.title),
+          Text(summary.field.title, style: AppTextStyles.of(context).title),
           const SizedBox(height: 4),
           Text(
             '${summary.responseCount} ${summary.responseCount == 1 ? 'response' : 'responses'}',
-            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).textSecondary),
           ),
           const SizedBox(height: 20),
           if (!summary.isVisible)
@@ -233,15 +233,15 @@ class _PreferenceCard extends StatelessWidget {
               summary.responseCount == 0
                   ? 'No responses yet.'
                   : 'Summary appears after at least ${GroupPreferencesSummary.minimumResponses} members answer this category.',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.textSecondary,
+              style: AppTextStyles.of(context).body.copyWith(
+                color: AppColors.of(context).textSecondary,
               ),
             )
           else if (summary.field.input == PreferenceInput.amount) ...[
             Text(
               '${summary.field.id == 'budgetPerPersonUsd' ? '\$' : ''}${summary.average!.toStringAsFixed(0)}',
-              style: AppTextStyles.headline.copyWith(
-                color: AppColors.accentEnd,
+              style: AppTextStyles.of(context).headline.copyWith(
+                color: AppColors.of(context).accentEnd,
               ),
             ),
             const SizedBox(height: 8),
@@ -249,12 +249,12 @@ class _PreferenceCard extends StatelessWidget {
               summary.field.id == 'budgetPerPersonUsd'
                   ? 'Average total trip budget per person (USD)'
                   : 'Average ${summary.field.amountLabel.toLowerCase()}',
-              style: AppTextStyles.body,
+              style: AppTextStyles.of(context).body,
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Blank budgets are excluded from the average.',
-              style: AppTextStyles.body,
+              style: AppTextStyles.of(context).body,
             ),
           ] else ...[
             for (final option in options)
@@ -274,11 +274,11 @@ class _PreferenceCard extends StatelessWidget {
                             spacing: 12,
                             runSpacing: 4,
                             children: [
-                              Text(option.key, style: AppTextStyles.body),
+                              Text(option.key, style: AppTextStyles.of(context).body),
                               Text(
                                 '${option.value} of ${summary.responseCount} (${(option.value / summary.responseCount * 100).round()}%)',
-                                style: AppTextStyles.body.copyWith(
-                                  color: AppColors.textSecondary,
+                                style: AppTextStyles.of(context).body.copyWith(
+                                  color: AppColors.of(context).textSecondary,
                                 ),
                               ),
                             ],
@@ -289,8 +289,8 @@ class _PreferenceCard extends StatelessWidget {
                           value: option.value / summary.responseCount,
                           minHeight: 8,
                           borderRadius: BorderRadius.circular(8),
-                          backgroundColor: AppColors.surfaceLight,
-                          color: AppColors.accentEnd,
+                          backgroundColor: AppColors.of(context).surfaceLight,
+                          color: AppColors.of(context).accentEnd,
                         ),
                       ],
                     ),
@@ -302,8 +302,8 @@ class _PreferenceCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Only selected options count as responses. Members may choose more than one.',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.textSecondary,
+              style: AppTextStyles.of(context).body.copyWith(
+                color: AppColors.of(context).textSecondary,
               ),
             ),
           ],

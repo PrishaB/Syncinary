@@ -20,11 +20,11 @@ Future<bool> showConfirmationDialog(
       child: Container(
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-          gradient: AppColors.brandGradient,
+          gradient: AppColors.of(context).brandGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.accentStart.withValues(alpha: 0.4),
+              color: AppColors.of(context).accentStart.withValues(alpha: 0.4),
               blurRadius: 30,
               offset: const Offset(0, 10),
             ),
@@ -36,7 +36,7 @@ Future<bool> showConfirmationDialog(
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTextStyles.title.copyWith(color: Colors.white),
+              style: AppTextStyles.of(context).title.copyWith(color: Colors.white),
             ),
             const SizedBox(height: 24),
             Row(
@@ -53,7 +53,7 @@ Future<bool> showConfirmationDialog(
                     onPressed: () => Navigator.of(dialogContext).pop(false),
                     child: Text(
                       cancelLabel,
-                      style: AppTextStyles.button.copyWith(color: Colors.white),
+                      style: AppTextStyles.of(context).button.copyWith(color: Colors.white),
                     ),
                   ),
                 ),
@@ -65,7 +65,7 @@ Future<bool> showConfirmationDialog(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: Colors.white,
                       foregroundColor:
-                          isDestructive ? AppColors.error : AppColors.accentStart,
+                          isDestructive ? AppColors.of(context).error : AppColors.of(context).accentStart,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -74,8 +74,8 @@ Future<bool> showConfirmationDialog(
                     onPressed: () => Navigator.of(dialogContext).pop(true),
                     child: Text(
                       confirmLabel,
-                      style: AppTextStyles.button.copyWith(
-                        color: isDestructive ? AppColors.error : AppColors.accentStart,
+                      style: AppTextStyles.of(context).button.copyWith(
+                        color: isDestructive ? AppColors.of(context).error : AppColors.of(context).accentStart,
                       ),
                     ),
                   ),

@@ -33,15 +33,15 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppColors.surface.withValues(alpha: 0.95),
-              AppColors.surface.withValues(alpha: 0.80),
+              AppColors.of(context).surface.withValues(alpha: 0.95),
+              AppColors.of(context).surface.withValues(alpha: 0.80),
             ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
       ),
-      title: titleWidget ?? Text(title ?? '', style: AppTextStyles.title),
+      title: titleWidget ?? Text(title ?? '', style: AppTextStyles.of(context).title),
     );
   }
 }

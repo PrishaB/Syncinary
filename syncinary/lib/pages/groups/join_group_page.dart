@@ -68,24 +68,24 @@ class _JoinGroupPageState extends State<JoinGroupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const GradientAppBar(
+      appBar: GradientAppBar(
         title: 'Join Group',
         actions: [
           Padding(
             padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.account_circle_outlined, color: AppColors.textMuted),
+            child: Icon(Icons.account_circle_outlined, color: AppColors.of(context).textMuted),
           ),
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 100, 20, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Pending Group Invites', style: AppTextStyles.title),
+                Text('Pending Group Invites', style: AppTextStyles.of(context).title),
                 const SizedBox(height: 14),
                 StreamBuilder<List<GroupInvite>>(
                   stream: _service.pendingInvitesStream(),
@@ -106,7 +106,7 @@ class _JoinGroupPageState extends State<JoinGroupPage> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Text(
                           'No pending invites.',
-                          style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
+                          style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).textMuted),
                         ),
                       );
                     }
@@ -118,13 +118,13 @@ class _JoinGroupPageState extends State<JoinGroupPage> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 18, vertical: 14),
-                                decoration: AppDecorations.glassCard(),
+                                decoration: AppDecorations.glassCard(context),
                                 child: Row(
                                   children: [
                                     Expanded(
                                       child: Text(
                                         '${invite.senderUsername} — ${invite.groupName}',
-                                        style: AppTextStyles.body,
+                                        style: AppTextStyles.of(context).body,
                                       ),
                                     ),
                                     IconButton(
@@ -132,16 +132,16 @@ class _JoinGroupPageState extends State<JoinGroupPage> {
                                       onPressed: _busy
                                           ? null
                                           : () => _respond(invite, accept: true),
-                                      icon: const Icon(Icons.check_circle_outline,
-                                          color: AppColors.success),
+                                      icon: Icon(Icons.check_circle_outline,
+                                          color: AppColors.of(context).success),
                                     ),
                                     IconButton(
                                       tooltip: 'Decline',
                                       onPressed: _busy
                                           ? null
                                           : () => _respond(invite, accept: false),
-                                      icon: const Icon(Icons.cancel_outlined,
-                                          color: AppColors.error),
+                                      icon: Icon(Icons.cancel_outlined,
+                                          color: AppColors.of(context).error),
                                     ),
                                   ],
                                 ),
@@ -153,20 +153,20 @@ class _JoinGroupPageState extends State<JoinGroupPage> {
                   },
                 ),
                 const SizedBox(height: 28),
-                Text('Join Through Invite Code', style: AppTextStyles.title),
+                Text('Join Through Invite Code', style: AppTextStyles.of(context).title),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _codeController,
                   textCapitalization: TextCapitalization.characters,
-                  style: AppTextStyles.body,
-                  decoration: AppDecorations.inputDecoration(
+                  style: AppTextStyles.of(context).body,
+                  decoration: AppDecorations.inputDecoration(context,
                     label: 'Enter code',
                     prefixIcon: Icons.confirmation_number_outlined,
                   ),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 10),
-                  Text(_error!, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+                  Text(_error!, style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).error)),
                 ],
                 const SizedBox(height: 18),
                 GradientButton(

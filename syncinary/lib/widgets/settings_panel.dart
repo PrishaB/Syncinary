@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/account_service.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 
 /// Opens the shared account settings panel from any app bar.
 class SettingsButton extends StatelessWidget {
@@ -12,7 +13,10 @@ class SettingsButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: 'Settings',
-      icon: const Icon(Icons.settings_outlined, color: AppColors.textMuted),
+      icon: Icon(
+        Icons.settings_outlined,
+        color: AppColors.of(context).textMuted,
+      ),
       onPressed: () => showGeneralDialog<void>(
         context: context,
         barrierDismissible: true,
@@ -111,16 +115,22 @@ class _SettingsPanelState extends State<SettingsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final themeController = ThemeScope.maybeOf(context);
     return Drawer(
       width: 360,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.of(context).surface,
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             Row(
               children: [
-                Expanded(child: Text('Settings', style: AppTextStyles.title)),
+                Expanded(
+                  child: Text(
+                    'Settings',
+                    style: AppTextStyles.of(context).title,
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Close settings',
                   onPressed: () => Navigator.of(context).pop(),
@@ -129,7 +139,55 @@ class _SettingsPanelState extends State<SettingsPanel> {
               ],
             ),
             const SizedBox(height: 24),
-            Text('Account', style: AppTextStyles.subtitle),
+            Text('Appearance', style: AppTextStyles.of(context).subtitle),
+            const SizedBox(height: 12),
+            SegmentedButton<ThemeMode>(
+              direction: MediaQuery.textScalerOf(context).scale(14) > 20
+                  ? Axis.vertical
+                  : Axis.horizontal,
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode_outlined),
+                  label: Text('Light'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_outlined),
+                  label: Text('Dark'),
+                ),
+              ],
+              selected: {
+                themeController?.mode ??
+                    (Theme.of(context).brightness == Brightness.dark
+                        ? ThemeMode.dark
+                        : ThemeMode.light),
+              },
+              onSelectionChanged:
+                  themeController == null || themeController.saving
+                  ? null
+                  : (selection) => themeController.setMode(selection.single),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Saved on this device',
+              style: AppTextStyles.of(context).caption,
+            ),
+            if (themeController?.error case final error?)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    error,
+                    style: AppTextStyles.of(
+                      context,
+                    ).body.copyWith(color: AppColors.of(context).error),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 24),
+            Text('Account', style: AppTextStyles.of(context).subtitle),
             const SizedBox(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -150,26 +208,28 @@ class _SettingsPanelState extends State<SettingsPanel> {
                   liveRegion: true,
                   child: Text(
                     _message!,
-                    style: AppTextStyles.body.copyWith(
-                      color: _failed ? AppColors.error : AppColors.textPrimary,
+                    style: AppTextStyles.of(context).body.copyWith(
+                      color: _failed
+                          ? AppColors.of(context).error
+                          : AppColors.of(context).textPrimary,
                     ),
                   ),
                 ),
               ),
-            const Divider(color: AppColors.border),
+            Divider(color: AppColors.of(context).border),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
+              leading: Icon(
                 Icons.person_off_outlined,
-                color: AppColors.error,
+                color: AppColors.of(context).error,
               ),
-              title: const Text(
+              title: Text(
                 'Deactivate account',
-                style: TextStyle(color: AppColors.error),
+                style: TextStyle(color: AppColors.of(context).error),
               ),
-              trailing: const Icon(
+              trailing: Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.error,
+                color: AppColors.of(context).error,
               ),
               onTap: () => _showComingSoon(context, 'Deactivate account'),
             ),

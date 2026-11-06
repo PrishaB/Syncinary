@@ -55,11 +55,11 @@ class _TransferAdminDialogState extends State<_TransferAdminDialog> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: AppColors.brandGradient,
+          gradient: AppColors.of(context).brandGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.accentStart.withValues(alpha: 0.4),
+              color: AppColors.of(context).accentStart.withValues(alpha: 0.4),
               blurRadius: 30,
               offset: const Offset(0, 10),
             ),
@@ -70,14 +70,14 @@ class _TransferAdminDialogState extends State<_TransferAdminDialog> {
           children: [
             Text('Transfer Admin Status to...',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.title.copyWith(color: Colors.white)),
+                style: AppTextStyles.of(context).title.copyWith(color: Colors.white)),
             const SizedBox(height: 18),
             if (others.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
                   'No other members to transfer to.',
-                  style: AppTextStyles.body.copyWith(color: Colors.white70),
+                  style: AppTextStyles.of(context).body.copyWith(color: Colors.white70),
                 ),
               )
             else
@@ -111,7 +111,7 @@ class _TransferAdminDialogState extends State<_TransferAdminDialog> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(member.username,
-                                  style: AppTextStyles.body.copyWith(color: Colors.white)),
+                                  style: AppTextStyles.of(context).body.copyWith(color: Colors.white)),
                             ),
                             if (isSelected)
                               const Icon(Icons.check_circle_rounded, color: Colors.white),
@@ -129,19 +129,19 @@ class _TransferAdminDialogState extends State<_TransferAdminDialog> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   backgroundColor: Colors.white,
-                  foregroundColor: AppColors.accentStart,
+                  foregroundColor: AppColors.of(context).accentStart,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
                 onPressed: _selected == null || _busy ? null : _confirm,
                 child: Text('Confirm Selection',
-                    style: AppTextStyles.button.copyWith(color: AppColors.accentStart)),
+                    style: AppTextStyles.of(context).button.copyWith(color: AppColors.of(context).accentStart)),
               ),
             ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancel', style: AppTextStyles.button.copyWith(color: Colors.white70)),
+              child: Text('Cancel', style: AppTextStyles.of(context).button.copyWith(color: Colors.white70)),
             ),
           ],
         ),

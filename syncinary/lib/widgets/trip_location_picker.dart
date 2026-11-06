@@ -113,9 +113,9 @@ class _PlacePickerState extends State<_PlacePicker> {
             for (final location in _results)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(
+                leading: Icon(
                   Icons.place_outlined,
-                  color: AppColors.accentEnd,
+                  color: AppColors.of(context).accentEnd,
                 ),
                 title: Text(location.name),
                 subtitle: Text(
@@ -159,7 +159,7 @@ class TripLocationField extends StatelessWidget {
       if (location != null)
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.place, color: AppColors.accentEnd),
+          leading: Icon(Icons.place, color: AppColors.of(context).accentEnd),
           title: Text(location!.name),
           subtitle: location!.address.isEmpty ? null : Text(location!.address),
           trailing: IconButton(

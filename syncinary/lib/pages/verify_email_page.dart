@@ -137,8 +137,8 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       canPop: false,
       child: Scaffold(
         body: Container(
-          decoration: const BoxDecoration(
-            gradient: AppColors.backgroundGradient,
+          decoration: BoxDecoration(
+            gradient: AppColors.of(context).backgroundGradient,
           ),
           child: SafeArea(
             child: Center(
@@ -149,26 +149,26 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.mark_email_unread_outlined,
                         size: 64,
-                        color: AppColors.accentStart,
+                        color: AppColors.of(context).accentStart,
                       ),
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         'Verify your email',
-                        style: AppTextStyles.title,
+                        style: AppTextStyles.of(context).title,
                       ),
                       const SizedBox(height: 12),
                       Text(
                         _auth.currentUser?.email ?? '',
-                        style: AppTextStyles.body,
+                        style: AppTextStyles.of(context).body,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         _message,
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.body,
+                        style: AppTextStyles.of(context).body,
                       ),
                       const SizedBox(height: 24),
                       GradientButton(

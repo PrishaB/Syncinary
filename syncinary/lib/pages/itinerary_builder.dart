@@ -185,19 +185,19 @@ class _itineraryState extends State<itinerary_builder> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: AppColors.of(context).surfaceLight,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: AppColors.of(context).border),
               ),
               child: Row(
                 children: [
                   Icon(Icons.person_outline_rounded,
-                      color: AppColors.textMuted, size: 20),
+                      color: AppColors.of(context).textMuted, size: 20),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
                       '$_passengers ${_passengers == 1 ? 'passenger' : 'passengers'}',
-                      style: AppTextStyles.body,
+                      style: AppTextStyles.of(context).body,
                     ),
                   ),
                   _StepperButton(
@@ -222,9 +222,9 @@ class _itineraryState extends State<itinerary_builder> {
               width: double.infinity,
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: AppColors.of(context).surfaceLight,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: AppColors.of(context).border),
               ),
               child: Row(
                 children: [
@@ -271,8 +271,8 @@ class _itineraryState extends State<itinerary_builder> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.surface.withValues(alpha: 0.95),
-                AppColors.surface.withValues(alpha: 0.80),
+                AppColors.of(context).surface.withValues(alpha: 0.95),
+                AppColors.of(context).surface.withValues(alpha: 0.80),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -299,7 +299,7 @@ class _itineraryState extends State<itinerary_builder> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.groups_rounded, color: AppColors.textMuted),
+            icon: Icon(Icons.groups_rounded, color: AppColors.of(context).textMuted),
             tooltip: 'My Groups',
             onPressed: () {
               Navigator.push(
@@ -309,7 +309,7 @@ class _itineraryState extends State<itinerary_builder> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
+            icon: Icon(Icons.logout_rounded, color: AppColors.of(context).textMuted),
             tooltip: 'Log out',
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
@@ -327,7 +327,7 @@ class _itineraryState extends State<itinerary_builder> {
       ),
  
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 350),
           switchInCurve: Curves.easeOutCubic,
@@ -361,11 +361,11 @@ class _itineraryState extends State<itinerary_builder> {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
+                  gradient: AppColors.of(context).brandGradient,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accentStart.withValues(alpha: 0.35),
+                      color: AppColors.of(context).accentStart.withValues(alpha: 0.35),
                       blurRadius: 28,
                       offset: const Offset(0, 8),
                     ),
@@ -374,14 +374,14 @@ class _itineraryState extends State<itinerary_builder> {
                 child: Icon(icon, color: Colors.white, size: 32),
               ),
               const SizedBox(height: 28),
-              Text(heading, style: AppTextStyles.headline, textAlign: TextAlign.center),
+              Text(heading, style: AppTextStyles.of(context).headline, textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              Text(subtitle, style: AppTextStyles.subtitle, textAlign: TextAlign.center),
+              Text(subtitle, style: AppTextStyles.of(context).subtitle, textAlign: TextAlign.center),
               const SizedBox(height: 36),
               // Glass card
               Container(
                 padding: const EdgeInsets.all(28),
-                decoration: AppDecorations.glassCard(),
+                decoration: AppDecorations.glassCard(context),
                 child: child,
               ),
             ],
@@ -552,12 +552,12 @@ class _NavChip extends StatelessWidget {
         curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          gradient: isActive ? AppColors.brandGradient : null,
+          gradient: isActive ? AppColors.of(context).brandGradient : null,
           color: isActive ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
           border: isActive
               ? null
-              : Border.all(color: AppColors.border, width: 1),
+              : Border.all(color: AppColors.of(context).border, width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -565,13 +565,13 @@ class _NavChip extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: isActive ? Colors.white : AppColors.textMuted,
+              color: isActive ? Colors.white : AppColors.of(context).textMuted,
             ),
             const SizedBox(width: 6),
             Text(
               label,
-              style: AppTextStyles.navLabel.copyWith(
-                color: isActive ? Colors.white : AppColors.textMuted,
+              style: AppTextStyles.of(context).navLabel.copyWith(
+                color: isActive ? Colors.white : AppColors.of(context).textMuted,
               ),
             ),
           ],
@@ -603,23 +603,23 @@ class _DatePickerTile extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+          color: AppColors.of(context).surfaceLight,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.of(context).border),
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              color: isSet ? AppColors.accentEnd : AppColors.textMuted,
+              color: isSet ? AppColors.of(context).accentEnd : AppColors.of(context).textMuted,
               size: 20,
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
                 label,
-                style: AppTextStyles.body.copyWith(
-                  color: isSet ? AppColors.textPrimary : AppColors.textMuted,
+                style: AppTextStyles.of(context).body.copyWith(
+                  color: isSet ? AppColors.of(context).textPrimary : AppColors.of(context).textMuted,
                 ),
               ),
             ),
@@ -646,15 +646,15 @@ class _StepperButton extends StatelessWidget {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          gradient: enabled ? AppColors.brandGradient : null,
-          color: enabled ? null : AppColors.surface,
+          gradient: enabled ? AppColors.of(context).brandGradient : null,
+          color: enabled ? null : AppColors.of(context).surface,
           shape: BoxShape.circle,
-          border: enabled ? null : Border.all(color: AppColors.border),
+          border: enabled ? null : Border.all(color: AppColors.of(context).border),
         ),
         child: Icon(
           icon,
           size: 16,
-          color: enabled ? Colors.white : AppColors.textMuted,
+          color: enabled ? Colors.white : AppColors.of(context).textMuted,
         ),
       ),
     );
@@ -683,7 +683,7 @@ class _TypeToggleButton extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          gradient: isActive ? AppColors.brandGradient : null,
+          gradient: isActive ? AppColors.of(context).brandGradient : null,
           borderRadius: BorderRadius.circular(11),
         ),
         child: Row(
@@ -692,13 +692,13 @@ class _TypeToggleButton extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: isActive ? Colors.white : AppColors.textMuted,
+              color: isActive ? Colors.white : AppColors.of(context).textMuted,
             ),
             const SizedBox(width: 8),
             Text(
               label,
-              style: AppTextStyles.navLabel.copyWith(
-                color: isActive ? Colors.white : AppColors.textMuted,
+              style: AppTextStyles.of(context).navLabel.copyWith(
+                color: isActive ? Colors.white : AppColors.of(context).textMuted,
               ),
             ),
           ],

@@ -77,10 +77,10 @@ class _AirportSearchFieldState extends State<AirportSearchField> {
         TextField(
           controller: widget.controller,
           onChanged: _changed,
-          style: AppTextStyles.body,
+          style: AppTextStyles.of(context).body,
           maxLength: 120,
           decoration:
-              AppDecorations.inputDecoration(
+              AppDecorations.inputDecoration(context,
                 label: widget.label,
                 prefixIcon: Icons.flight,
                 suffixIcon: Icons.search,
@@ -123,10 +123,10 @@ class _AirportSearchFieldState extends State<AirportSearchField> {
             child: Text(
               _suggestions!.source,
               maxLines: 1,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
-                color: Colors.white,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
           ),

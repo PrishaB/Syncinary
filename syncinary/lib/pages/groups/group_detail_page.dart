@@ -42,17 +42,17 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
         insetPadding: const EdgeInsets.symmetric(horizontal: 32),
         child: Container(
           padding: const EdgeInsets.all(24),
-          decoration: AppDecorations.glassCard(),
+          decoration: AppDecorations.glassCard(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Rename Group', style: AppTextStyles.title),
+              Text('Rename Group', style: AppTextStyles.of(context).title),
               const SizedBox(height: 18),
               TextField(
                 controller: controller,
                 autofocus: true,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(label: 'Group name'),
+                style: AppTextStyles.of(context).body,
+                decoration: AppDecorations.inputDecoration(context, label: 'Group name'),
               ),
               const SizedBox(height: 22),
               Row(
@@ -61,8 +61,8 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                     child: TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
                       child: Text('Cancel',
-                          style: AppTextStyles.button
-                              .copyWith(color: AppColors.textSecondary)),
+                          style: AppTextStyles.of(context).button
+                              .copyWith(color: AppColors.of(context).textSecondary)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -148,7 +148,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
         title: '',
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
+            icon: Icon(Icons.logout_rounded, color: AppColors.of(context).textMuted),
             tooltip: 'Log out',
             onPressed: () async {
               await _service.auth.signOut();
@@ -163,7 +163,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: StreamBuilder<Group?>(
             stream: _service.groupStream(widget.group.id),
@@ -194,11 +194,11 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                         width: 84,
                         height: 84,
                         decoration: BoxDecoration(
-                          gradient: AppColors.brandGradient,
+                          gradient: AppColors.of(context).brandGradient,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.accentStart.withValues(alpha: 0.35),
+                              color: AppColors.of(context).accentStart.withValues(alpha: 0.35),
                               blurRadius: 28,
                               offset: const Offset(0, 8),
                             ),
@@ -210,18 +210,18 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                     const SizedBox(height: 10),
                     if (isAdmin)
                       Text('Add/Change photo',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+                          style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).textMuted)),
                     const SizedBox(height: 14),
                     GestureDetector(
                       onTap: isAdmin ? () => _renameGroup(group) : null,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(group.name, style: AppTextStyles.headline),
+                          Text(group.name, style: AppTextStyles.of(context).headline),
                           if (isAdmin) ...[
                             const SizedBox(width: 8),
-                            const Icon(Icons.edit_outlined,
-                                color: AppColors.textMuted, size: 20),
+                            Icon(Icons.edit_outlined,
+                                color: AppColors.of(context).textMuted, size: 20),
                           ],
                         ],
                       ),
@@ -229,7 +229,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                     const SizedBox(height: 6),
                     Text(
                       'Group User Status: ${isAdmin ? 'Admin' : 'User'}',
-                      style: AppTextStyles.subtitle,
+                      style: AppTextStyles.of(context).subtitle,
                     ),
                     const SizedBox(height: 28),
 
@@ -267,7 +267,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                     const SizedBox(height: 32),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('Current Group Members', style: AppTextStyles.title),
+                      child: Text('Current Group Members', style: AppTextStyles.of(context).title),
                     ),
                     const SizedBox(height: 14),
                     ...group.members.map((member) {
@@ -276,18 +276,18 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                          decoration: AppDecorations.glassCard(),
+                          decoration: AppDecorations.glassCard(context),
                           child: Row(
                             children: [
                               Expanded(
                                 child: Text(
                                   isSelf ? '${member.username} (you)' : member.username,
-                                  style: AppTextStyles.body,
+                                  style: AppTextStyles.of(context).body,
                                 ),
                               ),
                               Text(
                                 member.role == GroupRole.admin ? 'Admin' : 'User',
-                                style: AppTextStyles.caption,
+                                style: AppTextStyles.of(context).caption,
                               ),
                               if (isAdmin && !isSelf) ...[
                                 const SizedBox(width: 10),
@@ -300,8 +300,8 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   child: Text('Remove',
-                                      style: AppTextStyles.caption
-                                          .copyWith(color: AppColors.error)),
+                                      style: AppTextStyles.of(context).caption
+                                          .copyWith(color: AppColors.of(context).error)),
                                 ),
                               ],
                             ],
@@ -318,7 +318,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                           TextButton(
                             onPressed: _busy ? null : () => _deleteGroup(group),
                             child: Text('Delete Trip?',
-                                style: AppTextStyles.body.copyWith(color: AppColors.error)),
+                                style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).error)),
                           ),
                           TextButton(
                             onPressed: group.members.length < 2 || _busy
@@ -326,7 +326,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                                 : () => showTransferAdminDialog(context, group, _service),
                             child: Text('Transfer Admin Status',
                                 style:
-                                    AppTextStyles.body.copyWith(color: AppColors.accentEnd)),
+                                    AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).accentEnd)),
                           ),
                         ],
                       ),

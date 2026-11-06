@@ -141,7 +141,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -179,10 +179,10 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: AppColors.brandGradient,
+            gradient: AppColors.of(context).brandGradient,
             boxShadow: [
               BoxShadow(
-                color: AppColors.accentStart.withValues(alpha: 0.4),
+                color: AppColors.of(context).accentStart.withValues(alpha: 0.4),
                 blurRadius: 32,
                 spreadRadius: 4,
               ),
@@ -198,7 +198,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
 
         // App name with gradient text
         ShaderMask(
-          shaderCallback: (bounds) => AppColors.brandGradient.createShader(bounds),
+          shaderCallback: (bounds) => AppColors.of(context).brandGradient.createShader(bounds),
           child: const Text(
             'Syncinary',
             style: TextStyle(
@@ -212,8 +212,8 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
         const SizedBox(height: 8),
         Text(
           'Plan your journey, together.',
-          style: AppTextStyles.subtitle.copyWith(
-            color: AppColors.textMuted,
+          style: AppTextStyles.of(context).subtitle.copyWith(
+            color: AppColors.of(context).textMuted,
             fontSize: 14,
           ),
         ),
@@ -224,7 +224,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
   Widget _buildLoginCard(Size size) {
     return Container(
       width: size.width > 420 ? 400 : double.infinity,
-      decoration: AppDecorations.glassCard(radius: 20),
+      decoration: AppDecorations.glassCard(context, radius: 20),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Form(
@@ -233,15 +233,15 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Title
-              const Text(
+              Text(
                 'Welcome!',
-                style: AppTextStyles.title,
+                style: AppTextStyles.of(context).title,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
                 'Sign up to continue',
-                style: AppTextStyles.caption.copyWith(fontSize: 13),
+                style: AppTextStyles.of(context).caption.copyWith(fontSize: 13),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
@@ -257,8 +257,8 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                 controller: _nameController,
                 keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.next,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
+                style: AppTextStyles.of(context).body,
+                decoration: AppDecorations.inputDecoration(context,
                   label: 'Full Name',
                   prefixIcon: Icons.person_outline_rounded,
                 ),
@@ -276,8 +276,8 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
+                style: AppTextStyles.of(context).body,
+                decoration: AppDecorations.inputDecoration(context,
                   label: 'Email',
                   prefixIcon: Icons.email_outlined,
                 ),
@@ -298,8 +298,8 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.done,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
+                style: AppTextStyles.of(context).body,
+                decoration: AppDecorations.inputDecoration(context,
                   label: 'Password',
                   prefixIcon: Icons.lock_outline_rounded,
                 ).copyWith(
@@ -311,7 +311,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                       _obscurePassword
                           ? Icons.visibility_off_rounded
                           : Icons.visibility_rounded,
-                      color: AppColors.textMuted,
+                      color: AppColors.of(context).textMuted,
                       size: 20,
                     ),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -355,7 +355,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                           ),
                         ),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.accentEnd,
+                  foregroundColor: AppColors.of(context).accentEnd,
                 ),
                 child: const Text(
                   'Already have an account? Sign In',
@@ -373,25 +373,25 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.12),
+        color: AppColors.of(context).error.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
+          color: AppColors.of(context).error.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.error_outline_rounded,
-            color: AppColors.error,
+            color: AppColors.of(context).error,
             size: 20,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _errorMessage!,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.error,
+              style: AppTextStyles.of(context).caption.copyWith(
+                color: AppColors.of(context).error,
                 fontSize: 13,
               ),
             ),

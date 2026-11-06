@@ -181,7 +181,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Password reset link sent! Check your email.'),
-          backgroundColor: AppColors.success,
+          backgroundColor: AppColors.of(context).success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -242,7 +242,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -267,8 +267,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                       if (_appVersion.isNotEmpty)
                         Text(
                           'Version $_appVersion',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textMuted,
+                          style: AppTextStyles.of(context).caption.copyWith(
+                            color: AppColors.of(context).textMuted,
                             fontSize: 11,
                           ),
                         ),
@@ -292,10 +292,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: AppColors.brandGradient,
+            gradient: AppColors.of(context).brandGradient,
             boxShadow: [
               BoxShadow(
-                color: AppColors.accentStart.withValues(alpha: 0.4),
+                color: AppColors.of(context).accentStart.withValues(alpha: 0.4),
                 blurRadius: 32,
                 spreadRadius: 4,
               ),
@@ -311,7 +311,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
         // App name with gradient text
         ShaderMask(
-          shaderCallback: (bounds) => AppColors.brandGradient.createShader(bounds),
+          shaderCallback: (bounds) => AppColors.of(context).brandGradient.createShader(bounds),
           child: const Text(
             'Syncinary',
             style: TextStyle(
@@ -325,8 +325,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         const SizedBox(height: 8),
         Text(
           'Plan your journey, together.',
-          style: AppTextStyles.subtitle.copyWith(
-            color: AppColors.textMuted,
+          style: AppTextStyles.of(context).subtitle.copyWith(
+            color: AppColors.of(context).textMuted,
             fontSize: 14,
           ),
         ),
@@ -337,7 +337,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget _buildLoginCard(Size size) {
     return Container(
       width: size.width > 420 ? 400 : double.infinity,
-      decoration: AppDecorations.glassCard(radius: 20),
+      decoration: AppDecorations.glassCard(context, radius: 20),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Form(
@@ -346,15 +346,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Title
-              const Text(
+              Text(
                 'Welcome back',
-                style: AppTextStyles.title,
+                style: AppTextStyles.of(context).title,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
                 'Sign in to continue',
-                style: AppTextStyles.caption.copyWith(fontSize: 13),
+                style: AppTextStyles.of(context).caption.copyWith(fontSize: 13),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
@@ -370,8 +370,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
+                style: AppTextStyles.of(context).body,
+                decoration: AppDecorations.inputDecoration(context,
                   label: 'Email',
                   prefixIcon: Icons.email_outlined,
                 ),
@@ -392,8 +392,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.done,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
+                style: AppTextStyles.of(context).body,
+                decoration: AppDecorations.inputDecoration(context,
                   label: 'Password',
                   prefixIcon: Icons.lock_outline_rounded,
                 ).copyWith(
@@ -402,7 +402,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                       _obscurePassword
                           ? Icons.visibility_off_rounded
                           : Icons.visibility_rounded,
-                      color: AppColors.textMuted,
+                      color: AppColors.of(context).textMuted,
                       size: 20,
                     ),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -433,8 +433,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   ),
                   child: Text(
                     'Forgot Password?',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.accentEnd,
+                    style: AppTextStyles.of(context).caption.copyWith(
+                      color: AppColors.of(context).accentEnd,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -468,25 +468,25 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.12),
+        color: AppColors.of(context).error.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
+          color: AppColors.of(context).error.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.error_outline_rounded,
-            color: AppColors.error,
+            color: AppColors.of(context).error,
             size: 20,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _errorMessage!,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.error,
+              style: AppTextStyles.of(context).caption.copyWith(
+                color: AppColors.of(context).error,
                 fontSize: 13,
               ),
             ),

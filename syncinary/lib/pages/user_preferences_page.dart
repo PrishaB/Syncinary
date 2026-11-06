@@ -121,7 +121,7 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
     return Scaffold(
       appBar: const GradientAppBar(title: 'Set Preferences'),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
@@ -142,7 +142,7 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
           children: [
             Text(
               _loadError!,
-              style: AppTextStyles.body,
+              style: AppTextStyles.of(context).body,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -164,12 +164,12 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Your travel preferences', style: AppTextStyles.headline),
+                Text('Your travel preferences', style: AppTextStyles.of(context).headline),
                 const SizedBox(height: 8),
                 Text(
                   'These preferences are saved to your account and apply '
                   'across all your groups. You can change them anytime.',
-                  style: AppTextStyles.subtitle,
+                  style: AppTextStyles.of(context).subtitle,
                 ),
                 const SizedBox(height: 24),
                 for (final field in userPreferenceFields) _buildField(field),
@@ -178,8 +178,8 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
                     liveRegion: true,
                     child: Text(
                       _saveError!,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.error,
+                      style: AppTextStyles.of(context).body.copyWith(
+                        color: AppColors.of(context).error,
                       ),
                     ),
                   ),
@@ -206,13 +206,13 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(20),
-      decoration: AppDecorations.glassCard(),
+      decoration: AppDecorations.glassCard(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(field.title, style: AppTextStyles.title),
+          Text(field.title, style: AppTextStyles.of(context).title),
           const SizedBox(height: 6),
-          Text(field.description, style: AppTextStyles.body),
+          Text(field.description, style: AppTextStyles.of(context).body),
           const SizedBox(height: 16),
           _buildInput(field),
         ],
@@ -228,8 +228,8 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
           controller: _amountControllers[field.id],
           enabled: !_saving,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: AppTextStyles.body,
-          decoration: AppDecorations.inputDecoration(label: field.amountLabel),
+          style: AppTextStyles.of(context).body,
+          decoration: AppDecorations.inputDecoration(context, label: field.amountLabel),
           validator: (value) {
             final text = value?.trim() ?? '';
             if (text.isEmpty) return null;

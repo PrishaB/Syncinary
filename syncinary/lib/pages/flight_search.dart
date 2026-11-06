@@ -122,7 +122,7 @@ class _flightSearchState extends State<flight_search> {
   void _showBookingSheet(List<dynamic> bookingOptions) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.of(context).surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -135,7 +135,7 @@ class _flightSearchState extends State<flight_search> {
               children: [
                 Text(
                   'No booking options returned.',
-                  style: AppTextStyles.subtitle,
+                  style: AppTextStyles.of(context).subtitle,
                 ),
                 const SizedBox(height: 16),
                 GradientButton(
@@ -155,7 +155,7 @@ class _flightSearchState extends State<flight_search> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Book this flight', style: AppTextStyles.title),
+                Text('Book this flight', style: AppTextStyles.of(context).title),
                 const SizedBox(height: 16),
                 ...bookingOptions.map(
                   (raw) => _BookingOptionTile(
@@ -188,22 +188,22 @@ class _flightSearchState extends State<flight_search> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.surface.withValues(alpha: 0.95),
-                AppColors.surface.withValues(alpha: 0.80),
+                AppColors.of(context).surface.withValues(alpha: 0.95),
+                AppColors.of(context).surface.withValues(alpha: 0.80),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
           ),
         ),
-        title: Text(widget.title, style: AppTextStyles.title),
+        title: Text(widget.title, style: AppTextStyles.of(context).title),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: Stack(
           children: [
             Column(
@@ -228,15 +228,15 @@ class _flightSearchState extends State<flight_search> {
                               Icon(
                                 Icons.flight_outlined,
                                 size: 64,
-                                color: AppColors.textMuted.withValues(
+                                color: AppColors.of(context).textMuted.withValues(
                                   alpha: 0.5,
                                 ),
                               ),
                               const SizedBox(height: 16),
                               Text(
                                 'No flights found.',
-                                style: AppTextStyles.subtitle.copyWith(
-                                  color: AppColors.textMuted,
+                                style: AppTextStyles.of(context).subtitle.copyWith(
+                                  color: AppColors.of(context).textMuted,
                                 ),
                               ),
                             ],
@@ -345,7 +345,7 @@ class _FlightCard extends StatelessWidget {
     final price = offer['price']?.toString() ?? 'N/A';
 
     return Container(
-      decoration: AppDecorations.glassCard(),
+      decoration: AppDecorations.glassCard(context),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,7 +356,7 @@ class _FlightCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
+                  gradient: AppColors.of(context).brandGradient,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.flight_rounded,
@@ -365,18 +365,18 @@ class _FlightCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(airline,
-                    style: AppTextStyles.title.copyWith(fontSize: 16)),
+                    style: AppTextStyles.of(context).title.copyWith(fontSize: 16)),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.accentStart.withValues(alpha: 0.12),
+                  color: AppColors.of(context).accentStart.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(stopLabel,
-                    style: AppTextStyles.caption.copyWith(
-                        color: AppColors.accentEnd)),
+                    style: AppTextStyles.of(context).caption.copyWith(
+                        color: AppColors.of(context).accentEnd)),
               ),
             ],
           ),
@@ -389,9 +389,9 @@ class _FlightCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(departureTime,
-                        style: AppTextStyles.title.copyWith(fontSize: 18)),
+                        style: AppTextStyles.of(context).title.copyWith(fontSize: 18)),
                     const SizedBox(height: 4),
-                    Text(origin, style: AppTextStyles.subtitle),
+                    Text(origin, style: AppTextStyles.of(context).subtitle),
                   ],
                 ),
               ),
@@ -399,20 +399,20 @@ class _FlightCard extends StatelessWidget {
                 flex: 4,
                 child: Column(
                   children: [
-                    Text(duration, style: AppTextStyles.caption),
+                    Text(duration, style: AppTextStyles.of(context).caption),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         Icon(Icons.circle, size: 7,
-                            color: AppColors.accentStart),
+                            color: AppColors.of(context).accentStart),
                         Expanded(child: Container(
-                            height: 1, color: AppColors.textMuted)),
+                            height: 1, color: AppColors.of(context).textMuted)),
                         Icon(Icons.flight_rounded, size: 18,
-                            color: AppColors.accentEnd),
+                            color: AppColors.of(context).accentEnd),
                         Expanded(child: Container(
-                            height: 1, color: AppColors.textMuted)),
+                            height: 1, color: AppColors.of(context).textMuted)),
                         Icon(Icons.circle, size: 7,
-                            color: AppColors.accentStart),
+                            color: AppColors.of(context).accentStart),
                       ],
                     ),
                   ],
@@ -424,25 +424,25 @@ class _FlightCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(arrivalTime,
-                        style: AppTextStyles.title.copyWith(fontSize: 18)),
+                        style: AppTextStyles.of(context).title.copyWith(fontSize: 18)),
                     const SizedBox(height: 4),
-                    Text(destination, style: AppTextStyles.subtitle),
+                    Text(destination, style: AppTextStyles.of(context).subtitle),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          Divider(color: AppColors.textMuted.withValues(alpha: 0.2)),
+          Divider(color: AppColors.of(context).textMuted.withValues(alpha: 0.2)),
           const SizedBox(height: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('\$$price',
-                  style: AppTextStyles.title.copyWith(
-                      fontSize: 22, color: AppColors.accentEnd)),
+                  style: AppTextStyles.of(context).title.copyWith(
+                      fontSize: 22, color: AppColors.of(context).accentEnd)),
               const SizedBox(height: 4),
-              Text('Listed price', style: AppTextStyles.caption),
+              Text('Listed price', style: AppTextStyles.of(context).caption),
             ],
           ),
           const SizedBox(height: 16),
@@ -453,8 +453,8 @@ class _FlightCard extends StatelessWidget {
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: const Text('Add to Itinerary'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.accentEnd,
-                  side: const BorderSide(color: AppColors.accentEnd),
+                  foregroundColor: AppColors.of(context).accentEnd,
+                  side: BorderSide(color: AppColors.of(context).accentEnd),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -530,14 +530,14 @@ class _BookingOptionTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
-        decoration: AppDecorations.glassCard(),
+        decoration: AppDecorations.glassCard(context),
         clipBehavior: Clip.antiAlias,
         child: Material(
           color: Colors.transparent,
           child: ListTile(
-            title: Text(bookWith, style: AppTextStyles.body),
+            title: Text(bookWith, style: AppTextStyles.of(context).body),
             subtitle: price != null
-                ? Text('\$$price', style: AppTextStyles.caption)
+                ? Text('\$$price', style: AppTextStyles.of(context).caption)
                 : null,
             trailing: const Icon(Icons.open_in_new_rounded, size: 18),
             onTap: () async {

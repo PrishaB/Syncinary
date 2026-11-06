@@ -148,11 +148,11 @@ class _TripMapPageState extends State<TripMapPage> {
           final stops = ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(widget.group.name, style: AppTextStyles.title),
+              Text(widget.group.name, style: AppTextStyles.of(context).title),
               const SizedBox(height: 6),
               Text(
                 '${mapped.length} of ${visible.length} stops on map',
-                style: AppTextStyles.body,
+                style: AppTextStyles.of(context).body,
               ),
               const SizedBox(height: 12),
               if (visible.isEmpty)
@@ -169,7 +169,7 @@ class _TripMapPageState extends State<TripMapPage> {
               for (final item in visible)
                 Card(
                   key: ValueKey('stop-${item.id}'),
-                  color: item.id == _selectedId ? AppColors.surfaceLight : null,
+                  color: item.id == _selectedId ? AppColors.of(context).surfaceLight : null,
                   child: ListTile(
                     leading: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -215,7 +215,7 @@ class _TripMapPageState extends State<TripMapPage> {
             ],
           );
           final map = mapped.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
                     padding: EdgeInsets.all(24),
                     child: Column(
@@ -224,7 +224,7 @@ class _TripMapPageState extends State<TripMapPage> {
                         Icon(
                           Icons.map_outlined,
                           size: 56,
-                          color: AppColors.accentEnd,
+                          color: AppColors.of(context).accentEnd,
                         ),
                         SizedBox(height: 12),
                         Text(

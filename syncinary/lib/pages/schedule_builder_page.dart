@@ -235,7 +235,7 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
       extendBodyBehindAppBar: true,
       appBar: const GradientAppBar(title: 'Schedule Builder'),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: StreamBuilder<List<ScheduleDay>>(
             stream: _service.daysStream(_groupId),
@@ -299,9 +299,9 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                           placeService: widget.placeService,
                         )),
                       ),
-                      icon: const Icon(Icons.map_outlined, color: AppColors.accentEnd),
+                      icon: Icon(Icons.map_outlined, color: AppColors.of(context).accentEnd),
                       label: Text('Map View',
-                          style: AppTextStyles.body.copyWith(color: AppColors.accentEnd)),
+                          style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).accentEnd)),
                     ),
                   );
 
@@ -429,14 +429,14 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: AppDecorations.glassCard(),
+      decoration: AppDecorations.glassCard(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: AppTextStyles.title, textAlign: TextAlign.center),
+          Text(title, style: AppTextStyles.of(context).title, textAlign: TextAlign.center),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(subtitle!, style: AppTextStyles.caption, textAlign: TextAlign.center),
+            Text(subtitle!, style: AppTextStyles.of(context).caption, textAlign: TextAlign.center),
           ],
           const SizedBox(height: 16),
           ...children,
@@ -447,10 +447,10 @@ class _Panel extends StatelessWidget {
 }
 
 /// A rounded inner card, used for day-plan entries and add buttons.
-BoxDecoration _innerCard() => BoxDecoration(
-      color: AppColors.surfaceLight,
+BoxDecoration _innerCard(BuildContext context) => BoxDecoration(
+      color: AppColors.of(context).surfaceLight,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.border),
+      border: Border.all(color: AppColors.of(context).border),
     );
 
 class _AdvisorPanel extends StatelessWidget {
@@ -463,12 +463,12 @@ class _AdvisorPanel extends StatelessWidget {
       subtitle: 'Powered by Gemini',
       children: [
         Icon(Icons.auto_awesome_rounded,
-            size: 40, color: AppColors.textMuted.withValues(alpha: 0.6)),
+            size: 40, color: AppColors.of(context).textMuted.withValues(alpha: 0.6)),
         const SizedBox(height: 12),
         Text(
           'Coming soon — suggested flights, hotels, and activities based on '
           'your group\'s preferences will appear here.',
-          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).textSecondary),
           textAlign: TextAlign.center,
         ),
       ],
@@ -508,7 +508,7 @@ class _DayPlanPanel extends StatelessWidget {
         title: 'Day Plan',
         children: [
           Text('Nothing planned yet. Add a flight, hotel, or activity to start the schedule.',
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).textSecondary),
               textAlign: TextAlign.center),
         ],
       );
@@ -524,24 +524,24 @@ class _DayPlanPanel extends StatelessWidget {
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: _innerCard(),
+                decoration: _innerCard(context),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     key: const ValueKey('day-plan-dropdown'),
                     value: day.key,
                     isExpanded: true,
-                    dropdownColor: AppColors.surface,
+                    dropdownColor: AppColors.of(context).surface,
                     borderRadius: BorderRadius.circular(14),
-                    icon: const Icon(Icons.expand_more_rounded, color: AppColors.accentEnd),
-                    style: AppTextStyles.body,
+                    icon: Icon(Icons.expand_more_rounded, color: AppColors.of(context).accentEnd),
+                    style: AppTextStyles.of(context).body,
                     items: [
                       for (final d in days)
                         DropdownMenuItem(
                           value: d.key,
                           child: Row(
                             children: [
-                              const Icon(Icons.calendar_today_rounded,
-                                  size: 16, color: AppColors.accentEnd),
+                              Icon(Icons.calendar_today_rounded,
+                                  size: 16, color: AppColors.of(context).accentEnd),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(formatScheduleDay(d.date),
@@ -563,44 +563,44 @@ class _DayPlanPanel extends StatelessWidget {
             if (onDeleteDay case final onDeleteDay?)
               IconButton(
                 tooltip: 'Remove day',
-                icon: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.textMuted, size: 20),
+                icon: Icon(Icons.delete_outline_rounded,
+                    color: AppColors.of(context).textMuted, size: 20),
                 onPressed: () => onDeleteDay(day),
               ),
           ],
         ),
         const SizedBox(height: 20),
         for (final type in ScheduleItemType.values) ...[
-          _sectionHeader(type),
+          _sectionHeader(context, type),
           const SizedBox(height: 8),
-          ..._sectionBody(type, dayItems.where((i) => i.type == type).toList()),
+          ..._sectionBody(context, type, dayItems.where((i) => i.type == type).toList()),
           const SizedBox(height: 16),
         ],
       ],
     );
   }
 
-  Widget _sectionHeader(ScheduleItemType type) {
+  Widget _sectionHeader(BuildContext context, ScheduleItemType type) {
     final info = _typeInfo(type);
     return Row(
       children: [
-        Icon(info.icon, size: 18, color: AppColors.accentEnd),
+        Icon(info.icon, size: 18, color: AppColors.of(context).accentEnd),
         const SizedBox(width: 8),
         Expanded(
           child: Text(info.heading,
-              style: AppTextStyles.subtitle.copyWith(color: AppColors.textPrimary)),
+              style: AppTextStyles.of(context).subtitle.copyWith(color: AppColors.of(context).textPrimary)),
         ),
       ],
     );
   }
 
-  List<Widget> _sectionBody(ScheduleItemType type, List<ScheduleItem> sectionItems) {
+  List<Widget> _sectionBody(BuildContext context, ScheduleItemType type, List<ScheduleItem> sectionItems) {
     if (sectionItems.isEmpty) {
       return [
         Container(
           padding: const EdgeInsets.all(14),
-          decoration: _innerCard(),
-          child: Text(_typeInfo(type).emptyText, style: AppTextStyles.caption),
+          decoration: _innerCard(context),
+          child: Text(_typeInfo(type).emptyText, style: AppTextStyles.of(context).caption),
         ),
       ];
     }
@@ -648,8 +648,8 @@ class _SuggestionsPanel extends StatelessWidget {
         if (sorted.isEmpty)
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: _innerCard(),
-            child: const Text('No suggestions pending.', style: AppTextStyles.caption),
+            decoration: _innerCard(context),
+            child: Text('No suggestions pending.', style: AppTextStyles.of(context).caption),
           ),
         for (final item in sorted)
           _SuggestionCard(
@@ -712,20 +712,20 @@ class _ItemText extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(item.title, style: AppTextStyles.body),
+        Text(item.title, style: AppTextStyles.of(context).body),
         if (item.details.isNotEmpty) ...[
           const SizedBox(height: 2),
-          Text(item.details, style: AppTextStyles.caption),
+          Text(item.details, style: AppTextStyles.of(context).caption),
         ],
         if (attribution != null) ...[
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.textMuted),
+              Icon(Icons.person_outline_rounded, size: 14, color: AppColors.of(context).textMuted),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(attribution!,
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+                    style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).textMuted)),
               ),
             ],
           ),
@@ -755,22 +755,22 @@ class _ScheduleItemCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: EdgeInsets.fromLTRB(14, 10, onEdit == null && onDelete == null ? 14 : 4, 10),
-      decoration: _innerCard(),
+      decoration: _innerCard(context),
       child: Row(
         children: [
-          Icon(_typeInfo(item.type).icon, color: AppColors.accentEnd, size: 20),
+          Icon(_typeInfo(item.type).icon, color: AppColors.of(context).accentEnd, size: 20),
           const SizedBox(width: 12),
           Expanded(child: _ItemText(item: item, attribution: attribution)),
           if (onEdit != null)
             IconButton(
               tooltip: 'Edit',
-              icon: const Icon(Icons.edit_outlined, color: AppColors.textMuted, size: 18),
+              icon: Icon(Icons.edit_outlined, color: AppColors.of(context).textMuted, size: 18),
               onPressed: onEdit,
             ),
           if (onDelete != null)
             IconButton(
               tooltip: 'Remove',
-              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+              icon: Icon(Icons.close_rounded, color: AppColors.of(context).textMuted, size: 18),
               onPressed: onDelete,
             ),
         ],
@@ -803,10 +803,10 @@ class _SuggestionCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: EdgeInsets.fromLTRB(14, 10, hasActions ? 4 : 14, 10),
-      decoration: _innerCard(),
+      decoration: _innerCard(context),
       child: Row(
         children: [
-          Icon(_typeInfo(item.type).icon, color: AppColors.accentEnd, size: 20),
+          Icon(_typeInfo(item.type).icon, color: AppColors.of(context).accentEnd, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -814,7 +814,7 @@ class _SuggestionCard extends StatelessWidget {
               children: [
                 if (date != null) ...[
                   Text(formatScheduleDay(date),
-                      style: AppTextStyles.caption.copyWith(color: AppColors.accentEnd)),
+                      style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).accentEnd)),
                   const SizedBox(height: 2),
                 ],
                 _ItemText(item: item, attribution: attribution),
@@ -824,19 +824,19 @@ class _SuggestionCard extends StatelessWidget {
           if (onApprove != null)
             IconButton(
               tooltip: 'Approve',
-              icon: const Icon(Icons.check_rounded, color: AppColors.accentEnd, size: 20),
+              icon: Icon(Icons.check_rounded, color: AppColors.of(context).accentEnd, size: 20),
               onPressed: onApprove,
             ),
           if (onReject != null)
             IconButton(
               tooltip: 'Reject',
-              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+              icon: Icon(Icons.close_rounded, color: AppColors.of(context).textMuted, size: 18),
               onPressed: onReject,
             ),
           if (onWithdraw != null)
             IconButton(
               tooltip: 'Withdraw',
-              icon: const Icon(Icons.undo_rounded, color: AppColors.textMuted, size: 18),
+              icon: Icon(Icons.undo_rounded, color: AppColors.of(context).textMuted, size: 18),
               onPressed: onWithdraw,
             ),
         ],
@@ -863,13 +863,13 @@ class _AddTile extends StatelessWidget {
           onTap: onTap,
           child: Ink(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: _innerCard(),
+            decoration: _innerCard(context),
             child: Row(
               children: [
-                Icon(icon, color: AppColors.accentEnd, size: 20),
+                Icon(icon, color: AppColors.of(context).accentEnd, size: 20),
                 const SizedBox(width: 12),
-                Expanded(child: Text(label, style: AppTextStyles.body)),
-                const Icon(Icons.add_rounded, color: AppColors.accentEnd),
+                Expanded(child: Text(label, style: AppTextStyles.of(context).body)),
+                Icon(Icons.add_rounded, color: AppColors.of(context).accentEnd),
               ],
             ),
           ),
@@ -885,9 +885,9 @@ class _AddTile extends StatelessWidget {
 
 // Keep label metrics and paint style fixed while focus changes to avoid the
 // animated label repaint path implicated in the reported TextPainter assertion.
-InputDecoration _itemInputDecoration(String label, {IconData? icon}) {
-  final labelStyle = AppTextStyles.caption.copyWith(color: AppColors.textSecondary);
-  return AppDecorations.inputDecoration(label: label, prefixIcon: icon).copyWith(
+InputDecoration _itemInputDecoration(BuildContext context, String label, {IconData? icon}) {
+  final labelStyle = AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).textSecondary);
+  return AppDecorations.inputDecoration(context, label: label, prefixIcon: icon).copyWith(
     floatingLabelBehavior: FloatingLabelBehavior.always,
     labelStyle: labelStyle,
     floatingLabelStyle: labelStyle,
@@ -922,12 +922,12 @@ Future<({DateTime date, String title, String details, TripLocation? location, bo
       child: StatefulBuilder(
         builder: (context, setDialogState) => Container(
           padding: const EdgeInsets.all(24),
-          decoration: AppDecorations.glassCard(),
+          decoration: AppDecorations.glassCard(context),
           child: SingleChildScrollView(child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('${isEdit ? 'Edit' : suggest ? 'Suggest' : 'Add'} ${_capitalized(info.noun)}',
-                  style: AppTextStyles.title),
+                  style: AppTextStyles.of(context).title),
               const SizedBox(height: 18),
               Material(
                 color: Colors.transparent,
@@ -946,15 +946,15 @@ Future<({DateTime date, String title, String details, TripLocation? location, bo
                   },
                   child: Ink(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: _innerCard(),
+                    decoration: _innerCard(context),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today_rounded,
-                            color: AppColors.accentEnd, size: 18),
+                        Icon(Icons.calendar_today_rounded,
+                            color: AppColors.of(context).accentEnd, size: 18),
                         const SizedBox(width: 12),
-                        Expanded(child: Text(formatScheduleDay(date), style: AppTextStyles.body)),
-                        const Icon(Icons.edit_calendar_rounded,
-                            color: AppColors.textMuted, size: 18),
+                        Expanded(child: Text(formatScheduleDay(date), style: AppTextStyles.of(context).body)),
+                        Icon(Icons.edit_calendar_rounded,
+                            color: AppColors.of(context).textMuted, size: 18),
                       ],
                     ),
                   ),
@@ -964,14 +964,14 @@ Future<({DateTime date, String title, String details, TripLocation? location, bo
               TextField(
                 controller: titleController,
                 autofocus: true,
-                style: AppTextStyles.body,
-                decoration: _itemInputDecoration(info.titleLabel, icon: info.icon),
+                style: AppTextStyles.of(context).body,
+                decoration: _itemInputDecoration(context, info.titleLabel, icon: info.icon),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: detailsController,
-                style: AppTextStyles.body,
-                decoration: _itemInputDecoration(info.detailsLabel),
+                style: AppTextStyles.of(context).body,
+                decoration: _itemInputDecoration(context, info.detailsLabel),
               ),
               TripLocationField(
                 location: location,
@@ -991,9 +991,9 @@ Future<({DateTime date, String title, String details, TripLocation? location, bo
                       Navigator.of(dialogContext).pop();
                       search.onTap();
                     },
-                    icon: const Icon(Icons.search_rounded, color: AppColors.accentEnd, size: 18),
+                    icon: Icon(Icons.search_rounded, color: AppColors.of(context).accentEnd, size: 18),
                     label: Text(search.label,
-                        style: AppTextStyles.body.copyWith(color: AppColors.accentEnd)),
+                        style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).accentEnd)),
                   ),
                 ),
               ],
@@ -1004,7 +1004,7 @@ Future<({DateTime date, String title, String details, TripLocation? location, bo
                     child: TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
                       child: Text('Cancel',
-                          style: AppTextStyles.button.copyWith(color: AppColors.textSecondary)),
+                          style: AppTextStyles.of(context).button.copyWith(color: AppColors.of(context).textSecondary)),
                     ),
                   ),
                   const SizedBox(width: 12),

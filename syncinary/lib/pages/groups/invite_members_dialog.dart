@@ -74,11 +74,11 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: AppColors.brandGradient,
+          gradient: AppColors.of(context).brandGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.accentStart.withValues(alpha: 0.4),
+              color: AppColors.of(context).accentStart.withValues(alpha: 0.4),
               blurRadius: 30,
               offset: const Offset(0, 10),
             ),
@@ -87,12 +87,12 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Invite Members', style: AppTextStyles.title.copyWith(color: Colors.white)),
+            Text('Invite Members', style: AppTextStyles.of(context).title.copyWith(color: Colors.white)),
             const SizedBox(height: 18),
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              style: AppTextStyles.body.copyWith(color: Colors.white),
+              style: AppTextStyles.of(context).body.copyWith(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Add User by Email',
                 hintStyle: const TextStyle(color: Colors.white70),
@@ -112,7 +112,7 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(_error!,
-                    style: AppTextStyles.caption.copyWith(color: Colors.white)),
+                    style: AppTextStyles.of(context).caption.copyWith(color: Colors.white)),
               ),
             ],
             const SizedBox(height: 20),
@@ -131,7 +131,7 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
                           child: Text(
                             _inviteLink,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption.copyWith(color: Colors.white),
+                            style: AppTextStyles.of(context).caption.copyWith(color: Colors.white),
                           ),
                         ),
                         IconButton(
@@ -154,9 +154,13 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<GroupRole>(
                       value: _inviteRole,
-                      dropdownColor: AppColors.surface,
+                      dropdownColor: AppColors.of(context).surface,
                       icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-                      style: AppTextStyles.body.copyWith(color: Colors.white),
+                      style: AppTextStyles.of(context).body,
+                      selectedItemBuilder: (context) => const [
+                        Text('User', style: TextStyle(color: Colors.white)),
+                        Text('Admin', style: TextStyle(color: Colors.white)),
+                      ],
                       items: const [
                         DropdownMenuItem(value: GroupRole.user, child: Text('User')),
                         DropdownMenuItem(value: GroupRole.admin, child: Text('Admin')),
@@ -176,19 +180,19 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   backgroundColor: Colors.white,
-                  foregroundColor: AppColors.accentStart,
+                  foregroundColor: AppColors.of(context).accentStart,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
                 onPressed: _busy ? null : _sendInvite,
                 child: Text('Send Invite',
-                    style: AppTextStyles.button.copyWith(color: AppColors.accentStart)),
+                    style: AppTextStyles.of(context).button.copyWith(color: AppColors.of(context).accentStart)),
               ),
             ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: AppTextStyles.button.copyWith(color: Colors.white70)),
+              child: Text('Cancel', style: AppTextStyles.of(context).button.copyWith(color: Colors.white70)),
             ),
           ],
         ),

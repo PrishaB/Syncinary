@@ -65,7 +65,7 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
         key: key,
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(20),
-        decoration: AppDecorations.glassCard(),
+        decoration: AppDecorations.glassCard(context),
         child: child,
       );
 
@@ -73,14 +73,14 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
         key: const Key('suggestions-loading'),
         child: Row(
           children: [
-            const SizedBox(
+            SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accentEnd),
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.of(context).accentEnd),
             ),
             const SizedBox(width: 14),
             Text('Finding suggestions…',
-                style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+                style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).textSecondary)),
           ],
         ),
       );
@@ -89,12 +89,12 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
         key: const Key('suggestions-empty'),
         child: Row(
           children: [
-            const Icon(Icons.lightbulb_outline_rounded, color: AppColors.textMuted, size: 20),
+            Icon(Icons.lightbulb_outline_rounded, color: AppColors.of(context).textMuted, size: 20),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
                 'No suggestions yet — add preferences to your group to get personalized ideas.',
-                style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
+                style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).textMuted),
               ),
             ),
           ],
@@ -108,13 +108,13 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
           children: [
             Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: AppColors.warning, size: 20),
+                Icon(Icons.error_outline_rounded, color: AppColors.of(context).warning, size: 20),
                 const SizedBox(width: 14),
                 // A generic message, not the raw failure `message` — that can
                 // carry backend/upstream detail (e.g. an HTTP status and
                 // truncated body) that shouldn't be shown to end users.
                 Expanded(
-                  child: Text("Couldn't load suggestions.", style: AppTextStyles.body),
+                  child: Text("Couldn't load suggestions.", style: AppTextStyles.of(context).body),
                 ),
               ],
             ),
@@ -124,8 +124,8 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
               child: TextButton.icon(
                 key: const Key('suggestions-retry'),
                 onPressed: _retry,
-                icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.accentEnd),
-                label: Text('Retry', style: AppTextStyles.body.copyWith(color: AppColors.accentEnd)),
+                icon: Icon(Icons.refresh_rounded, size: 18, color: AppColors.of(context).accentEnd),
+                label: Text('Retry', style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).accentEnd)),
               ),
             ),
           ],
@@ -139,13 +139,13 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_awesome_rounded, color: AppColors.accentEnd, size: 20),
+                Icon(Icons.auto_awesome_rounded, color: AppColors.of(context).accentEnd, size: 20),
                 const SizedBox(width: 10),
-                Text('Suggestions for you', style: AppTextStyles.title.copyWith(fontSize: 16)),
+                Text('Suggestions for you', style: AppTextStyles.of(context).title.copyWith(fontSize: 16)),
               ],
             ),
             const SizedBox(height: 10),
-            Text(data.summary, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+            Text(data.summary, style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).textSecondary)),
             const SizedBox(height: 16),
             for (final destination in data.destinations)
               Padding(
@@ -153,7 +153,7 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
                 child: _destinationTile(destination, data),
               ),
             if (data.warnings.isNotEmpty)
-              Text(data.warnings.join(' '), style: AppTextStyles.caption),
+              Text(data.warnings.join(' '), style: AppTextStyles.of(context).caption),
           ],
         ),
       );
@@ -169,9 +169,9 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: AppColors.of(context).surfaceLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.of(context).border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,17 +183,17 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
                   destination.region != null
                       ? '${destination.name}, ${destination.region}'
                       : destination.name,
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTextStyles.of(context).body.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               Text(
                 '~\$${destination.estimatedCostPerPerson.amount.round()}/person',
-                style: AppTextStyles.caption.copyWith(color: AppColors.accentEnd),
+                style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).accentEnd),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(destination.rationale, style: AppTextStyles.caption),
+          Text(destination.rationale, style: AppTextStyles.of(context).caption),
           if (destination.matchedPreferences.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -204,7 +204,7 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
           ],
           if (subtitle.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+            Text(subtitle, style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).textMuted)),
           ],
         ],
       ),
@@ -214,9 +214,9 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
   Widget _chip(String label) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: AppColors.accentStart.withValues(alpha: 0.15),
+          color: AppColors.of(context).accentStart.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.accentEnd)),
+        child: Text(label, style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).accentEnd)),
       );
 }

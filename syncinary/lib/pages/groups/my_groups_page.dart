@@ -38,17 +38,17 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
         insetPadding: const EdgeInsets.symmetric(horizontal: 32),
         child: Container(
           padding: const EdgeInsets.all(24),
-          decoration: AppDecorations.glassCard(),
+          decoration: AppDecorations.glassCard(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('New Group', style: AppTextStyles.title),
+              Text('New Group', style: AppTextStyles.of(context).title),
               const SizedBox(height: 18),
               TextField(
                 controller: controller,
                 autofocus: true,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
+                style: AppTextStyles.of(context).body,
+                decoration: AppDecorations.inputDecoration(context,
                   label: 'Group name',
                   prefixIcon: Icons.group_outlined,
                 ),
@@ -60,8 +60,8 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
                     child: TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
                       child: Text('Cancel',
-                          style: AppTextStyles.button
-                              .copyWith(color: AppColors.textSecondary)),
+                          style: AppTextStyles.of(context).button
+                              .copyWith(color: AppColors.of(context).textSecondary)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -123,7 +123,7 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
         title: 'My Groups',
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
+            icon: Icon(Icons.logout_rounded, color: AppColors.of(context).textMuted),
             tooltip: 'Log out',
             onPressed: () async {
               await _service.auth.signOut();
@@ -138,7 +138,7 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 100, 20, 24),
@@ -148,7 +148,7 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
                 if (snapshot.hasError) {
                   return Center(
                     child: Text('Something went wrong loading your groups.',
-                        style: AppTextStyles.body.copyWith(color: AppColors.error)),
+                        style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).error)),
                   );
                 }
                 if (!snapshot.hasData) {
@@ -164,8 +164,8 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
                               child: Text(
                                 'No groups yet.\nCreate or join one to get started.',
                                 textAlign: TextAlign.center,
-                                style: AppTextStyles.subtitle
-                                    .copyWith(color: AppColors.textMuted),
+                                style: AppTextStyles.of(context).subtitle
+                                    .copyWith(color: AppColors.of(context).textMuted),
                               ),
                             )
                           : ListView.separated(
@@ -245,14 +245,14 @@ class _GroupTile extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          decoration: AppDecorations.glassCard(),
+          decoration: AppDecorations.glassCard(context),
           child: Row(
             children: [
               Container(
                 width: 44,
                 height: 44,
-                decoration: const BoxDecoration(
-                  gradient: AppColors.brandGradient,
+                decoration: BoxDecoration(
+                  gradient: AppColors.of(context).brandGradient,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.group_rounded, color: Colors.white, size: 22),
@@ -262,11 +262,11 @@ class _GroupTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(group.name, style: AppTextStyles.title.copyWith(fontSize: 17)),
+                    Text(group.name, style: AppTextStyles.of(context).title.copyWith(fontSize: 17)),
                     const SizedBox(height: 4),
                     Text(
                       role == GroupRole.admin ? 'Admin' : 'User',
-                      style: AppTextStyles.caption,
+                      style: AppTextStyles.of(context).caption,
                     ),
                   ],
                 ),
@@ -274,10 +274,10 @@ class _GroupTile extends StatelessWidget {
               if (leaveMode)
                 IconButton(
                   onPressed: onRemove,
-                  icon: const Icon(Icons.close_rounded, color: AppColors.error),
+                  icon: Icon(Icons.close_rounded, color: AppColors.of(context).error),
                 )
               else
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                Icon(Icons.chevron_right_rounded, color: AppColors.of(context).textMuted),
             ],
           ),
         ),
@@ -298,7 +298,7 @@ class _SecondaryPillButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Material(
-        color: AppColors.surfaceLight.withValues(alpha: disabled ? 0.5 : 1),
+        color: AppColors.of(context).surfaceLight.withValues(alpha: disabled ? 0.5 : 1),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -307,13 +307,13 @@ class _SecondaryPillButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: AppColors.of(context).border),
             ),
             alignment: Alignment.center,
             child: Text(
               label,
-              style: AppTextStyles.button.copyWith(
-                color: disabled ? AppColors.textMuted : AppColors.textPrimary,
+              style: AppTextStyles.of(context).button.copyWith(
+                color: disabled ? AppColors.of(context).textMuted : AppColors.of(context).textPrimary,
                 fontSize: 15,
               ),
             ),

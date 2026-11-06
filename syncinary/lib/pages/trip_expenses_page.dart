@@ -118,7 +118,7 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
       extendBodyBehindAppBar: true,
       appBar: const GradientAppBar(title: 'Cost Splitter'),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.of(context).backgroundGradient),
         child: SafeArea(
           child: StreamBuilder<List<Expense>>(
             stream: _service.expensesStream(widget.group.id),
@@ -222,15 +222,15 @@ class _ItemizedBreakdown extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: AppDecorations.glassCard(),
+      decoration: AppDecorations.glassCard(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Itemized Breakdown', style: AppTextStyles.title),
+          Text('Itemized Breakdown', style: AppTextStyles.of(context).title),
           const SizedBox(height: 14),
           if (expenses.isEmpty)
             Text('No expenses yet.',
-                style: AppTextStyles.body.copyWith(color: AppColors.textMuted))
+                style: AppTextStyles.of(context).body.copyWith(color: AppColors.of(context).textMuted))
           else
             ...expenses.map((expense) {
               final canDelete = isAdmin || expense.addedBy == currentUserId;
@@ -241,16 +241,16 @@ class _ItemizedBreakdown extends StatelessWidget {
                     Expanded(
                       child: Text(
                         '${expense.name}: \$${expense.amount.toStringAsFixed(2)}',
-                        style: AppTextStyles.body,
+                        style: AppTextStyles.of(context).body,
                       ),
                     ),
                     if (canDelete)
                       InkWell(
                         onTap: () => onDelete(expense),
                         borderRadius: BorderRadius.circular(20),
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.all(4),
-                          child: Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
+                          child: Icon(Icons.close_rounded, size: 16, color: AppColors.of(context).textMuted),
                         ),
                       ),
                   ],
@@ -293,33 +293,33 @@ class _AddExpenseForm extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: AppDecorations.glassCard(),
+      decoration: AppDecorations.glassCard(context),
       child: Column(
         children: [
-          Text('Total', style: AppTextStyles.subtitle),
+          Text('Total', style: AppTextStyles.of(context).subtitle),
           const SizedBox(height: 4),
-          Text('\$${total.toStringAsFixed(2)}', style: AppTextStyles.headline),
+          Text('\$${total.toStringAsFixed(2)}', style: AppTextStyles.of(context).headline),
           const SizedBox(height: 24),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text('Add a custom expense', style: AppTextStyles.body),
+            child: Text('Add a custom expense', style: AppTextStyles.of(context).body),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: nameController,
-            style: AppTextStyles.body,
-            decoration: AppDecorations.inputDecoration(label: 'Expense Name'),
+            style: AppTextStyles.of(context).body,
+            decoration: AppDecorations.inputDecoration(context, label: 'Expense Name'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: amountController,
-            style: AppTextStyles.body,
+            style: AppTextStyles.of(context).body,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: AppDecorations.inputDecoration(label: 'Cost'),
+            decoration: AppDecorations.inputDecoration(context, label: 'Cost'),
           ),
           if (error != null) ...[
             const SizedBox(height: 10),
-            Text(error!, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+            Text(error!, style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).error)),
           ],
           const SizedBox(height: 18),
           GradientButton(onPressed: busy ? null : onAdd, label: 'Add', isLoading: busy),
@@ -328,9 +328,9 @@ class _AddExpenseForm extends StatelessWidget {
             key: ValueKey(splitChoice),
             initialValue: splitChoice,
             isExpanded: true,
-            dropdownColor: AppColors.surfaceLight,
-            style: AppTextStyles.body,
-            decoration: AppDecorations.inputDecoration(label: 'Split cost'),
+            dropdownColor: AppColors.of(context).surfaceLight,
+            style: AppTextStyles.of(context).body,
+            decoration: AppDecorations.inputDecoration(context, label: 'Split cost'),
             items: const [
               DropdownMenuItem(
                 value: _SplitChoice.justMe,
@@ -351,7 +351,7 @@ class _AddExpenseForm extends StatelessWidget {
                 onTap: onEditSplitMembers,
                 child: Text(
                   'Splitting with: ${splitMembers.map((m) => m.username).join(', ')}',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.accentEnd),
+                  style: AppTextStyles.of(context).caption.copyWith(color: AppColors.of(context).accentEnd),
                 ),
               ),
             ),
@@ -378,7 +378,7 @@ class _PerPersonPanel extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: AppDecorations.glassCard(),
+      decoration: AppDecorations.glassCard(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -386,10 +386,10 @@ class _PerPersonPanel extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: AppColors.of(context).surfaceLight,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text('By Person', style: AppTextStyles.body),
+              child: Text('By Person', style: AppTextStyles.of(context).body),
             ),
           ),
           const SizedBox(height: 18),
@@ -403,16 +403,16 @@ class _PerPersonPanel extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 14,
-                        backgroundColor: AppColors.surfaceLight,
-                        child: Icon(Icons.person, size: 16, color: AppColors.textMuted),
+                        backgroundColor: AppColors.of(context).surfaceLight,
+                        child: Icon(Icons.person, size: 16, color: AppColors.of(context).textMuted),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           '${member.username}: \$${memberTotal.toStringAsFixed(2)}',
-                          style: AppTextStyles.body,
+                          style: AppTextStyles.of(context).body,
                         ),
                       ),
                     ],
@@ -426,13 +426,13 @@ class _PerPersonPanel extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: percent / 100,
                             minHeight: 6,
-                            backgroundColor: AppColors.surfaceLight,
-                            valueColor: const AlwaysStoppedAnimation(AppColors.accentEnd),
+                            backgroundColor: AppColors.of(context).surfaceLight,
+                            valueColor: AlwaysStoppedAnimation(AppColors.of(context).accentEnd),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text('${percent.toStringAsFixed(0)}%', style: AppTextStyles.caption),
+                      Text('${percent.toStringAsFixed(0)}%', style: AppTextStyles.of(context).caption),
                     ],
                   ),
                 ],
@@ -482,11 +482,11 @@ class _SplitMembersDialogState extends State<_SplitMembersDialog> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: AppColors.brandGradient,
+          gradient: AppColors.of(context).brandGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.accentStart.withValues(alpha: 0.4),
+              color: AppColors.of(context).accentStart.withValues(alpha: 0.4),
               blurRadius: 30,
               offset: const Offset(0, 10),
             ),
@@ -497,7 +497,7 @@ class _SplitMembersDialogState extends State<_SplitMembersDialog> {
           children: [
             Text('Split Evenly With...',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.title.copyWith(color: Colors.white)),
+                style: AppTextStyles.of(context).title.copyWith(color: Colors.white)),
             const SizedBox(height: 18),
             ...widget.members.map((member) {
               final isSelected = _selectedIds.contains(member.id);
@@ -535,7 +535,7 @@ class _SplitMembersDialogState extends State<_SplitMembersDialog> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(member.username,
-                                style: AppTextStyles.body.copyWith(color: Colors.white)),
+                                style: AppTextStyles.of(context).body.copyWith(color: Colors.white)),
                           ),
                           if (isSelected)
                             const Icon(Icons.check_circle_rounded, color: Colors.white),
@@ -553,7 +553,7 @@ class _SplitMembersDialogState extends State<_SplitMembersDialog> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   backgroundColor: Colors.white,
-                  foregroundColor: AppColors.accentStart,
+                  foregroundColor: AppColors.of(context).accentStart,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
@@ -563,13 +563,13 @@ class _SplitMembersDialogState extends State<_SplitMembersDialog> {
                           widget.members.where((m) => _selectedIds.contains(m.id)).toList(),
                         ),
                 child: Text('Confirm Selection',
-                    style: AppTextStyles.button.copyWith(color: AppColors.accentStart)),
+                    style: AppTextStyles.of(context).button.copyWith(color: AppColors.of(context).accentStart)),
               ),
             ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: AppTextStyles.button.copyWith(color: Colors.white70)),
+              child: Text('Cancel', style: AppTextStyles.of(context).button.copyWith(color: Colors.white70)),
             ),
           ],
         ),
