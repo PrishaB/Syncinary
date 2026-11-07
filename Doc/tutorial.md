@@ -70,6 +70,24 @@ From here, you have options to invite more members, start planning a trip, track
 
 ![Summer Travel group homepage with Invite Members, Plan Itinerary, Track Costs, and Set Preferences buttons](tutorial_images/group-home.jpg)
 
+## Quick Summary of next steps
+Invite Members
+- Generates code that can be shared via email or in-person with friends/family
+  
+Plan Itinerary
+- Access your travel schedule
+- Book and add flights/hotels/activities, or suggest if not an admin
+- Visualize your trip on the map view
+- View User Trip Preferences
+  
+Track Costs
+- Add and save your trip's expenses
+- Split costs between group members
+  
+Set Preferences
+- Set your anonymous trip preferences
+- Let the group know of dietary needs, trip pace preference, activity ideas 
+
 ## Troubleshooting
 
 ### No verification email?
