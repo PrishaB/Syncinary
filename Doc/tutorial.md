@@ -6,16 +6,19 @@ Syncinary is an application to make your group travel planning as simple as poss
 
 ## Prerequisites
 
-All you need for Syncinary is an internet connection, a valid email, and a travel ready group.
-
+Syncinary Requirements
+- An internet connection
+- A valid email
+- A travel ready group
+## Setup
+Go to <https://syncinary.com> using your favorite web browser
 ## Sign Up
 
-1. Go to <https://syncinary.com> using your favorite web browser
-2. Click the **Sign Up** button
+1. Click the **Sign Up** button
 
    ![Sign-in screen with the Sign Up button circled](tutorial_images/sign-in.jpg)
 
-3. Enter the fields below and click **Sign Up**
+2. Enter the fields below and click **Sign Up**
 
    - Name
    - A valid email address
@@ -23,7 +26,7 @@ All you need for Syncinary is an internet connection, a valid email, and a trave
 
    ![Sign-up form with name, email, and password fields](tutorial_images/sign-up.jpg)
 
-4. Next, you will see an email verification page.
+3. Next, you will see an email verification page.
 
    ![Verify your email screen with a Check verification button](tutorial_images/check-verification.jpg)
 
