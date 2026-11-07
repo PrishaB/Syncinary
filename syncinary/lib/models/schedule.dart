@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'trip_location.dart';
 
 enum ScheduleItemType { flight, hotel, activity }
 
@@ -60,6 +61,7 @@ class ScheduleDay {
 ///   addedBy: uid,
 ///   status: 'suggested' | 'approved',   // missing on legacy docs = approved
 ///   createdAt: Timestamp,
+///   location: { name, address, latitude, longitude }, // optional
 /// }
 /// ```
 class ScheduleItem {
@@ -71,6 +73,7 @@ class ScheduleItem {
     required this.details,
     this.addedBy = '',
     this.status = ScheduleItemStatus.approved,
+    this.location,
   });
 
   final String id;
@@ -78,6 +81,7 @@ class ScheduleItem {
   final ScheduleItemType type;
   final String title;
   final String details;
+  final TripLocation? location;
 
   /// Uid of the group member who added this item; empty on legacy docs.
   final String addedBy;
@@ -96,6 +100,7 @@ class ScheduleItem {
       details: data['details'] as String? ?? '',
       addedBy: data['addedBy'] as String? ?? '',
       status: scheduleItemStatusFromString(data['status'] as String?),
+      location: TripLocation.fromMap(data['location']),
     );
   }
 }

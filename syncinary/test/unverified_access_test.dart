@@ -113,7 +113,7 @@ void _expectBlocked(_TrackedGroups service) {
 void main() {
   for (final restoredSession in [true, false]) {
     testWidgets(
-      '${restoredSession ? 'restored session' : 'fresh login'} cannot reach groups or itinerary until verified',
+      '[301-11] ${restoredSession ? 'restored session' : 'fresh login'} cannot reach groups or itinerary until verified',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(1100, 1800));
         addTearDown(() => tester.binding.setSurfaceSize(null));

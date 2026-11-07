@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/group.dart';
 import '../models/schedule.dart';
+import '../models/trip_location.dart';
+import '../services/place_service.dart';
 import '../services/schedule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/confirmation_dialog.dart';
 import '../widgets/gradient_app_bar.dart';
+import 'groups/group_preferences_page.dart';
+import '../widgets/trip_location_picker.dart';
 import 'itinerary_builder.dart';
+import 'trip_map_page.dart';
 
 /// Itinerary landing page ("Schedule Builder"): an AI advisor panel, the plan
 /// for one selected day, and an "Add to Trip" panel with a button per item
@@ -39,11 +44,12 @@ String formatScheduleDay(DateTime date) {
 
 /// Where "Plan Itinerary" on a trip goes.
 class ScheduleBuilderPage extends StatefulWidget {
-  const ScheduleBuilderPage({super.key, required this.group, ScheduleService? service})
+  const ScheduleBuilderPage({super.key, required this.group, ScheduleService? service, this.placeService})
       : _service = service;
 
   final Group group;
   final ScheduleService? _service;
+  final PlaceService? placeService;
 
   @override
   State<ScheduleBuilderPage> createState() => _ScheduleBuilderPageState();
@@ -94,6 +100,19 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   bool get _isAdmin =>
       widget.group.memberById(_service.currentUserId)?.role == GroupRole.admin;
 
+  void _openGroupPreferences() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GroupPreferencesPage(
+          groupId: _groupId,
+          groupName: widget.group.name,
+          service: _service.groupPreferencesService,
+        ),
+      ),
+    );
+  }
+
   /// "Added by …" / "Suggested by …" for [item], or null for items saved
   /// before `addedBy` was read.
   String? _attribution(ScheduleItem item) {
@@ -142,6 +161,7 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
     final result = await _showItemDialog(context,
         type: type,
         suggest: suggest,
+        placeService: widget.placeService,
         initialDate: selectedDay?.date ?? DateTime.now(),
         search: switch (type) {
           ScheduleItemType.flight =>
@@ -157,6 +177,7 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
           type: type,
           title: result.title,
           details: result.details,
+          location: result.location,
           status: suggest ? ScheduleItemStatus.suggested : ScheduleItemStatus.approved);
       if (!mounted) return;
       setState(() => _selectedDayKey = scheduleDayKey(result.date));
@@ -201,11 +222,15 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
         type: item.type,
         initialDate: currentDate,
         initialTitle: item.title,
-        initialDetails: item.details);
+        initialDetails: item.details,
+        initialLocation: item.location,
+        placeService: widget.placeService);
     if (result == null) return;
     try {
       await _service.updateItem(_groupId, item.id,
-          date: result.date, title: result.title, details: result.details);
+          date: result.date, title: result.title, details: result.details,
+          location: result.locationChanged ? result.location : null,
+          clearLocation: result.locationChanged && result.location == null);
       if (mounted) setState(() => _selectedDayKey = scheduleDayKey(result.date));
     } catch (e) {
       _showError('save the change', e);
@@ -277,11 +302,24 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                         ? null
                         : (item) => _discardSuggestion(item, reject: false),
                   );
+                  final preferencesLink = Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton.icon(
+                      onPressed: _openGroupPreferences,
+                      icon: const Icon(Icons.bar_chart_rounded),
+                      label: const Text('Group Preferences'),
+                    ),
+                  );
                   final mapView = Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
-                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Map view — coming soon')),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => TripMapPage(
+                          group: widget.group,
+                          service: _service,
+                          placeService: widget.placeService,
+                        )),
                       ),
                       icon: const Icon(Icons.map_outlined, color: AppColors.accentEnd),
                       label: Text('Map View',
@@ -297,6 +335,8 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                           padding: padding,
                           child: Column(
                             children: [
+                              preferencesLink,
+                              const SizedBox(height: 16),
                               IntrinsicHeight(
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -329,6 +369,8 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            preferencesLink,
+                            const SizedBox(height: 16),
                             addPanel,
                             const SizedBox(height: 20),
                             suggestionsPanel,
@@ -863,13 +905,26 @@ class _AddTile extends StatelessWidget {
 // Add / edit item dialog
 // ─────────────────────────────────────────────────────────
 
-Future<({DateTime date, String title, String details})?> _showItemDialog(
+// Keep label metrics and paint style fixed while focus changes to avoid the
+// animated label repaint path implicated in the reported TextPainter assertion.
+InputDecoration _itemInputDecoration(String label, {IconData? icon}) {
+  final labelStyle = AppTextStyles.caption.copyWith(color: AppColors.textSecondary);
+  return AppDecorations.inputDecoration(label: label, prefixIcon: icon).copyWith(
+    floatingLabelBehavior: FloatingLabelBehavior.always,
+    labelStyle: labelStyle,
+    floatingLabelStyle: labelStyle,
+  );
+}
+
+Future<({DateTime date, String title, String details, TripLocation? location, bool locationChanged})?> _showItemDialog(
   BuildContext context, {
   required ScheduleItemType type,
   required DateTime initialDate,
   bool suggest = false,
   String initialTitle = '',
   String initialDetails = '',
+  TripLocation? initialLocation,
+  PlaceService? placeService,
   ({String label, VoidCallback onTap})? search,
 }) {
   final info = _typeInfo(type);
@@ -877,17 +932,20 @@ Future<({DateTime date, String title, String details})?> _showItemDialog(
   final titleController = TextEditingController(text: initialTitle);
   final detailsController = TextEditingController(text: initialDetails);
   var date = initialDate;
+  var location = initialLocation;
+  var locationChanged = false;
 
-  return showDialog<({DateTime date, String title, String details})>(
+  return showDialog<({DateTime date, String title, String details, TripLocation? location, bool locationChanged})>(
     context: context,
     builder: (dialogContext) => Dialog(
       backgroundColor: Colors.transparent,
+      constraints: const BoxConstraints(maxWidth: 520),
       insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       child: StatefulBuilder(
         builder: (context, setDialogState) => Container(
           padding: const EdgeInsets.all(24),
           decoration: AppDecorations.glassCard(),
-          child: Column(
+          child: SingleChildScrollView(child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('${isEdit ? 'Edit' : suggest ? 'Suggest' : 'Add'} ${_capitalized(info.noun)}',
@@ -929,16 +987,22 @@ Future<({DateTime date, String title, String details})?> _showItemDialog(
                 controller: titleController,
                 autofocus: true,
                 style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
-                  label: info.titleLabel,
-                  prefixIcon: info.icon,
-                ),
+                decoration: _itemInputDecoration(info.titleLabel, icon: info.icon),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: detailsController,
                 style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(label: info.detailsLabel),
+                decoration: _itemInputDecoration(info.detailsLabel),
+              ),
+              TripLocationField(
+                location: location,
+                query: () => titleController.text,
+                service: placeService,
+                onChanged: (value) => setDialogState(() {
+                  location = value;
+                  locationChanged = true;
+                }),
               ),
               if (search != null) ...[
                 const SizedBox(height: 8),
@@ -975,6 +1039,8 @@ Future<({DateTime date, String title, String details})?> _showItemDialog(
                           date: date,
                           title: title,
                           details: detailsController.text.trim(),
+                          location: location,
+                          locationChanged: locationChanged,
                         ));
                       },
                       label: suggest ? 'Suggest' : 'Save',
@@ -983,7 +1049,7 @@ Future<({DateTime date, String title, String details})?> _showItemDialog(
                 ],
               ),
             ],
-          ),
+          )),
         ),
       ),
     ),

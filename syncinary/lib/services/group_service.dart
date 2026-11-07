@@ -86,13 +86,22 @@ class GroupService {
   /// writes `members` + a `memberIds` array kept in sync with its keys.
   /// Deletes the group doc entirely if [mutate] empties the member list.
   ///
+  /// `memberIds` doubles as the join order: joining appends with
+  /// `arrayUnion`, so index 0 is the longest-tenured member. [mutate] gets
+  /// that order as `joinOrder`, and the rewrite below preserves it (map key
+  /// order from Firestore is not join order, so it can't be rebuilt from
+  /// `members.keys`).
+  ///
   /// This is a read-then-write rather than a transaction: two admins editing
   /// membership at the exact same instant could race. Acceptable for a
   /// small-group travel app; revisit with `runTransaction` (or a Cloud
   /// Function) if that ever becomes a real concern.
   Future<void> _updateMembers(
     String groupId,
-    void Function(Map<String, Map<String, dynamic>> members) mutate,
+    void Function(
+      Map<String, Map<String, dynamic>> members,
+      List<String> joinOrder,
+    ) mutate,
   ) async {
     final ref = _groups.doc(groupId);
     final snap = await ref.get();
@@ -101,7 +110,8 @@ class GroupService {
     final members = raw.map(
       (key, value) => MapEntry(key, Map<String, dynamic>.from(value as Map)),
     );
-    mutate(members);
+    final joinOrder = List<String>.from(data['memberIds'] as List? ?? const []);
+    mutate(members, joinOrder);
     if (members.isEmpty) {
       await ref.delete();
     } else {
@@ -110,7 +120,11 @@ class GroupService {
       // replacing the field outright, which would silently resurrect a
       // removed member. set() with the full document data avoids that.
       data['members'] = members;
-      data['memberIds'] = members.keys.toList();
+      data['memberIds'] = [
+        ...joinOrder.where(members.containsKey),
+        // Safety net: a member missing from memberIds goes to the end.
+        ...members.keys.where((id) => !joinOrder.contains(id)),
+      ];
       await ref.set(data);
     }
   }
@@ -136,16 +150,30 @@ class GroupService {
   Future<void> renameGroup(Group group, String newName) =>
       _groups.doc(group.id).update({'name': newName});
 
+  /// Removes the current user. If that leaves the group with no admin, the
+  /// longest-tenured remaining member (earliest in `memberIds`) is promoted,
+  /// so a group is never left without an admin.
   Future<void> leaveGroup(Group group) =>
-      _updateMembers(group.id, (members) => members.remove(currentUserId));
+      _updateMembers(group.id, (members, joinOrder) {
+        members.remove(currentUserId);
+        if (members.isEmpty) return;
+        final hasAdmin = members.values.any((m) => m['role'] == 'admin');
+        if (!hasAdmin) {
+          final heir = joinOrder.firstWhere(
+            members.containsKey,
+            orElse: () => members.keys.first,
+          );
+          members[heir]!['role'] = 'admin';
+        }
+      });
 
   Future<void> deleteGroup(Group group) => _groups.doc(group.id).delete();
 
   Future<void> removeMember(Group group, GroupMember member) =>
-      _updateMembers(group.id, (members) => members.remove(member.id));
+      _updateMembers(group.id, (members, _) => members.remove(member.id));
 
   Future<void> transferAdmin(Group group, GroupMember newAdmin) =>
-      _updateMembers(group.id, (members) {
+      _updateMembers(group.id, (members, _) {
         members[currentUserId]?['role'] = 'user';
         members[newAdmin.id]?['role'] = 'admin';
       });

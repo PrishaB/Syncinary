@@ -78,7 +78,8 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('suggestions-loading')), findsOneWidget);
-    expect(find.text('JFK  →  LAX'), findsOneWidget);
+    expect(find.text('JFK'), findsOneWidget);
+    expect(find.text('LAX'), findsOneWidget);
 
     // Resolve and let the pending .timeout() timer get cancelled so the test
     // doesn't end with a Timer still pending under FakeAsync.
@@ -214,7 +215,8 @@ void main() {
     )));
     await tester.pumpAndSettle();
 
-    expect(find.text('JFK  →  LAX'), findsOneWidget);
+    expect(find.text('JFK'), findsOneWidget);
+    expect(find.text('LAX'), findsOneWidget);
     expect(find.text('\$250'), findsOneWidget);
   });
 

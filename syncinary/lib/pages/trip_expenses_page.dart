@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import '../models/expense.dart';
+import '../models/expense_split.dart';
 import '../models/group.dart';
 import '../services/expense_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/confirmation_dialog.dart';
+import '../widgets/expense_split_editor.dart';
 import '../widgets/gradient_app_bar.dart';
 
 /// Three-panel "Cost Splitter" layout: itemized expenses, a total + add-expense
-/// form, and a per-person breakdown of what each member has added — an expense
-/// is attributed entirely to whoever added it, not split across the group by
-/// default. Panels stack vertically below [_wideBreakpoint] so the page still
-/// works at phone width.
+/// form, and each member's allocated costs. Expenses default to personal, with
+/// equal and custom percentage splits. Panels stack below [_wideBreakpoint].
 const double _wideBreakpoint = 760;
 
-enum _SplitChoice { justMe, selected }
-
 class TripExpensesPage extends StatefulWidget {
-  const TripExpensesPage({super.key, required this.group, ExpenseService? service})
-      : _service = service;
+  const TripExpensesPage({
+    super.key,
+    required this.group,
+    ExpenseService? service,
+  }) : _service = service;
 
   final Group group;
   final ExpenseService? _service;
@@ -32,8 +33,8 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
   final _amountController = TextEditingController();
   String? _formError;
   bool _busy = false;
-  _SplitChoice _splitChoice = _SplitChoice.justMe;
-  List<GroupMember> _splitMembers = const [];
+  late ExpenseSplit _split = ExpenseSplit(splitWith: [_service.currentUserId]);
+  late final _expenses = _service.expensesStream(widget.group.id);
 
   @override
   void dispose() {
@@ -43,53 +44,41 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
   }
 
   Future<void> _addExpense() async {
+    if (_busy) return;
     final name = _nameController.text.trim();
     final amount = double.tryParse(_amountController.text.trim());
-    if (name.isEmpty || amount == null || amount <= 0) {
+    if (name.isEmpty ||
+        amount == null ||
+        !amount.isFinite ||
+        amount <= 0 ||
+        !(amount * 100).isFinite ||
+        (amount * 100).round() == 0) {
       setState(() => _formError = 'Enter a name and a valid cost.');
       return;
     }
-    final splitWith = _splitChoice == _SplitChoice.justMe
-        ? [_service.currentUserId]
-        : _splitMembers.map((m) => m.id).toList();
+    if (_split.validationError != null) return;
     setState(() {
       _busy = true;
       _formError = null;
     });
     try {
-      await _service.addExpense(widget.group.id, name: name, amount: amount, splitWith: splitWith);
+      await _service.addExpense(
+        widget.group.id,
+        name: name,
+        amount: amount,
+        splitWith: _split.splitWith,
+        splitPercentages: _split.percentages,
+      );
+      if (!mounted) return;
       _nameController.clear();
       _amountController.clear();
     } catch (e) {
-      if (mounted) setState(() => _formError = 'Couldn\'t save the expense: $e');
+      if (mounted) {
+        setState(() => _formError = 'Couldn\'t save the expense: $e');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  Future<void> _onSplitChoiceChanged(_SplitChoice? choice) async {
-    if (choice == _SplitChoice.justMe) {
-      setState(() {
-        _splitChoice = _SplitChoice.justMe;
-        _splitMembers = const [];
-      });
-      return;
-    }
-    await _editSplitMembers();
-  }
-
-  Future<void> _editSplitMembers() async {
-    final members = widget.group.members;
-    final picked = await _showSplitMembersDialog(
-      context,
-      members: members,
-      initiallySelected: _splitMembers.isEmpty ? members : _splitMembers,
-    );
-    if (picked == null || !mounted) return;
-    setState(() {
-      _splitChoice = _SplitChoice.selected;
-      _splitMembers = picked;
-    });
   }
 
   Future<void> _deleteExpense(Expense expense) async {
@@ -103,8 +92,9 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
       await _service.deleteExpense(widget.group.id, expense.id);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Couldn\'t delete the expense: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Couldn\'t delete the expense: $e')),
+        );
       }
     }
   }
@@ -112,7 +102,8 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
   @override
   Widget build(BuildContext context) {
     final currentUserId = _service.currentUserId;
-    final isAdmin = widget.group.memberById(currentUserId)?.role == GroupRole.admin;
+    final isAdmin =
+        widget.group.memberById(currentUserId)?.role == GroupRole.admin;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -121,19 +112,24 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           child: StreamBuilder<List<Expense>>(
-            stream: _service.expensesStream(widget.group.id),
+            stream: _expenses,
             builder: (context, snapshot) {
               final expenses = snapshot.data ?? const <Expense>[];
-              final total = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+              final total = expenses.fold<double>(
+                0,
+                (sum, e) => sum + e.amount,
+              );
               final members = widget.group.members;
 
-              // Each expense is split evenly only across its own splitWith list
-              // (just the adder by default) — not across the whole group.
-              final totalsByMember = <String, double>{for (final m in members) m.id: 0};
+              // Use the same cent allocation as the percentage preview.
+              final totalsByMember = <String, double>{
+                for (final m in members) m.id: 0,
+              };
               for (final expense in expenses) {
-                final perPerson = expense.amount / expense.splitWith.length;
-                for (final uid in expense.splitWith) {
-                  totalsByMember[uid] = (totalsByMember[uid] ?? 0) + perPerson;
+                for (final share
+                    in expense.split.amountsFor(expense.amount).entries) {
+                  totalsByMember[share.key] =
+                      (totalsByMember[share.key] ?? 0) + share.value;
                 }
               }
 
@@ -142,6 +138,7 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
                 currentUserId: currentUserId,
                 isAdmin: isAdmin,
                 onDelete: _deleteExpense,
+                members: members,
               );
               final addForm = _AddExpenseForm(
                 total: total,
@@ -150,10 +147,10 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
                 error: _formError,
                 busy: _busy,
                 onAdd: _addExpense,
-                splitChoice: _splitChoice,
-                splitMembers: _splitMembers,
-                onSplitChoiceChanged: _onSplitChoiceChanged,
-                onEditSplitMembers: _editSplitMembers,
+                split: _split,
+                members: members,
+                currentUserId: currentUserId,
+                onSplitChanged: (split) => setState(() => _split = split),
               );
               final splitPanel = _PerPersonPanel(
                 members: members,
@@ -210,12 +207,14 @@ class _ItemizedBreakdown extends StatelessWidget {
     required this.currentUserId,
     required this.isAdmin,
     required this.onDelete,
+    required this.members,
   });
 
   final List<Expense> expenses;
   final String currentUserId;
   final bool isAdmin;
   final ValueChanged<Expense> onDelete;
+  final List<GroupMember> members;
 
   @override
   Widget build(BuildContext context) {
@@ -229,30 +228,52 @@ class _ItemizedBreakdown extends StatelessWidget {
           Text('Itemized Breakdown', style: AppTextStyles.title),
           const SizedBox(height: 14),
           if (expenses.isEmpty)
-            Text('No expenses yet.',
-                style: AppTextStyles.body.copyWith(color: AppColors.textMuted))
+            Text(
+              'No expenses yet.',
+              style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
+            )
           else
             ...expenses.map((expense) {
               final canDelete = isAdmin || expense.addedBy == currentUserId;
+              final percentages = expense.split.percentagesByMember;
+              final amounts = expense.split.amountsFor(expense.amount);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        '${expense.name}: \$${expense.amount.toStringAsFixed(2)}',
-                        style: AppTextStyles.body,
-                      ),
-                    ),
-                    if (canDelete)
-                      InkWell(
-                        onTap: () => onDelete(expense),
-                        borderRadius: BorderRadius.circular(20),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4),
-                          child: Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${expense.name}: \$${expense.amount.toStringAsFixed(2)}',
+                            style: AppTextStyles.body,
+                          ),
                         ),
-                      ),
+                        if (canDelete)
+                          InkWell(
+                            onTap: () => onDelete(expense),
+                            borderRadius: BorderRadius.circular(20),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    for (final share in amounts.entries)
+                      if ((percentages[share.key] ?? 0) > 0)
+                        Text(
+                          '${_memberName(share.key)} · ${percentages[share.key]!.toStringAsFixed(2)}% · \$${share.value.toStringAsFixed(2)}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                   ],
                 ),
               );
@@ -260,6 +281,13 @@ class _ItemizedBreakdown extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _memberName(String id) {
+    for (final member in members) {
+      if (member.id == id) return member.username;
+    }
+    return 'Former member';
   }
 }
 
@@ -271,10 +299,10 @@ class _AddExpenseForm extends StatelessWidget {
     required this.error,
     required this.busy,
     required this.onAdd,
-    required this.splitChoice,
-    required this.splitMembers,
-    required this.onSplitChoiceChanged,
-    required this.onEditSplitMembers,
+    required this.split,
+    required this.members,
+    required this.currentUserId,
+    required this.onSplitChanged,
   });
 
   final double total;
@@ -283,10 +311,10 @@ class _AddExpenseForm extends StatelessWidget {
   final String? error;
   final bool busy;
   final VoidCallback onAdd;
-  final _SplitChoice splitChoice;
-  final List<GroupMember> splitMembers;
-  final ValueChanged<_SplitChoice?> onSplitChoiceChanged;
-  final VoidCallback onEditSplitMembers;
+  final ExpenseSplit split;
+  final List<GroupMember> members;
+  final String currentUserId;
+  final ValueChanged<ExpenseSplit> onSplitChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -307,55 +335,43 @@ class _AddExpenseForm extends StatelessWidget {
           const SizedBox(height: 12),
           TextField(
             controller: nameController,
+            enabled: !busy,
             style: AppTextStyles.body,
             decoration: AppDecorations.inputDecoration(label: 'Expense Name'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: amountController,
+            enabled: !busy,
             style: AppTextStyles.body,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: AppDecorations.inputDecoration(label: 'Cost'),
           ),
+          const SizedBox(height: 18),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: amountController,
+            builder: (context, value, _) => ExpenseSplitEditor(
+              members: members,
+              currentUserId: currentUserId,
+              value: split,
+              amount: double.tryParse(value.text.trim()) ?? 0,
+              enabled: !busy,
+              onChanged: onSplitChanged,
+            ),
+          ),
           if (error != null) ...[
             const SizedBox(height: 10),
-            Text(error!, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
-          ],
-          const SizedBox(height: 18),
-          GradientButton(onPressed: busy ? null : onAdd, label: 'Add', isLoading: busy),
-          const SizedBox(height: 18),
-          DropdownButtonFormField<_SplitChoice>(
-            key: ValueKey(splitChoice),
-            initialValue: splitChoice,
-            isExpanded: true,
-            dropdownColor: AppColors.surfaceLight,
-            style: AppTextStyles.body,
-            decoration: AppDecorations.inputDecoration(label: 'Split cost'),
-            items: const [
-              DropdownMenuItem(
-                value: _SplitChoice.justMe,
-                child: Text('Just Me', overflow: TextOverflow.ellipsis),
-              ),
-              DropdownMenuItem(
-                value: _SplitChoice.selected,
-                child: Text('Split Evenly With...', overflow: TextOverflow.ellipsis),
-              ),
-            ],
-            onChanged: onSplitChoiceChanged,
-          ),
-          if (splitChoice == _SplitChoice.selected) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: InkWell(
-                onTap: onEditSplitMembers,
-                child: Text(
-                  'Splitting with: ${splitMembers.map((m) => m.username).join(', ')}',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.accentEnd),
-                ),
-              ),
+            Text(
+              error!,
+              style: AppTextStyles.caption.copyWith(color: AppColors.error),
             ),
           ],
+          const SizedBox(height: 18),
+          GradientButton(
+            onPressed: busy || split.validationError != null ? null : onAdd,
+            label: 'Add',
+            isLoading: busy,
+          ),
         ],
       ),
     );
@@ -406,7 +422,11 @@ class _PerPersonPanel extends StatelessWidget {
                       const CircleAvatar(
                         radius: 14,
                         backgroundColor: AppColors.surfaceLight,
-                        child: Icon(Icons.person, size: 16, color: AppColors.textMuted),
+                        child: Icon(
+                          Icons.person,
+                          size: 16,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -427,12 +447,17 @@ class _PerPersonPanel extends StatelessWidget {
                             value: percent / 100,
                             minHeight: 6,
                             backgroundColor: AppColors.surfaceLight,
-                            valueColor: const AlwaysStoppedAnimation(AppColors.accentEnd),
+                            valueColor: const AlwaysStoppedAnimation(
+                              AppColors.accentEnd,
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text('${percent.toStringAsFixed(0)}%', style: AppTextStyles.caption),
+                      Text(
+                        '${percent.toStringAsFixed(0)}%',
+                        style: AppTextStyles.caption,
+                      ),
                     ],
                   ),
                 ],
@@ -440,139 +465,6 @@ class _PerPersonPanel extends StatelessWidget {
             );
           }),
         ],
-      ),
-    );
-  }
-}
-
-/// Multi-select dialog for picking which group members share an expense
-/// evenly. Returns the chosen members, or null if the user cancelled.
-Future<List<GroupMember>?> _showSplitMembersDialog(
-  BuildContext context, {
-  required List<GroupMember> members,
-  required List<GroupMember> initiallySelected,
-}) {
-  return showDialog<List<GroupMember>>(
-    context: context,
-    barrierColor: Colors.black.withValues(alpha: 0.6),
-    builder: (_) =>
-        _SplitMembersDialog(members: members, initiallySelected: initiallySelected),
-  );
-}
-
-class _SplitMembersDialog extends StatefulWidget {
-  const _SplitMembersDialog({required this.members, required this.initiallySelected});
-
-  final List<GroupMember> members;
-  final List<GroupMember> initiallySelected;
-
-  @override
-  State<_SplitMembersDialog> createState() => _SplitMembersDialogState();
-}
-
-class _SplitMembersDialogState extends State<_SplitMembersDialog> {
-  late final Set<String> _selectedIds =
-      widget.initiallySelected.map((m) => m.id).toSet();
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: AppColors.brandGradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accentStart.withValues(alpha: 0.4),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Split Evenly With...',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.title.copyWith(color: Colors.white)),
-            const SizedBox(height: 18),
-            ...widget.members.map((member) {
-              final isSelected = _selectedIds.contains(member.id);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Material(
-                  color: isSelected
-                      ? Colors.white.withValues(alpha: 0.3)
-                      : Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => setState(() {
-                      if (isSelected) {
-                        _selectedIds.remove(member.id);
-                      } else {
-                        _selectedIds.add(member.id);
-                      }
-                    }),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.white.withValues(alpha: 0.25),
-                            child: Text(
-                              member.username.isNotEmpty
-                                  ? member.username[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                  color: Colors.white, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(member.username,
-                                style: AppTextStyles.body.copyWith(color: Colors.white)),
-                          ),
-                          if (isSelected)
-                            const Icon(Icons.check_circle_rounded, color: Colors.white),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.accentStart,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                onPressed: _selectedIds.isEmpty
-                    ? null
-                    : () => Navigator.of(context).pop(
-                          widget.members.where((m) => _selectedIds.contains(m.id)).toList(),
-                        ),
-                child: Text('Confirm Selection',
-                    style: AppTextStyles.button.copyWith(color: AppColors.accentStart)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: AppTextStyles.button.copyWith(color: Colors.white70)),
-            ),
-          ],
-        ),
       ),
     );
   }

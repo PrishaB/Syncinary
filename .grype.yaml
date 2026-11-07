@@ -1,0 +1,21 @@
+# Grype config, passed with --config in ci.yml.
+# Each ignore needs a reason and the issue that justifies it.
+# ci.yml checks these rules against .github/grype-fixtures/ before the real scan.
+# Rules are scoped to cpe-match so a real advisory for the package still fails CI.
+
+ignore:
+  # Trojan Source CVEs filed against the Unicode *Standard* (cpe:2.3:a:unicode:unicode, < 14.0.0).
+  # Grype matches them to the unrelated Dart `unicode` package (pulled in by
+  # flutter_map -> proj4dart -> mgrs_dart) from its name alone. Issue #206.
+  - vulnerability: CVE-2021-42574
+    reason: "Unicode Specification bidi issue (Trojan Source), falsely CPE-matched by name to the Dart 'unicode' character-table package. No pub advisory exists; the package has no 14.0.0."
+    match-type: cpe-match
+    package:
+      name: unicode
+      type: dart-pub
+  - vulnerability: CVE-2021-42694
+    reason: "Unicode Specification homoglyph issue (Trojan Source), falsely CPE-matched by name to the Dart 'unicode' character-table package. No pub advisory exists; the package has no 14.0.0."
+    match-type: cpe-match
+    package:
+      name: unicode
+      type: dart-pub

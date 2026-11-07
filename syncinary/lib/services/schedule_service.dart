@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/group.dart';
 import '../models/schedule.dart';
+import 'group_preferences_service.dart';
+import '../models/trip_location.dart';
 
 /// Firestore-backed data access for a trip's day-by-day schedule.
 ///
@@ -18,6 +21,9 @@ class ScheduleService {
   final FirebaseAuth _auth;
 
   String get currentUserId => _auth.currentUser!.uid;
+
+  GroupPreferencesService get groupPreferencesService =>
+      GroupPreferencesService(firestore: _firestore, auth: _auth);
 
   DocumentReference<Map<String, dynamic>> _group(String groupId) =>
       _firestore.collection('groups').doc(groupId);
@@ -79,7 +85,11 @@ class ScheduleService {
     required String title,
     String details = '',
     ScheduleItemStatus status = ScheduleItemStatus.approved,
+    TripLocation? location,
   }) {
+    if (location != null && !location.isValid) {
+      throw ArgumentError('Invalid trip location');
+    }
     final batch = _firestore.batch();
     final dayKey = _setDay(batch, groupId, date);
     batch.set(_items(groupId).doc(), {
@@ -90,6 +100,7 @@ class ScheduleService {
       'addedBy': currentUserId,
       'status': scheduleItemStatusToString(status),
       'createdAt': FieldValue.serverTimestamp(),
+      if (location != null) 'location': location.toMap(),
     });
     return batch.commit();
   }
@@ -108,12 +119,23 @@ class ScheduleService {
     required DateTime date,
     required String title,
     required String details,
+    TripLocation? location,
+    bool clearLocation = false,
   }) async {
+    if (location != null && !location.isValid) {
+      throw ArgumentError('Invalid trip location');
+    }
     final ref = _items(groupId).doc(itemId);
     final oldDay = (await ref.get()).data()?['day'] as String?;
     final batch = _firestore.batch();
     final dayKey = _setDay(batch, groupId, date);
-    batch.update(ref, {'day': dayKey, 'title': title, 'details': details});
+    batch.update(ref, {
+      'day': dayKey,
+      'title': title,
+      'details': details,
+      if (location != null) 'location': location.toMap(),
+      if (clearLocation) 'location': FieldValue.delete(),
+    });
     await batch.commit();
     if (oldDay != null && oldDay != dayKey) await _removeDayIfEmpty(groupId, oldDay);
   }
@@ -125,6 +147,23 @@ class ScheduleService {
     final day = (await ref.get()).data()?['day'] as String?;
     await ref.delete();
     if (day != null) await _removeDayIfEmpty(groupId, day);
+  }
+
+  /// Admin only: updates the location, preserving concurrent title/date edits.
+  Future<void> setItemLocation(
+      String groupId, String itemId, TripLocation location) async {
+    if (!location.isValid) throw ArgumentError('Invalid trip location');
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw StateError('Only trip admins can change locations.');
+    await _firestore.runTransaction((transaction) async {
+      final group = Group.fromDoc(await transaction.get(_group(groupId)));
+      if (group.memberById(uid)?.role != GroupRole.admin) {
+        throw StateError('Only trip admins can change locations.');
+      }
+      transaction.update(_items(groupId).doc(itemId), {
+        'location': location.toMap(),
+      });
+    });
   }
 
   /// Admin only: deletes every day doc with nothing planned or suggested on
@@ -147,7 +186,8 @@ class ScheduleService {
   /// delete days, so when a member withdraws the last suggestion the doc
   /// stays; the page hides days without items, so it doesn't show either way.
   Future<void> _removeDayIfEmpty(String groupId, String dayKey) async {
-    final remaining = await _items(groupId).where('day', isEqualTo: dayKey).limit(1).get();
+    final remaining =
+        await _items(groupId).where('day', isEqualTo: dayKey).limit(1).get();
     if (remaining.docs.isNotEmpty) return;
     try {
       await _days(groupId).doc(dayKey).delete();

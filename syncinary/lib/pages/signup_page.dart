@@ -24,6 +24,12 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateMixin{
+  static const _passwordRequirements =
+      'Use at least 8 characters, including a lowercase letter, a number, '
+      'and a special character (e.g. !@#).';
+  // Match Firebase Authentication's non-alphanumeric character requirement.
+  static const _specialCharacters = r'''^$*.[]{}()?"!@#%&/\,><':;|_~`''';
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -114,7 +120,8 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
   String _friendlyError(String code) {
     switch (code) {
       case 'weak-password':
-        return 'The password is too weak. Use at least 8 characters.';
+      case 'password-does-not-meet-requirements':
+        return 'Password does not meet the requirements. $_passwordRequirements';
       case 'email-already-in-use':
         return 'This email address is already registered.';
       case 'invalid-email':
@@ -296,6 +303,9 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                   label: 'Password',
                   prefixIcon: Icons.lock_outline_rounded,
                 ).copyWith(
+                  helperText: _passwordRequirements,
+                  helperMaxLines: 4,
+                  errorMaxLines: 3,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -313,6 +323,15 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                   }
                   if (value.length < 8) {
                     return 'Password must be at least 8 characters';
+                  }
+                  if (!RegExp(r'[a-z]').hasMatch(value)) {
+                    return 'Password must include a lowercase letter';
+                  }
+                  if (!RegExp(r'[0-9]').hasMatch(value)) {
+                    return 'Password must include a number';
+                  }
+                  if (!value.split('').any(_specialCharacters.contains)) {
+                    return 'Password must include a special character (e.g. !@#)';
                   }
                   return null;
                 },

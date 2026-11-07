@@ -48,13 +48,28 @@ Full policy is in `Doc/DevProcesses.md`. Essentials:
 `.github/workflows/ci.yml` runs on every push (any branch), every PR (any
 base) and manual `workflow_dispatch`. Jobs:
 
-- **`flutter`** — in `syncinary/` on Flutter 3.47.2: writes a placeholder
+- **`flutter`** — in `syncinary/` on Flutter 3.47.2 (`FLUTTER_VERSION`): writes a placeholder
   `lib/firebase_options.dart` (the real one is gitignored), then `flutter pub
   get`, `flutter analyze` (any issue, info included, fails), and `flutter test
   --coverage`. `coverage/lcov.info` is uploaded as the `flutter-coverage`
   artifact (no threshold).
 - **`proxy`** — `npm ci`, `npm run lint`, `npm test`, and `npm audit --omit=dev
   --audit-level=high` (see `proxy/AGENTS.md`).
+- **`sbom`** (`SBOM - Syft (CycloneDX)`) — runs `npm ci` in `proxy/`, then
+  Syft over the repo (`.github/` excluded) into a CycloneDX `Doc/SBOM.json`.
+  `.github/scripts/sbom-finish.mjs` adds Dart licenses from pub.dev (Syft has
+  no Dart license lookup), sets Flutter SDK packages to `FLUTTER_VERSION`, and
+  fails if any third-party component lacks a version or a license. Uploaded as
+  the `SBOM` artifact. `FLUTTER_VERSION` is set once at the top of `ci.yml`.
+  Grype then scans `Doc/SBOM.json` and fails on any high or critical
+  vulnerability; its JSON report is uploaded as `grype-results`. The SBOM
+  holds only shipped dependencies (no proxy dev deps), so OSV-Scanner still
+  covers the dev tooling. Analysis: `Doc/SBOM_Vulnerability_Analysis.md`.
+  Ignores live in `.grype.yaml`, each with a reason, scoped to the package,
+  type and `match-type`. Use them only for false positives. Currently: the
+  Unicode-spec CVEs CPE-matched to Dart `unicode` (#206). A `Check Grype
+  ignore rules` step scans `.github/grype-fixtures/` with and without the
+  config, so a rule that stops matching fails CI.
 - **`security`** (`Security - gitleaks`) — gitleaks CLI over the commits new in
   the push or PR. A manual dispatch scans the full history. `.gitleaks.toml`
   adds a `serpapi-key` rule to the defaults and allowlists the exact fake key
@@ -63,7 +78,10 @@ base) and manual `workflow_dispatch`. Jobs:
   On a finding, remove the secret and **rotate it**; don't allowlist it.
 - **`osv`** (`Security - OSV-Scanner`) — checks `syncinary/pubspec.lock` and
   `proxy/package-lock.json` (dev dependencies included) against OSV.dev and
-  fails on any known vulnerability. Fix by upgrading the package.
+  fails on any known vulnerability. Fix by upgrading the package. Only if no
+  fixed version is usable and the advisory isn't exploitable here, add it to
+  `osv-scanner.toml` with a reason and an `ignoreUntil` date (currently:
+  GHSA-g3hv-75wg-m249, dev-only `minimatch` via ESLint, until 2027-02-01).
 - **`codeql`** (`Security - CodeQL`) — CodeQL default security queries for the
   proxy's JavaScript and for the workflow files (`actions`); Dart isn't
   supported. Fails on any finding; results also appear in the Security tab.

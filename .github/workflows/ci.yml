@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Used by the flutter job and recorded in the SBOM.
+  FLUTTER_VERSION: '3.47.2'
+
 jobs:
   flutter:
     name: Flutter (syncinary) - analyze & test
@@ -30,7 +34,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.2'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
@@ -117,6 +121,99 @@ jobs:
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
 
+  sbom:
+    name: SBOM - Syft (CycloneDX)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-sbom-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      # Syft reads npm licenses from the installed packages.
+      - name: Install proxy dependencies
+        working-directory: proxy
+        run: npm ci --ignore-scripts
+
+      # Downloads the Syft CLI and verifies its SHA-256.
+      - name: Install Syft
+        run: |
+          v=1.54.1
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o syft.tar.gz "https://github.com/anchore/syft/releases/download/v${v}/syft_${v}_linux_amd64.tar.gz"
+          echo "c069905b391cc4c20a5ba65ad5c10be2a7ba074f8ea6ad203e24d14e303dad47  syft.tar.gz" | sha256sum -c -
+          tar -xzf syft.tar.gz syft
+
+      # Scans syncinary/pubspec.lock and the proxy's npm packages.
+      # .github/ is skipped: its actions are CI tools, not app dependencies.
+      # Doc/SBOM.json is skipped so the committed SBOM isn't read as input.
+      - name: Generate SBOM
+        env:
+          SYFT_FILE_METADATA_SELECTION: none
+        run: |
+          version=$(grep '^version:' syncinary/pubspec.yaml | awk '{print $2}')
+          "$RUNNER_TEMP/syft" dir:. \
+            --exclude './.github/**' \
+            --exclude './Doc/SBOM.json' \
+            --source-name Syncinary --source-version "$version" \
+            -o cyclonedx-json=Doc/SBOM.json
+
+      # Adds Dart licenses from pub.dev and fails if any component lacks a version or license.
+      - name: Add Dart licenses and check SBOM
+        run: node .github/scripts/sbom-finish.mjs Doc/SBOM.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: SBOM
+          path: Doc/SBOM.json
+          if-no-files-found: error
+
+      # Downloads the Grype CLI and verifies its SHA-256.
+      - name: Install Grype
+        run: |
+          v=0.120.1
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o grype.tar.gz "https://github.com/anchore/grype/releases/download/v${v}/grype_${v}_linux_amd64.tar.gz"
+          echo "0a9ee97ef5ae2ee953b0a80098105052e846cdbe319a57d808b519c33cd1343d  grype.tar.gz" | sha256sum -c -
+          tar -xzf grype.tar.gz grype
+
+      # Regression check for the .grype.yaml ignores (#206): the fixture SBOM holds only
+      # Dart unicode 1.1.9. Without the config it must fail on both CVEs; with it, pass.
+      # The bare run is from $RUNNER_TEMP so Grype doesn't pick up ./.grype.yaml.
+      - name: Check Grype ignore rules
+        run: |
+          fixture="$GITHUB_WORKSPACE/.github/grype-fixtures/unicode-pub.cdx.json"
+          ids='["CVE-2021-42574","CVE-2021-42694"]'
+          if (cd "$RUNNER_TEMP" && ./grype "sbom:$fixture" --fail-on high -q -o json=bare.json); then
+            echo "::error::Fixture no longer triggers the CVEs; the ignore may be stale"; exit 1
+          fi
+          jq -e --argjson ids "$ids" '[.matches[].vulnerability.id] | contains($ids)' "$RUNNER_TEMP/bare.json"
+          "$RUNNER_TEMP/grype" "sbom:$fixture" --config .grype.yaml --fail-on high -q -o json="$RUNNER_TEMP/ignored.json"
+          jq -e --argjson ids "$ids" '[.ignoredMatches[].vulnerability.id] | contains($ids)' "$RUNNER_TEMP/ignored.json"
+
+      # Checks every SBOM component against Grype's vulnerability database.
+      # Fails on high or critical findings, like the proxy's npm audit.
+      # Ignores (each with a reason) are in .grype.yaml.
+      - name: Scan SBOM with Grype
+        run: |
+          "$RUNNER_TEMP/grype" sbom:Doc/SBOM.json --config .grype.yaml --fail-on high -o table -o json=grype.json
+
+      - name: Upload Grype results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: grype-results
+          path: grype.json
+          if-no-files-found: ignore
+
   security:
     name: Security - gitleaks
     runs-on: ubuntu-latest
@@ -192,8 +289,9 @@ jobs:
           chmod +x osv-scanner
 
       # Fails on any known vulnerability in either lockfile, dev dependencies included.
+      # osv-scanner.toml lists ignored advisories, each with a reason and an expiry.
       - name: Scan lockfiles
-        run: ./osv-scanner scan source -L syncinary/pubspec.lock -L proxy/package-lock.json
+        run: ./osv-scanner scan source --config osv-scanner.toml -L syncinary/pubspec.lock -L proxy/package-lock.json
 
   codeql:
     name: Security - CodeQL (${{ matrix.language }})
