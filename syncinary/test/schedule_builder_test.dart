@@ -277,7 +277,8 @@ void main() {
       (tester) async {
     final firestore = FakeFirebaseFirestore();
     final service = _service(firestore);
-    await service.addDay('nyc', DateTime(2026, 5, 3));
+    await service.addItem('nyc',
+        date: DateTime(2026, 5, 3), type: ScheduleItemType.activity, title: 'Arrive in NYC');
 
     await tester.pumpWidget(
       makeTestableWidget(ScheduleBuilderPage(group: _nycGroup(), service: service)),
@@ -316,7 +317,7 @@ void main() {
     expect(find.text('UA 123, ORD → JFK'), findsOneWidget);
     expect(find.text('Empire State Building'), findsOneWidget);
     expect(find.text('No flights added yet.'), findsNothing);
-    expect(find.text('Added by you'), findsNWidgets(3));
+    expect(find.text('Added by you'), findsNWidgets(4)); // + the seeded activity
 
     final stored = await firestore.collection('groups').doc('nyc').collection('scheduleItems').get();
     expect(stored.docs.map((d) => d.data()['type']), containsAll(['hotel', 'flight', 'activity']));
@@ -387,7 +388,8 @@ void main() {
   testWidgets('[101-4] Picking a new date creates that day and opens it', (tester) async {
     final firestore = FakeFirebaseFirestore();
     final service = _service(firestore);
-    await service.addDay('nyc', DateTime(2026, 5, 3));
+    await service.addItem('nyc',
+        date: DateTime(2026, 5, 3), type: ScheduleItemType.activity, title: 'Arrive in NYC');
 
     await tester.pumpWidget(
       makeTestableWidget(ScheduleBuilderPage(group: _nycGroup(), service: service)),
@@ -505,5 +507,106 @@ void main() {
         findsOneWidget);
     final items = await firestore.collection('groups').doc('nyc').collection('scheduleItems').get();
     expect(items.docs, isEmpty);
+  });
+
+  testWidgets('[101-4] Removing the last item on a day removes the day', (tester) async {
+    final firestore = FakeFirebaseFirestore();
+    final service = _service(firestore);
+    await service.addItem('nyc',
+        date: DateTime(2026, 5, 3), type: ScheduleItemType.hotel, title: 'Hilton, Times Square');
+    await service.addItem('nyc',
+        date: DateTime(2026, 5, 4), type: ScheduleItemType.activity, title: 'Statue of Liberty');
+
+    await tester.pumpWidget(
+      makeTestableWidget(ScheduleBuilderPage(group: _nycGroup(), service: service)),
+    );
+    await tester.pumpAndSettle();
+
+    final hotelCard = _dayPlanCard('Hilton, Times Square');
+    await tester.ensureVisible(hotelCard);
+    await tester.tap(find.descendant(of: hotelCard, matching: find.byTooltip('Remove')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove').last);
+    await tester.pumpAndSettle();
+
+    // May 3rd is gone; the Day Plan moves to the next day.
+    final dropdown = find.byKey(const ValueKey('day-plan-dropdown'));
+    expect(find.descendant(of: dropdown, matching: find.text('Monday, May 4th')), findsOneWidget);
+    expect(find.text('Sunday, May 3rd'), findsNothing);
+    final days = await firestore.collection('groups').doc('nyc').collection('scheduleDays').get();
+    expect(days.docs.map((d) => d.id), ['2026-05-04']);
+  });
+
+  testWidgets('[101-4] A day with only a suggestion shows; a day with nothing on it does not',
+      (tester) async {
+    final firestore = FakeFirebaseFirestore();
+    final admin = _service(firestore);
+    await admin.addDay('nyc', DateTime(2026, 5, 2)); // empty leftover day doc
+    await _service(firestore, uid: 'alex-uid').addItem('nyc',
+        date: DateTime(2026, 5, 3),
+        type: ScheduleItemType.activity,
+        title: 'MoMA',
+        status: ScheduleItemStatus.suggested);
+
+    await tester.pumpWidget(
+        makeTestableWidget(ScheduleBuilderPage(group: _rolesGroup(), service: admin)));
+    await tester.pumpAndSettle();
+
+    final dropdown = find.byKey(const ValueKey('day-plan-dropdown'));
+    expect(find.descendant(of: dropdown, matching: find.text('Sunday, May 3rd')), findsOneWidget);
+    expect(find.text('Saturday, May 2nd'), findsNothing);
+
+    // ── Rejecting the only suggestion empties May 3rd, so it goes too ──
+    final reject = find.descendant(of: _suggestionCard('MoMA'), matching: find.byTooltip('Reject'));
+    await tester.ensureVisible(reject);
+    await tester.tap(reject);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reject').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sunday, May 3rd'), findsNothing);
+    expect(find.text('Nothing planned yet. Add a flight, hotel, or activity to start the schedule.'),
+        findsOneWidget);
+    final days = await firestore.collection('groups').doc('nyc').collection('scheduleDays').get();
+    expect(days.docs.map((d) => d.id), isNot(contains('2026-05-03')));
+  });
+
+  testWidgets('[501-10] Opening the page as admin deletes leftover empty days; as a member it does not',
+      (tester) async {
+    final firestore = FakeFirebaseFirestore();
+    final admin = _service(firestore);
+    await admin.addDay('nyc', DateTime(2027, 1, 4)); // empty leftover
+    await admin.addItem('nyc',
+        date: DateTime(2026, 5, 3), type: ScheduleItemType.hotel, title: 'Hilton, Times Square');
+    final daysRef = firestore.collection('groups').doc('nyc').collection('scheduleDays');
+
+    // ── Member: leaves it (the rules wouldn't let them delete it anyway) ──
+    await tester.pumpWidget(makeTestableWidget(
+        ScheduleBuilderPage(group: _rolesGroup(), service: _service(firestore, uid: 'alex-uid'))));
+    await tester.pumpAndSettle();
+    expect((await daysRef.get()).docs.map((d) => d.id), containsAll(['2026-05-03', '2027-01-04']));
+
+    // ── Admin: cleans it up, keeps the day with an item ──
+    await tester.pumpWidget(const SizedBox()); // dispose the member's page
+    await tester.pumpWidget(
+        makeTestableWidget(ScheduleBuilderPage(group: _rolesGroup(), service: admin)));
+    await tester.pumpAndSettle();
+    expect((await daysRef.get()).docs.map((d) => d.id), ['2026-05-03']);
+  });
+
+  test('[101-4] Moving an item to another date removes the day it left if now empty', () async {
+    final firestore = FakeFirebaseFirestore();
+    final service = _service(firestore);
+    await service.addItem('nyc',
+        date: DateTime(2026, 5, 3), type: ScheduleItemType.activity, title: 'MoMA');
+    await service.addItem('nyc',
+        date: DateTime(2026, 5, 4), type: ScheduleItemType.activity, title: 'Statue of Liberty');
+    final moma = (await _itemsRef(firestore).where('title', isEqualTo: 'MoMA').get()).docs.single;
+
+    await service.updateItem('nyc', moma.id,
+        date: DateTime(2026, 5, 4), title: 'MoMA', details: '');
+
+    final days = await firestore.collection('groups').doc('nyc').collection('scheduleDays').get();
+    expect(days.docs.map((d) => d.id), ['2026-05-04']);
   });
 }
