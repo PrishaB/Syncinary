@@ -127,8 +127,90 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   void _openSearch(SearchType searchType) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => itinerary_builder(initialSearchType: searchType)),
+      MaterialPageRoute(
+        builder: (_) => itinerary_builder(
+          initialSearchType: searchType,
+          onFlightSelected: _addSelectedFlight,
+        ),
+      ),
     );
+  }
+
+  Future<void> _addSelectedFlight(
+    Map<String, dynamic> offer,
+  ) async {
+    try {
+      final flights = offer['flights'] as List<dynamic>? ?? [];
+
+      if (flights.isEmpty) {
+        throw Exception('No flight details available.');
+      }
+
+      final first = flights.first;
+      final last = flights.last;
+
+      final departure = first['departure_airport'];
+      final arrival = last['arrival_airport'];
+
+      final origin = departure?['id']?.toString() ?? 'Unknown';
+      final destination = arrival?['id']?.toString() ?? 'Unknown';
+
+      final departureTime = departure?['time']?.toString();
+      final arrivalTime = arrival?['time']?.toString();
+
+      if (departureTime == null ||
+          DateTime.tryParse(departureTime) == null) {
+        throw Exception('Flight departure date is missing or invalid.');
+      }
+
+      final date = DateTime.parse(departureTime);
+      final airline = first['airline']?.toString() ?? 'Unknown airline';
+      final flightNumber =
+          first['flight_number']?.toString() ?? '';
+
+      final price = offer['price']?.toString() ?? 'N/A';
+      final stops = flights.length - 1;
+
+      final title = '$airline $flightNumber: $origin → $destination';
+
+      final details = [
+        'Departure: $departureTime',
+        'Arrival: ${arrivalTime ?? 'Unknown'}',
+        'Stops: $stops',
+        'Listed price: \$$price',
+      ].join('\n');
+
+      final suggest = !_isAdmin;
+
+      await _service.addItem(
+        _groupId,
+        date: date,
+        type: ScheduleItemType.flight,
+        title: title,
+        details: details,
+        status: suggest
+            ? ScheduleItemStatus.suggested
+            : ScheduleItemStatus.approved,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _selectedDayKey = scheduleDayKey(date);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            suggest
+                ? 'Flight suggested for admin approval.'
+                : 'Flight added to itinerary!',
+          ),
+        ),
+      );
+    } catch (e) {
+  rethrow;
+    }
   }
 
   /// Adds an item on the date picked in the dialog (defaulting to the day open
