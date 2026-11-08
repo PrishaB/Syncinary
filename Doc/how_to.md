@@ -7,7 +7,7 @@ This guide provides step-by-step instructions for completing common tasks in Syn
 
 # 1. End-User How-To Guides
 
-## 1.1 How to Create a New Trip
+## 1.1 How to Create a New Trip?
 
 ### Purpose
 Create a new group in Syncinary to organize and plan a trip.
@@ -29,7 +29,7 @@ The new group appears on the **My Groups** page and can be opened to begin plann
 ---
 
 
-## 1.2 How to Invite Members to a Trip
+## 1.2 How to Invite Members to a Trip?
 
 ### Purpose
 Invite other users to join an existing Syncinary group to plan a trip together.
@@ -68,7 +68,7 @@ The invited user successfully joins the group after accepting the invitation or 
 
 
 
-## 1.3 How to Split Trip Expenses
+## 1.3 How to Split Trip Expenses?
 
 ### Purpose
 Add and split trip expenses among group members using equal or custom percentage splits.
@@ -97,14 +97,15 @@ The expense is added to the group's **Cost Splitter**, and the total cost and ea
 ---
 
 
-## 1.4 How to Add Activities, Flights, and Hotels to an Itinerary
+## 1.4 How to Add Activities/Flights/Hotels to an Itinerary?
 
 ---
 
 # 2. Developer How-To Guides
 
 
-## 2.1 How to Set Up and Run the Flutter Application
+
+## 2.1 How to Set Up and Run the Flutter Application?
 
 ### Purpose
 Set up the Flutter development environment and run the Syncinary application locally.
@@ -113,8 +114,8 @@ Set up the Flutter development environment and run the Syncinary application loc
 - Flutter SDK (version 3.47.2) is installed.
 - Git is installed.
 - A compatible IDE, such as VS Code, is available.
-- The developer has access to the Syncinary GitHub repository.
-- The required Firebase configuration is available.
+- The FlutterFire CLI is installed.
+- The developer has access to the Syncinary GitHub repository and Firebase project `syncinary-48881`.
 
 ### Steps
 1. Clone the Syncinary repository:
@@ -135,9 +136,15 @@ Set up the Flutter development environment and run the Syncinary application loc
    flutter pub get
    ```
 
-4. Configure Firebase by ensuring that the project's `lib/firebase_options.dart` file is available with the correct Firebase settings.
+4. Generate the Firebase configuration file:
 
-5. Verify that Flutter is configured correctly:
+   ```bash
+   flutterfire configure --project=syncinary-48881
+   ```
+
+   This generates `lib/firebase_options.dart`, which is required to run the application.
+
+5. Verify the Flutter installation:
 
    ```bash
    flutter doctor
@@ -151,15 +158,14 @@ Set up the Flutter development environment and run the Syncinary application loc
 
 7. Select an available device or browser if prompted.
 
-8. To enable flight and hotel search functionality, start the backend proxy server using the instructions in Section 2.2.
+8. To enable flight and hotel searches, start the backend proxy server by following Section 2.2.
 
 ### Expected Result
-The Syncinary application launches successfully on the selected device or browser. Users can access the application, and flight and hotel searches are available when the backend proxy server is running.
+The Syncinary application launches successfully on the selected device or browser with Firebase Authentication and Cloud Firestore configured. Flight and hotel searches are available when the backend proxy server is running.
 
 ---
 
-
-## 2.2 How to Set Up and Run the Backend Proxy Server
+## 2.2 How to Set Up and Run the Backend Proxy Server?
 
 ### Purpose
 Set up and run the Node.js backend proxy server locally to support flight and hotel searches in Syncinary.
@@ -205,7 +211,7 @@ The backend proxy server runs locally and is available at `http://localhost:3000
 
 ---
 
-## 2.3 How to Run Backend API Tests
+## 2.3 How to Run Backend API Tests?
 
 ### Purpose
 Run automated tests to verify the functionality of the Syncinary backend API.
@@ -238,3 +244,4 @@ Run automated tests to verify the functionality of the Syncinary backend API.
 The terminal displays the results of the backend tests, including the number of tests passed, failed, and skipped. A successful test run completes without failures.
 
 ---
+## 2.4 How to
