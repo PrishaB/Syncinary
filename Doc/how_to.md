@@ -19,9 +19,12 @@ Create a new group in Syncinary to organize and plan a trip.
 ### Steps
 1. Navigate to the **My Groups** page.
 2. Click **Add Group** at the bottom of the page.
+![Add Groups page](howto_images/1_1_1.jpg)
 3. In the **New Group** dialog, enter a name in the **Group name** field.
 4. Click **Create** to create the group.
+![New Groups page](howto_images/1_1_2.jpg)
 5. Select the newly created group from the **My Groups** page to open it.
+![My Groups page](howto_images/1_1_3.jpg)
 
 ### Expected Result
 The new group appears on the **My Groups** page and can be opened to begin planning the trip.
@@ -44,22 +47,28 @@ Invite other users to join an existing Syncinary group to plan a trip together.
 **Sending an Invitation**
 1. Navigate to the **My Groups** page and select the group.
 2. Open the **Invite Members** dialog.
+![Invite_Members page](howto_images/1_2_2.jpg)
 3. Enter the user's email address in the **Add User by Email** field.
 4. Select the user's role (**User** or **Admin**) from the dropdown menu.
 5. Click **Send Invite** to send the invitation.
+![Invite_page](howto_images/1_2_3.jpg)
 6. A confirmation message appears indicating that the invitation was sent.
+![Invite_confirmation](howto_images/1_2_4.jpg)
 
 **Sharing an Invite Link**
 1. Open the **Invite Members** dialog.
 2. Click the copy icon next to the invite link.
 3. Share the copied link with the person you want to invite.
+![Invite_link](howto_images/1_2_5.jpg)
 
 **Accepting an Invitation**
 1. Log into Syncinary and navigate to **My Groups**.
 2. Click **Join Group**.
-3. Under **Pending Group Invites**, locate the invitation.
-4. Click the checkmark icon to accept the invitation.
-5. Alternatively, enter a valid invite code under **Join Through Invite Code** and click **Join**.
+![Join_group](howto_images/1_2_6.jpg)
+4. Under **Pending Group Invites**, locate the invitation.
+5. Click the checkmark icon to accept the invitation.
+![Accept_group](howto_images/1_2_7.jpg)
+7. Alternatively, enter a valid invite code under **Join Through Invite Code** and click **Join**.
 
 ### Expected Result
 The invited user successfully joins the group after accepting the invitation or entering a valid invite code. The group becomes available in their **My Groups** page.
@@ -81,15 +90,18 @@ Add and split trip expenses among group members using equal or custom percentage
 ### Steps
 1. Open **My Groups** and select the group.
 2. Navigate to the **Cost Splitter** page.
+![Cost_Splitter](howto_images/1_3_1.jpg)
 3. Under **Add a custom expense**, enter a description in the **Expense Name** field.
 4. Enter the expense amount in the **Cost** field.
 5. Select the group members who will share the expense.
 6. Choose how to divide the expense:
    - **Equal Split:** Divide the cost equally among the selected members.
    - **Custom Split:** Assign specific percentages to each member.
+![Expense](howto_images/1_3_2.jpg)
 7. Click **Add** to save the expense.
 8. Review the **Itemized Breakdown** to see each member's share of the expense.
 9. Check the **By Person** section to view the total expenses allocated to each group member.
+![Final_expense_page](howto_images/1_3_3.jpg)
 
 ### Expected Result
 The expense is added to the group's **Cost Splitter**, and the total cost and each member's allocated share are updated.
