@@ -34,7 +34,7 @@ class flight_search extends StatefulWidget {
 
   /// Called when a flight is added to the itinerary.
   /// Without a callback, the Add to Itinerary button is disabled.
-  final ValueChanged<Map<String, dynamic>>? onFlightSelected;
+  final Future<void> Function(Map<String, dynamic>)? onFlightSelected;
 
   /// True when this screen is showing return-leg options for a round trip
   /// (as opposed to the initial outbound-leg list). Tapping a card here
@@ -56,6 +56,28 @@ class _flightSearchState extends State<flight_search> {
 
   bool get _isRoundTripOutbound =>
       widget.returnDate != null && !widget.isReturnLeg;
+
+  Future<void> _addFlightToItinerary(dynamic offer) async {
+    if (_busy || widget.onFlightSelected == null) return;
+    if (offer is! Map) return;
+
+    setState(() => _busy = true);
+
+    try {
+      await widget.onFlightSelected!(
+        Map<String, dynamic>.from(offer),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not add flight: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
 
   Future<void> _handleOfferTap(dynamic offer) async {
     if (_busy) return;
@@ -265,9 +287,7 @@ class _flightSearchState extends State<flight_search> {
                                  onSelect: () => _handleOfferTap(offer),
                                  onAddToItinerary: widget.onFlightSelected == null || offer is! Map
                                      ? null
-                                     : () => widget.onFlightSelected!(
-                                           Map<String, dynamic>.from(offer),
-                                         ),
+                                     : () => _addFlightToItinerary(offer),
                                ),
                              );
                            },

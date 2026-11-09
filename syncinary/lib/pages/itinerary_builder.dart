@@ -15,10 +15,15 @@ import '../widgets/airport_search_field.dart';
 enum SearchType { flights, hotels }
  
 class itinerary_builder extends StatefulWidget {
-  const itinerary_builder({super.key, this.initialSearchType = SearchType.flights});
+  const itinerary_builder({
+    super.key,
+    this.initialSearchType = SearchType.flights,
+    this.onFlightSelected,
+  });
 
   /// Which way the Flights/Hotels toggle on the last step starts out.
   final SearchType initialSearchType;
+  final Future<void> Function(Map<String, dynamic>)? onFlightSelected;
 
   @override
   State<itinerary_builder> createState() => _itineraryState();
@@ -512,6 +517,7 @@ class _itineraryState extends State<itinerary_builder> {
           departureDate: departureDateStr,
           returnDate: returnDateStr,
           adults: _passengers,
+          onFlightSelected: widget.onFlightSelected,
         ),
       ),
     );
