@@ -8,14 +8,14 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "express-rate-limit": "^8.7.0",
+    "express-rate-limit": "^8.7.3",
     "firebase-admin": "^14.5.0",
     "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
     "eslint": "^9.9.0",
-    "globals": "^17.12.0"
+    "globals": "^17.14.0"
   },
   "overrides": {
     "glob": "^14.0.2"
