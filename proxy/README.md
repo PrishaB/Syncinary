@@ -1,8 +1,6 @@
 # Syncinary proxy
 
-Small Express backend. It keeps API keys off the client: it proxies flight,
-hotel and place search to SerpApi and airport search to Google Places, and it
-runs the Gemini recommendation pipeline behind `POST /recommendations`.
+Small Express backend. `server.js` proxies flight search to SerpApi.
 
 ## Production releases (Cloud Run)
 
@@ -74,23 +72,6 @@ set `GOOGLE_MAPS_API_KEY` in `proxy/.env` and start the proxy with
 `node --env-file=.env server.js`. Cloud Run reads Secret Manager, not `.env`.
 See Google's [Places setup guide](https://developers.google.com/maps/documentation/places/web-service/get-api-key).
 
-`POST /recommendations` needs two more things on Cloud Run. First, create a
-Secret Manager secret named `GEMINI_API_KEY` containing a Gemini API key from
-[Google AI Studio](https://aistudio.google.com/apikey). Second, let the runtime
-account read Firestore (the route loads the group and its members' preferences):
-
-```bash
-gcloud secrets add-iam-policy-binding GEMINI_API_KEY --project="$PROJECT" \
-  --member="serviceAccount:$RUNTIME" --role=roles/secretmanager.secretAccessor
-gcloud projects add-iam-policy-binding "$PROJECT" \
-  --member="serviceAccount:$RUNTIME" --role=roles/datastore.viewer
-```
-
-Firebase Admin uses the runtime account's credentials, so no key file is
-needed on Cloud Run. The workflow sets `FIREBASE_PROJECT_ID` (for ID-token
-checks) and `TRUST_PROXY_HOPS=1` (so the per-IP rate limit sees client
-addresses, not Cloud Run's front end).
-
 The workflow injects the latest secret version into the running container.
 After rotating it, deploy a new release to replace running instances.
 Keep the existing `FIREBASE_OPTIONS_DART` GitHub secret configured for Flutter.
@@ -112,10 +93,8 @@ analysis and tests before deployment. It deploys a tagged Cloud Run revision
 with `--no-traffic`, then checks its tagged URL before promoting it. It requests
 `/hotels` without parameters and expects HTTP 400; this checks reachability
 without making a billed SerpApi call. It also checks `/airports?q=IND` to verify
-the packaged airport router and catalog without calling Google. It then posts
-to `/recommendations` without an ID token and expects HTTP 401, which checks
-the route exists without touching Firestore or Gemini. Only after
-all three checks pass does it send production traffic to that exact revision and
+the packaged airport router and catalog without calling Google. Only after
+both checks pass does it send production traffic to that exact revision and
 remove the test tag. A failed smoke check leaves existing production traffic
 unchanged. It then builds and publishes the web app with the stable service URL.
 This does not verify the Maps key: check a
@@ -126,15 +105,10 @@ Cloud Run and Hosting updates are sequential, not atomic: if the web build or
 Hosting deployment fails, the new proxy revision remains live. Keep proxy
 routes compatible with the previous frontend release.
 
-The search routes are public and unauthenticated. Anyone who knows the URL can
-consume the SerpApi quota; the three-instance limit is not a request quota.
-Only `/recommendations` requires a Firebase ID token and is rate-limited. The
-smoke checks don't verify the Gemini key or Firestore access: after a release,
-open a group's Schedule Builder in the deployed app and check that the AI
-Advisor shows suggestions. The app shows only "Couldn't load suggestions." for
-any server-side failure; check the Cloud Run logs or the `/recommendations`
-response's `error` field (`missing_api_key`, `upstream_error`) to tell a
-missing Gemini key from missing Firestore access.
+The current proxy has public, unauthenticated search routes. Anyone who knows
+the URL can consume the SerpApi quota; the three-instance limit is not a
+request quota. Authentication and rate limiting are separate backend work.
+The `/recommendations` route is not implemented yet; deploying does not add it.
 
 ## `llmDataFilter.js`
 
