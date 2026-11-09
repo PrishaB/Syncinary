@@ -88,7 +88,8 @@ jobs:
             --source=. \
             --build-service-account="projects/$GOOGLE_CLOUD_PROJECT/serviceAccounts/syncinary-proxy-build@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
             --service-account="syncinary-proxy-runtime@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
-            --set-secrets=SERPAPI_KEY=SERPAPI_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest \
+            --set-secrets=SERPAPI_KEY=SERPAPI_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest \
+            --set-env-vars="FIREBASE_PROJECT_ID=$GOOGLE_CLOUD_PROJECT,TRUST_PROXY_HOPS=1" \
             --port=8080 \
             --allow-unauthenticated \
             --min-instances=0 \
@@ -116,6 +117,14 @@ jobs:
           # Known IATA codes exercise the airport router and catalog without a Google API call.
           curl --fail --silent --show-error --max-time 60 "$smoke_url/airports?q=IND" \
             | jq -e '.airports | any(.code == "IND")' > /dev/null
+          # /recommendations must exist and reject a request without an ID token,
+          # before any Firestore or Gemini work.
+          status=$(curl --silent --show-error --max-time 60 --output /dev/null --write-out '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' "$smoke_url/recommendations")
+          if [ "$status" != 401 ]; then
+            echo "::error::Recommendations smoke check expected HTTP 401, received $status."
+            exit 1
+          fi
           # Promote only the revision that passed both checks, then remove its test tag.
           gcloud run services update-traffic "$CLOUD_RUN_SERVICE" \
             --project="$GOOGLE_CLOUD_PROJECT" \
