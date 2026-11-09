@@ -8,9 +8,12 @@ import '../models/recommendation.dart';
 /// Error codes a `/recommendations` call can fail with. Mirrors the `reason`
 /// values from `proxy/llmDataFilter.js` (`allowed:false`), the codes from
 /// `proxy/recommendationPrompt.js` (`PROMPT_ERRORS`/`RESPONSE_ERRORS`) and
-/// `proxy/geminiClient.js` (`GEMINI_ERRORS`), plus two client-only codes for
-/// failures the proxy never gets a chance to report.
+/// `proxy/geminiClient.js` (`GEMINI_ERRORS`), the route's own
+/// `unauthenticated`, plus two client-only codes for failures the proxy never
+/// gets a chance to report.
 abstract final class RecommendationError {
+  // recommendationRoute.js: missing/invalid Firebase ID token
+  static const unauthenticated = 'unauthenticated';
   // llmDataFilter.js `reason`
   static const invalidInput = 'invalid_input';
   static const unknownGroup = 'unknown_group';
@@ -47,32 +50,41 @@ class RecommendationFailure extends RecommendationResult {
   final String message;
 }
 
-/// What an FR-104 suggestion request is grounded in for one search: the
-/// travel results already fetched, plus the trip's group. Every request is
+/// What an FR-104 suggestion request is grounded in: the trip's group, plus
+/// optionally the search and travel results already fetched. Every request is
 /// on behalf of a group — there is no personal/groupless recommendation
 /// (the team decided against building that path; see issue #87).
+///
+/// With no search fields the proxy grounds the request in the group alone.
 class SearchContext {
   const SearchContext({
-    required this.origin,
-    required this.destination,
-    required this.departureDate,
+    this.origin,
+    this.destination,
+    this.departureDate,
     required this.groupId,
     this.travelResults = const [],
   });
 
-  final String origin;
-  final String destination;
-  final String departureDate;
+  final String? origin;
+  final String? destination;
+  final String? departureDate;
   final String groupId;
   final List<dynamic> travelResults;
+
+  /// Whether [other] would send the same request, so callers can skip a
+  /// refetch (each one is a billed Gemini call) when nothing changed.
+  bool sameRequestAs(SearchContext other) =>
+      groupId == other.groupId &&
+      origin == other.origin &&
+      destination == other.destination &&
+      departureDate == other.departureDate &&
+      jsonEncode(travelResults) == jsonEncode(other.travelResults);
 }
 
 /// Calls the proxy's `/recommendations` endpoint for FR-104 travel
-/// suggestions. That route doesn't exist yet (#46) — every call fails with
-/// [RecommendationError.unreachable] until a follow-up issue wires it up to
-/// `llmDataFilter.js` -> `recommendationPrompt.js` -> `geminiClient.js`. This
-/// class exists so the UI has a stable, testable contract to build against
-/// in the meantime.
+/// suggestions. The route runs `llmDataFilter.js` -> `recommendationPrompt.js`
+/// -> `geminiClient.js`; if the proxy isn't running the call fails with
+/// [RecommendationError.unreachable].
 ///
 /// Preferences, budget, available dates and search history are never sent
 /// from the client — `llmDataFilter.buildRecommendationPayload` is designed
@@ -84,7 +96,8 @@ class SearchContext {
 /// [SearchContext.groupId] is required, matching `buildRecommendationPayload`,
 /// which rejects a request with no group. A caller with no group to attach
 /// (e.g. `itinerary_builder.dart` today) should not build a `SearchContext`
-/// at all rather than invent one.
+/// at all rather than invent one. Absent or empty search fields are left out of
+/// the request, since a blank one would count as a real search server-side.
 ///
 /// `client`, `baseUrl` and `idTokenProvider` are all injectable so tests can
 /// supply a `MockClient` and a fake token without touching Firebase.
@@ -124,12 +137,16 @@ class RecommendationService {
 
   Future<RecommendationResult> fetchRecommendations(SearchContext context) async {
     final token = await _idTokenProvider();
+    final origin = context.origin;
+    final destination = context.destination;
+    final startDate = context.departureDate;
     final body = jsonEncode({
       'groupId': context.groupId,
       'search': {
-        'destination': context.destination,
-        'startDate': context.departureDate,
-        'query': '${context.origin} to ${context.destination}',
+        if (destination != null && destination.isNotEmpty) 'destination': destination,
+        if (startDate != null && startDate.isNotEmpty) 'startDate': startDate,
+        if (origin != null && origin.isNotEmpty && destination != null && destination.isNotEmpty)
+          'query': '$origin to $destination',
       },
       'travelResults': _reduceTravelResults(context.travelResults),
     });
