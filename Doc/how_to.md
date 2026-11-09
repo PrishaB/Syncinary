@@ -109,9 +109,31 @@ The expense is added to the group's **Cost Splitter**, and the total cost and ea
 ---
 
 
-## 1.4 How to Add Activities/Flights/Hotels to an Itinerary?
+## 1.4 How to Add Activities to an Itinerary?
+
+### Purpose
+Add activities to a group's trip itinerary to organize travel plans.
+
+### Preconditions
+- The user is logged into Syncinary.
+- The user belongs to an existing group.
+- A trip itinerary is available for the group.
+
+### Steps
+1. Navigate to **My Groups** and select the group.
+![My_Groups](howto_images/1_1_3.jpg)
+2. Open the group's **Plan Itinerary** page.
+4. Select the option to add an activity.
+5. Enter the activity details, including its name, date, and time.
+6. Save the activity to the itinerary.
+7. Verify that the activity appears in the itinerary.
+
+### Expected Result
+The activity appears in the group's itinerary with its details, allowing group members to view the planned activity.
 
 ---
+
+
 
 # 2. Developer How-To Guides
 
@@ -256,4 +278,42 @@ Run automated tests to verify the functionality of the Syncinary backend API.
 The terminal displays the results of the backend tests, including the number of tests passed, failed, and skipped. A successful test run completes without failures.
 
 ---
-## 2.4 How to
+## 2.4 How to Run Flutter Widget Tests?
+
+### Purpose
+Run automated Flutter tests to verify the functionality of the Syncinary application's user interface.
+
+### Preconditions
+- Flutter SDK is installed.
+- The Syncinary repository is available locally.
+- Flutter dependencies have been installed using `flutter pub get`.
+
+### Steps
+1. Open a terminal and navigate to the Flutter application directory:
+
+   ```bash
+   cd syncinary
+   ```
+
+2. Run the Flutter test suite:
+
+   ```bash
+   flutter test --coverage
+   ```
+
+3. Wait for the tests to complete.
+
+4. Review the terminal output to identify passed and failed tests.
+
+5. Check the generated coverage file:
+
+   ```text
+   coverage/lcov.info
+   ```
+
+6. If any tests fail, review the reported errors and the corresponding test files in the `test/` directory.
+
+### Expected Result
+The Flutter test suite completes without failures, and a coverage report is generated at `coverage/lcov.info`.
+
+---
