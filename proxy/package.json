@@ -17,6 +17,9 @@
     "eslint": "^9.9.0",
     "globals": "^17.12.0"
   },
+  "overrides": {
+    "glob": "^14.0.2"
+  },
   "engines": {
     "node": ">=22"
   }
