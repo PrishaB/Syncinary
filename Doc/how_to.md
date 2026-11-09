@@ -65,10 +65,10 @@ Invite other users to join an existing Syncinary group to plan a trip together.
 1. Log into Syncinary and navigate to **My Groups**.
 2. Click **Join Group**.
 ![Join_group](howto_images/1_2_6.jpg)
-4. Under **Pending Group Invites**, locate the invitation.
-5. Click the checkmark icon to accept the invitation.
+3. Under **Pending Group Invites**, locate the invitation.
+4. Click the checkmark icon to accept the invitation.
 ![Accept_group](howto_images/1_2_7.jpg)
-7. Alternatively, enter a valid invite code under **Join Through Invite Code** and click **Join**.
+5. Alternatively, enter a valid invite code under **Join Through Invite Code** and click **Join**.
 
 ### Expected Result
 The invited user successfully joins the group after accepting the invitation or entering a valid invite code. The group becomes available in their **My Groups** page.
@@ -123,10 +123,14 @@ Add activities to a group's trip itinerary to organize travel plans.
 1. Navigate to **My Groups** and select the group.
 ![My_Groups](howto_images/1_1_3.jpg)
 2. Open the group's **Plan Itinerary** page.
-4. Select the option to add an activity.
-5. Enter the activity details, including its name, date, and time.
-6. Save the activity to the itinerary.
-7. Verify that the activity appears in the itinerary.
+![Itinerary](howto_images/1_4_2.jpg)
+3. Select the option to add an activity.
+![Add_Activity](howto_images/1_4_3.jpg)
+4. Enter the activity details, including its name, date, and time.
+![Activity_details](howto_images/1_4_4.jpg)
+5. Save the activity to the itinerary.
+6. Verify that the activity appears in the itinerary.
+![Activity](howto_images/1_4_5.jpg)
 
 ### Expected Result
 The activity appears in the group's itinerary with its details, allowing group members to view the planned activity.
