@@ -179,6 +179,7 @@ Team: Ethan Bar, Prisha Boreddy, Jack Burky, Shubhi Agarwal
 | `addDay` | `Future<void> (String groupId, DateTime date)` |
 | `deleteDay` | `Future<void> (String groupId, String dayKey)` |
 | `addItem` | `Future<void> (String groupId, {required DateTime date, required ScheduleItemType type, required String title, String details = '', ScheduleItemStatus status = approved})` |
+| `addItems` | `Future<void> (String groupId, List<PendingScheduleItem> items, {required ScheduleItemStatus status, required String sourceDestination})` — one atomic batch with the days it needs; throws `ArgumentError` over 500 writes |
 | `approveItem` | `Future<void> (String groupId, String itemId)` — sets `status: approved` |
 | `updateItem` | `Future<void> (String groupId, String itemId, {required DateTime date, required String title, required String details})` |
 | `deleteItem` | `Future<void> (String groupId, String itemId)` |
@@ -319,6 +320,8 @@ Team: Ethan Bar, Prisha Boreddy, Jack Burky, Shubhi Agarwal
 | `addedBy` | string | uid |
 | `status` | string | `suggested` \| `approved` (missing → `approved`) |
 | `createdAt` | timestamp | |
+| `source` | string | `ai` on items from `addItems` (optional) |
+| `sourceDestination` | string | destination name of an AI item (optional) |
 
 ### `groups/{groupId}/expenses/{expenseId}`
 

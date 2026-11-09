@@ -4,6 +4,7 @@ import '../models/group.dart';
 import '../models/schedule.dart';
 import 'group_preferences_service.dart';
 import '../models/trip_location.dart';
+import 'recommendation_to_schedule.dart';
 
 /// Firestore-backed data access for a trip's day-by-day schedule.
 ///
@@ -93,17 +94,59 @@ class ScheduleService {
     final batch = _firestore.batch();
     final dayKey = _setDay(batch, groupId, date);
     batch.set(_items(groupId).doc(), {
-      'day': dayKey,
-      'type': scheduleItemTypeToString(type),
-      'title': title,
-      'details': details,
-      'addedBy': currentUserId,
-      'status': scheduleItemStatusToString(status),
-      'createdAt': FieldValue.serverTimestamp(),
+      ..._itemData(dayKey, type, title, details, status),
       if (location != null) 'location': location.toMap(),
     });
     return batch.commit();
   }
+
+  /// Most writes Firestore allows in one batch.
+  static const maxBatchWrites = 500;
+
+  /// Adds every item, and the days they need, in one atomic batch, tagged as
+  /// AI-sourced from [sourceDestination]. Throws [ArgumentError], writing
+  /// nothing, if that would exceed [maxBatchWrites].
+  Future<void> addItems(
+    String groupId,
+    List<PendingScheduleItem> items, {
+    required ScheduleItemStatus status,
+    required String sourceDestination,
+  }) {
+    if (items.isEmpty) return Future.value();
+    final dayKeys = {for (final item in items) scheduleDayKey(item.date)};
+    if (items.length + dayKeys.length > maxBatchWrites) {
+      throw ArgumentError('Too many schedule items for one batch');
+    }
+    final batch = _firestore.batch();
+    final seen = <String>{};
+    for (final item in items) {
+      final dayKey = scheduleDayKey(item.date);
+      if (seen.add(dayKey)) _setDay(batch, groupId, item.date);
+      batch.set(_items(groupId).doc(), {
+        ..._itemData(dayKey, item.type, item.title, item.details, status),
+        'source': 'ai',
+        'sourceDestination': sourceDestination,
+      });
+    }
+    return batch.commit();
+  }
+
+  Map<String, dynamic> _itemData(
+    String dayKey,
+    ScheduleItemType type,
+    String title,
+    String details,
+    ScheduleItemStatus status,
+  ) =>
+      {
+        'day': dayKey,
+        'type': scheduleItemTypeToString(type),
+        'title': title,
+        'details': details,
+        'addedBy': currentUserId,
+        'status': scheduleItemStatusToString(status),
+        'createdAt': FieldValue.serverTimestamp(),
+      };
 
   /// Admin only: moves a suggestion onto the itinerary. Rejecting one is
   /// [deleteItem].
