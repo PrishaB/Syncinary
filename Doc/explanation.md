@@ -12,6 +12,8 @@ The system has three parts:
 - **Firebase** (Authentication, Cloud Firestore, Hosting). It holds user accounts and every piece of persistent data, and it serves the web app.
 - **A small Node/Express proxy** on Cloud Run. It holds the API keys and is the only part that calls external services: SerpApi, Google Places and Gemini.
 
+> **Live deployment:** this document describes the code on `main`. The live deployment at <https://syncinary.com> runs release v0.6.0, which doesn't include AI recommendations (the `/recommendations` route and the AI Advisor) or custom percentage expense splits. See [Deployment](deployment.md).
+
 The guiding idea is to keep the server as thin as possible. Firebase covers what a traditional backend would do (accounts, storage, live sync, access control), so the proxy exists for only two reasons: keeping secrets off the client, and running the recommendation pipeline in a place users can't tamper with.
 
 ## Architecture Diagrams
@@ -140,7 +142,7 @@ Accounts use Firebase Authentication with email and password, and email verifica
 
 The Schedule Builder is the main planning screen. It has three panels:
 
-- **AI Advisor:** recommendations for the group.
+- **AI Advisor:** recommendations for the group. This is a placeholder in the live deployment.
 - **Day Plan:** the approved itinerary for the selected day.
 - **Add to Trip:** adds activities, flights and hotels.
 
@@ -148,7 +150,7 @@ Days are created automatically when the first item lands on them. Items can carr
 
 ### Expenses
 
-Each expense records who paid and who shares it. Shares are either equal or custom percentages. Amounts are worked out in whole cents, and any leftover cents go to the largest fractional shares, so the preview and the saved totals always agree.
+Each expense records who paid and who shares it. Shares are either equal or custom percentages. The live deployment (v0.6.0) supports only equal splits. Amounts are worked out in whole cents, and any leftover cents go to the largest fractional shares, so the preview and the saved totals always agree.
 
 ### Proxy (`proxy/`)
 
@@ -160,6 +162,8 @@ The proxy is a stateless Express app on Cloud Run, packaged with Docker. It does
 - **`/recommendations`**: the only route with authentication. It is described below.
 
 ### LLM recommendation pipeline
+
+The pipeline is merged on `main` but isn't in the live deployment yet (v0.6.0).
 
 The pipeline has four stages. Each stage returns a result object and never throws.
 
