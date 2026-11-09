@@ -165,27 +165,38 @@ class GroupService {
   Future<void> renameGroup(Group group, String newName) =>
       _groups.doc(group.id).update({'name': newName});
 
-  /// Removes the current user. If that leaves the group with no admin, the
-  /// longest-tenured remaining member (earliest in `memberIds`) is promoted,
-  /// so a group is never left without an admin.
+  /// If [members] is non-empty but has no admin, promotes the longest-tenured
+  /// member (earliest in [joinOrder]), so a group is never left without one.
+  static void _ensureAdmin(
+    Map<String, Map<String, dynamic>> members,
+    List<String> joinOrder,
+  ) {
+    if (members.isEmpty) return;
+    if (members.values.any((m) => m['role'] == 'admin')) return;
+    final heir = joinOrder.firstWhere(
+      members.containsKey,
+      orElse: () => members.keys.first,
+    );
+    members[heir]!['role'] = 'admin';
+  }
+
+  /// Removes the current user, promoting a new admin if needed.
   Future<void> leaveGroup(Group group) =>
       _updateMembers(group.id, (members, joinOrder) {
         members.remove(currentUserId);
-        if (members.isEmpty) return;
-        final hasAdmin = members.values.any((m) => m['role'] == 'admin');
-        if (!hasAdmin) {
-          final heir = joinOrder.firstWhere(
-            members.containsKey,
-            orElse: () => members.keys.first,
-          );
-          members[heir]!['role'] = 'admin';
-        }
+        _ensureAdmin(members, joinOrder);
       });
 
   Future<void> deleteGroup(Group group) => _groups.doc(group.id).delete();
 
+  /// Removes [member], promoting a new admin if needed. The UI never lets an
+  /// admin remove themselves, but two admins on stale screens can remove
+  /// each other.
   Future<void> removeMember(Group group, GroupMember member) =>
-      _updateMembers(group.id, (members, _) => members.remove(member.id));
+      _updateMembers(group.id, (members, joinOrder) {
+        members.remove(member.id);
+        _ensureAdmin(members, joinOrder);
+      });
 
   /// Makes [newAdmin] the admin and demotes the current user. Both checks run
   /// against the group as stored now, not the possibly stale [group], and

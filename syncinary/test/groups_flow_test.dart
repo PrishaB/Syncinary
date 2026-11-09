@@ -376,6 +376,51 @@ void main() {
     }
   });
 
+  test('[401-4] Group.fromDoc and GroupMember.fromMap default wrongly typed fields', () async {
+    final firestore = FakeFirebaseFirestore();
+    final groups = firestore.collection('groups');
+
+    await groups.doc('bad-group').set({'name': 42, 'inviteCode': 123456, 'members': 'oops'});
+    final badGroup = Group.fromDoc(await groups.doc('bad-group').get());
+    expect(badGroup.name, '');
+    expect(badGroup.inviteCode, isNull);
+    expect(badGroup.members, isEmpty);
+
+    await groups.doc('bad-members').set({
+      'name': 'Bali',
+      'members': {
+        'typed-uid': {'username': 7, 'email': true, 'role': 1},
+        'list-uid': ['not', 'a', 'map'],
+        'string-uid': 'admin',
+      },
+    });
+    final badMembers = Group.fromDoc(await groups.doc('bad-members').get());
+    expect(badMembers.members.map((m) => m.id),
+        unorderedEquals(['typed-uid', 'list-uid', 'string-uid']));
+    for (final member in badMembers.members) {
+      expect(member.username, 'Unknown', reason: member.id);
+      expect(member.email, '', reason: member.id);
+      expect(member.role, GroupRole.user, reason: member.id);
+    }
+  });
+
+  test('[401-4] GroupInvite.fromDoc defaults wrongly typed fields', () async {
+    final firestore = FakeFirebaseFirestore();
+    final invites = firestore.collection('invites');
+    await invites.doc('bad').set({
+      'senderUsername': 99,
+      'groupId': ['bali'],
+      'groupName': {'name': 'Bali'},
+      'role': true,
+    });
+
+    final invite = GroupInvite.fromDoc(await invites.doc('bad').get());
+    expect(invite.senderUsername, 'Someone');
+    expect(invite.groupId, '');
+    expect(invite.groupName, '');
+    expect(invite.role, GroupRole.user);
+  });
+
   test('[401-4] groupRoleFromString maps anything but "admin" to user', () {
     expect(groupRoleFromString('admin'), GroupRole.admin);
     for (final value in ['user', null, '', 'owner', 'ADMIN']) {
@@ -402,7 +447,7 @@ void main() {
     expect(await membersOf(firestore, group.id), isNot(contains('invitee-uid')));
   });
 
-  // ── 501-5: leaving (partial; see the inventory row) ──
+  // ── 501-5: leaving (more in test/services/group_service_test.dart) ──
 
   test('[501-5] The last member leaving deletes the group', () async {
     final firestore = FakeFirebaseFirestore();
