@@ -64,6 +64,8 @@ class ScheduleDay {
 ///   addedBy: uid,
 ///   status: 'suggested' | 'approved',   // missing on legacy docs = approved
 ///   createdAt: Timestamp,
+///   source: 'ai',              // optional: set on AI-recommended items
+///   sourceDestination: string, // optional: destination name of an AI item
 ///   location: { name, address, latitude, longitude }, // optional
 /// }
 /// ```
@@ -76,6 +78,7 @@ class ScheduleItem {
     required this.details,
     this.addedBy = '',
     this.status = ScheduleItemStatus.approved,
+    this.source,
     this.location,
   });
 
@@ -91,7 +94,12 @@ class ScheduleItem {
 
   final ScheduleItemStatus status;
 
+  /// `'ai'` for recommended items; null on manual and legacy docs.
+  final String? source;
+
   bool get isSuggestion => status == ScheduleItemStatus.suggested;
+
+  bool get isFromAi => source == 'ai';
 
   factory ScheduleItem.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const {};
@@ -103,6 +111,7 @@ class ScheduleItem {
       details: data['details'] as String? ?? '',
       addedBy: data['addedBy'] as String? ?? '',
       status: scheduleItemStatusFromString(data['status'] as String?),
+      source: data['source'] as String?,
       location: TripLocation.fromMap(data['location']),
     );
   }
