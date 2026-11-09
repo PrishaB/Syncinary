@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../pages/login_page.dart';
 import '../services/account_service.dart';
 import '../theme/app_theme.dart';
+import 'delete_account_dialog.dart';
 
 /// Opens the shared account settings panel from any app bar.
 class SettingsButton extends StatelessWidget {
-  const SettingsButton({super.key});
+  const SettingsButton({super.key, this.service});
+
+  final AccountService? service;
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +25,9 @@ class SettingsButton extends StatelessWidget {
         ).modalBarrierDismissLabel,
         barrierColor: Colors.black54,
         transitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (context, animation, secondaryAnimation) => const Align(
+        pageBuilder: (context, animation, secondaryAnimation) => Align(
           alignment: Alignment.centerRight,
-          child: SettingsPanel(),
+          child: SettingsPanel(service: service),
         ),
         transitionBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -53,7 +57,9 @@ class SettingsPanel extends StatefulWidget {
 }
 
 class _SettingsPanelState extends State<SettingsPanel> {
+  late final AccountService _service = widget.service ?? AccountService();
   bool _sending = false;
+  bool _confirmingDeletion = false;
   String? _message;
   bool _failed = false;
 
@@ -64,7 +70,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
       _failed = false;
     });
     try {
-      await (widget.service ?? AccountService()).sendPasswordResetEmail();
+      await _service.sendPasswordResetEmail();
       if (!mounted) return;
       setState(
         () => _message =
@@ -93,20 +99,26 @@ class _SettingsPanelState extends State<SettingsPanel> {
     }
   }
 
-  void _showComingSoon(BuildContext context, String action) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(action),
-        content: const Text('This account action is not available yet.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _deleteAccount() async {
+    if (_sending || _confirmingDeletion) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    setState(() => _confirmingDeletion = true);
+    try {
+      final deleted = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => DeleteAccountDialog(service: _service),
+      );
+      if (deleted != true || !navigator.mounted) return;
+      // Settings can open above any trip/search route. Remove every old route,
+      // including the settings overlay, so Back cannot reopen the account.
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => LoginPage(auth: _service.auth)),
+        (_) => false,
+      );
+    } finally {
+      if (mounted) setState(() => _confirmingDeletion = false);
+    }
   }
 
   @override
@@ -141,7 +153,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
                     : 'Send a password reset email',
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: _sending ? null : _resetPassword,
+              onTap: _sending || _confirmingDeletion ? null : _resetPassword,
             ),
             if (_message != null)
               Padding(
@@ -164,14 +176,14 @@ class _SettingsPanelState extends State<SettingsPanel> {
                 color: AppColors.error,
               ),
               title: const Text(
-                'Deactivate account',
+                'Delete account',
                 style: TextStyle(color: AppColors.error),
               ),
               trailing: const Icon(
                 Icons.chevron_right_rounded,
                 color: AppColors.error,
               ),
-              onTap: () => _showComingSoon(context, 'Deactivate account'),
+              onTap: _sending || _confirmingDeletion ? null : _deleteAccount,
             ),
           ],
         ),
