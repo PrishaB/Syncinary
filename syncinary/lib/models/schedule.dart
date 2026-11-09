@@ -29,6 +29,9 @@ String scheduleDayKey(DateTime date) =>
     '${date.month.toString().padLeft(2, '0')}-'
     '${date.day.toString().padLeft(2, '0')}';
 
+/// Longest title a schedule item may have.
+const int scheduleItemTitleMaxLength = 100;
+
 /// Backed by a document in the `groups/{groupId}/scheduleDays` subcollection,
 /// keyed by its own date so a day can't be added twice:
 /// ```
