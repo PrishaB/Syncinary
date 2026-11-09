@@ -14,3 +14,4 @@ New here? The [Getting Started tutorial](Doc/tutorial.md) walks through signing 
 - [How-To Guide](Doc/how-to.md)
 - [Explanation](Doc/explanation.md)
 - [Reference](Doc/Reference.md)
+- [Deployment](Doc/deployment.md)
