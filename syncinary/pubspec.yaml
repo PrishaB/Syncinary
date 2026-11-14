@@ -35,13 +35,13 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   http: ^1.2.1
-  firebase_core: ^4.14.0
-  firebase_auth: ^6.6.1
-  cloud_firestore: ^6.1.0
-  url_launcher: ^6.3.2
+  firebase_core: ^5.1.0
+  firebase_auth: ^7.0.1
+  cloud_firestore: ^7.1.0
+  url_launcher: ^6.3.3
   package_info_plus: ^9.0.0
   flutter_map: ^8.3.2
-  latlong2: ^0.9.1
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:
@@ -53,8 +53,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  fake_cloud_firestore: ^4.0.0
-  firebase_auth_mocks: ^0.15.0
+  fake_cloud_firestore: ^4.4.0
+  firebase_auth_mocks: ^0.16.0
   mock_exceptions: ^0.8.2
 
 # For information on the generic Dart part of this file, see the
