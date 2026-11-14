@@ -35,7 +35,9 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
     super.dispose();
   }
 
-  String get _inviteLink => 'syncinary.app/join/${widget.group.inviteCode ?? widget.group.id}';
+  /// Only admins may invite someone as an admin; other members always invite
+  /// regular users, and don't see the role picker.
+  bool get _canInviteAdmins => widget.service.isAdmin(widget.group);
 
   Future<void> _sendInvite() async {
     final email = _emailController.text.trim();
@@ -45,29 +47,35 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
       _error = null;
     });
     try {
-      await widget.service.inviteMemberByEmail(widget.group, email, _inviteRole);
+      final role = _canInviteAdmins ? _inviteRole : GroupRole.user;
+      final name = await widget.service.inviteMemberByEmail(widget.group, email, role);
       if (!mounted) return;
       Navigator.of(context).pop();
-      await showSuccessOverlay(context, 'Invite sent to $email');
+      await showSuccessOverlay(context, 'Invite sent. $name will see it under Join Group.');
     } on UserNotFoundException {
       if (mounted) {
         setState(() => _error = 'No Syncinary account found for that email.');
+      }
+    } on NotAdminException {
+      if (mounted) {
+        setState(() => _error = 'Only an admin can invite someone as an admin.');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _copyLink() async {
-    await Clipboard.setData(ClipboardData(text: _inviteLink));
+  Future<void> _copyCode(String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invite link copied')),
+      const SnackBar(content: Text('Invite code copied')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final code = widget.group.inviteCode;
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
@@ -118,7 +126,7 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
             const SizedBox(height: 20),
             Row(
               children: [
-                Expanded(
+                if (code != null) Expanded(
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
@@ -129,23 +137,24 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
                       children: [
                         Expanded(
                           child: Text(
-                            _inviteLink,
+                            'Share this code: $code',
                             overflow: TextOverflow.ellipsis,
                             style: AppTextStyles.caption.copyWith(color: Colors.white),
                           ),
                         ),
                         IconButton(
+                          tooltip: 'Copy invite code',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          onPressed: _copyLink,
+                          onPressed: () => _copyCode(code),
                           icon: const Icon(Icons.copy_rounded, color: Colors.white, size: 18),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Container(
+                if (code != null && _canInviteAdmins) const SizedBox(width: 10),
+                if (_canInviteAdmins) Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.15),
@@ -169,6 +178,16 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
                 ),
               ],
             ),
+            if (code != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Friends enter the code under Join Group.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
