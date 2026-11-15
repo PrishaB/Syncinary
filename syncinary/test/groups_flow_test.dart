@@ -10,6 +10,7 @@ import 'package:syncinary/pages/groups/group_detail_page.dart';
 import 'package:syncinary/pages/groups/join_group_page.dart';
 import 'package:syncinary/pages/groups/my_groups_page.dart';
 import 'package:syncinary/pages/groups/transfer_admin_dialog.dart';
+import 'package:syncinary/pages/schedule_builder_page.dart';
 import 'package:syncinary/services/group_service.dart';
 import 'package:syncinary/theme/app_theme.dart';
 
@@ -809,6 +810,70 @@ void main() {
     expect(await alex.inviteMemberByEmail(group, 'jordan@syncinary.app', GroupRole.user),
         'Jordan Lee');
     expect((await firestore.collection('invites').get()).docs.single.data()['role'], 'user');
+  });
+
+  // ── 101-2 / 101-3: creating a group and opening its itinerary ──
+
+  testWidgets('[101-2] Creating a group with an empty or blank name creates nothing',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final firestore = FakeFirebaseFirestore();
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    await pumpPage(tester, MyGroupsPage(service: me));
+
+    for (final name in ['', '   ']) {
+      await tester.tap(find.text('Add Group'));
+      await tester.pumpAndSettle();
+      expect(find.text('New Group'), findsOneWidget);
+      await tester.enterText(find.widgetWithText(TextField, 'Group name'), name);
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Group'), findsNothing, reason: 'dialog closes for "$name"');
+      expect((await firestore.collection('groups').get()).docs, isEmpty, reason: '"$name"');
+      expect((await firestore.collection('inviteCodes').get()).docs, isEmpty, reason: '"$name"');
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('[101-3] Plan Itinerary opens the Schedule Builder for that group and comes back',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final firestore = FakeFirebaseFirestore();
+    final group = await seedGroup(firestore, 'bali', {
+      'me-uid': memberData('You', 'admin'),
+      'alex-uid': memberData('Alex Chen', 'user'),
+    });
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    // An itinerary item saved for this group, plus one for another group that
+    // must not show up.
+    await me.scheduleService.addDay('bali', DateTime(2026, 5, 3));
+    for (final entry in {'bali': 'Uluwatu Temple', 'other': 'Somewhere Else'}.entries) {
+      await firestore.collection('groups').doc(entry.key).collection('scheduleItems').add({
+        'day': '2026-05-03', 'type': 'activity', 'title': entry.value,
+        'details': '', 'addedBy': 'me-uid', 'createdAt': DateTime(2026, 1, 1),
+      });
+    }
+
+    await pumpPage(tester, GroupDetailPage(group: group, service: me));
+    await tester.tap(find.text('Plan Itinerary'));
+    await tester.pumpAndSettle();
+
+    final schedule = tester.widget<ScheduleBuilderPage>(find.byType(ScheduleBuilderPage));
+    expect(schedule.group.id, 'bali');
+    expect(find.text('Schedule Builder'), findsOneWidget);
+    expect(find.text('Uluwatu Temple'), findsOneWidget);
+    expect(find.text('Somewhere Else'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(ScheduleBuilderPage), findsNothing);
+    expect(find.text('Plan Itinerary'), findsOneWidget);
   });
 
   // ── 401-6: invite flow end to end ──
