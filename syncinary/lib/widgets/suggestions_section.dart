@@ -4,6 +4,23 @@ import '../models/recommendation.dart';
 import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 
+/// A per-destination button that adds the destination's itinerary somewhere
+/// (the Schedule Builder's plan). Shown only for destinations with an itinerary.
+class ItineraryAction {
+  const ItineraryAction({
+    required this.label,
+    required this.isAlreadyAdded,
+    required this.onAdd,
+  });
+
+  final String label;
+  final bool Function(Destination, Recommendation) isAlreadyAdded;
+
+  /// The button is disabled and shows a spinner until the future completes.
+  /// It should handle its own errors; the section only re-enables the button.
+  final Future<void> Function(Destination, Recommendation) onAdd;
+}
+
 /// FR-104 suggestions panel: fetches when it first has a [searchContext], and
 /// again only when the context would send a different request. Renders one
 /// of four states — loading, success, empty, or error with retry. It owns its
@@ -13,6 +30,7 @@ import '../theme/app_theme.dart';
 /// A null [searchContext] means the host is still loading what goes in the
 /// request; the panel shows the loading state without fetching.
 /// [embedded] drops the outer card, for hosts that already sit in one.
+/// [itineraryAction], when set, adds a button to each destination tile.
 class SuggestionsSection extends StatefulWidget {
   const SuggestionsSection({
     super.key,
@@ -20,12 +38,14 @@ class SuggestionsSection extends StatefulWidget {
     required this.searchContext,
     this.embedded = false,
     this.heading = 'Suggestions for you',
+    this.itineraryAction,
   });
 
   final RecommendationService service;
   final SearchContext? searchContext;
   final bool embedded;
   final String heading;
+  final ItineraryAction? itineraryAction;
 
   @override
   State<SuggestionsSection> createState() => _SuggestionsSectionState();
@@ -33,6 +53,7 @@ class SuggestionsSection extends StatefulWidget {
 
 class _SuggestionsSectionState extends State<SuggestionsSection> {
   Future<RecommendationResult>? _future;
+  final _busy = <String>{};
 
   @override
   void initState() {
@@ -54,6 +75,15 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
   }
 
   void _retry() => setState(_fetch);
+
+  Future<void> _add(ItineraryAction action, Destination destination, Recommendation data) async {
+    setState(() => _busy.add(destination.id));
+    try {
+      await action.onAdd(destination, data);
+    } finally {
+      if (mounted) setState(() => _busy.remove(destination.id));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +219,7 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
       if (activityCount > 0) '$activityCount ${activityCount == 1 ? 'activity' : 'activities'}',
       if (dayCount > 0) '$dayCount-day itinerary',
     ].join(' · ');
+    final action = widget.itineraryAction;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -230,7 +261,31 @@ class _SuggestionsSectionState extends State<SuggestionsSection> {
             const SizedBox(height: 8),
             Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
           ],
+          if (action != null && dayCount > 0) ...[
+            const SizedBox(height: 10),
+            _addButton(action, destination, data),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _addButton(ItineraryAction action, Destination destination, Recommendation data) {
+    final busy = _busy.contains(destination.id);
+    final added = !busy && action.isAlreadyAdded(destination, data);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: OutlinedButton.icon(
+        key: ValueKey('add-to-itinerary-${destination.id}'),
+        onPressed: busy || added ? null : () => _add(action, destination, data),
+        icon: busy
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentEnd),
+              )
+            : Icon(added ? Icons.check_rounded : Icons.playlist_add_rounded, size: 18),
+        label: Text(added ? 'Already in itinerary' : action.label),
       ),
     );
   }
