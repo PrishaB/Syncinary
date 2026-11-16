@@ -14,6 +14,7 @@ import 'package:syncinary/models/schedule.dart';
 import 'package:syncinary/pages/itinerary_builder.dart';
 import 'package:syncinary/pages/schedule_builder_page.dart';
 import 'package:syncinary/services/recommendation_service.dart';
+import 'package:syncinary/services/recommendation_to_schedule.dart';
 import 'package:syncinary/services/schedule_service.dart';
 import 'package:syncinary/theme/app_theme.dart';
 
@@ -29,6 +30,29 @@ ScheduleService _service(FakeFirebaseFirestore firestore, {String uid = 'me-uid'
         signedIn: true,
       ),
     );
+
+/// Replaces [addItems] with [onAddItems] (a throw, or a held future).
+class _HookedService extends ScheduleService {
+  _HookedService(FirebaseFirestore firestore, String uid, this.onAddItems)
+      : super(
+          firestore: firestore,
+          auth: MockFirebaseAuth(
+            mockUser: MockUser(uid: uid, email: '$uid@syncinary.app', displayName: uid),
+            signedIn: true,
+          ),
+        );
+
+  final Future<void> Function(List<PendingScheduleItem>) onAddItems;
+
+  @override
+  Future<void> addItems(
+    String groupId,
+    List<PendingScheduleItem> items, {
+    required ScheduleItemStatus status,
+    required String sourceDestination,
+  }) =>
+      onAddItems(items);
+}
 
 /// 'me-uid' is the admin; Alex and Sam are regular members.
 Group _rolesGroup() => Group(
@@ -667,6 +691,224 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Miami'), findsOneWidget);
       expect(requests, hasLength(2));
+    });
+  });
+
+  group('[104-5] Add an AI recommendation to the itinerary', () {
+    /// Miami with a two-day plan: dated 2026-06-01/02, or undated.
+    http.Response itinerary({bool dated = true}) {
+      final body = jsonDecode(_suggestions().body) as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>;
+      Map<String, dynamic> activity(String id, String name) => {
+            'id': id,
+            'destinationId': 'd1',
+            'name': name,
+            'category': 'outdoors',
+            'description': '$name for the group.',
+            'estimatedCostPerPerson': {'amount': 20, 'currency': 'USD'},
+            'durationHours': 2,
+          };
+      Map<String, dynamic> day(int n, String id, String title) => {
+            'day': n,
+            'date': dated ? '2026-06-0$n' : null,
+            'destinationId': 'd1',
+            'items': [
+              {'timeOfDay': 'morning', 'activityId': id, 'title': title, 'notes': null},
+            ],
+          };
+      data['activities'] = [activity('a1', 'Beach walk'), activity('a2', 'Art Deco tour')];
+      data['itinerary'] = [day(1, 'a1', 'Beach walk'), day(2, 'a2', 'Art Deco tour')];
+      return http.Response(jsonEncode(body), 200);
+    }
+
+    late FakeFirebaseFirestore firestore;
+
+    Future<void> pump(
+      WidgetTester tester, {
+      List<http.Request>? requests,
+      String uid = 'me-uid',
+      bool dated = true,
+      ScheduleService Function(FakeFirebaseFirestore, String uid)? makeService,
+      Future<void> Function(ScheduleService admin)? seed,
+    }) async {
+      tester.view.physicalSize = const Size(1000, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      firestore = FakeFirebaseFirestore();
+      if (seed != null) await seed(_service(firestore));
+      final service = (makeService ?? (f, u) => _service(f, uid: u))(firestore, uid);
+      await tester.pumpWidget(makeTestableWidget(ScheduleBuilderPage(
+        group: _rolesGroup(),
+        service: service,
+        recommendationService: _advisor(requests ?? [], () async => itinerary(dated: dated)),
+      )));
+      await tester.pumpAndSettle();
+    }
+
+    final addButton = find.byKey(const ValueKey('add-to-itinerary-d1'));
+    // The button's spinner animates for as long as a dialog is open, so
+    // pumpAndSettle would never return there.
+    Future<void> pumpDialog(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+
+    Future<void> tapAdd(WidgetTester tester) async {
+      await tester.ensureVisible(addButton);
+      await tester.tap(addButton);
+      await pumpDialog(tester);
+    }
+
+    Future<List<Map<String, dynamic>>> stored() async =>
+        (await _itemsRef(firestore).get()).docs.map((d) => d.data()).toList();
+
+    Future<void> seedDuplicate(ScheduleService admin) => admin.addItem('nyc',
+        date: DateTime(2026, 6, 1), type: ScheduleItemType.activity, title: 'Beach walk');
+
+    testWidgets('an admin previews, confirms, and the plan lands approved in the Day Plan',
+        (tester) async {
+      await pump(tester);
+      expect(find.text('Add to itinerary'), findsOneWidget);
+
+      await tapAdd(tester);
+      expect(find.text('Add 2 items?'), findsOneWidget);
+      expect(find.text('• Beach walk'), findsOneWidget);
+      expect(find.text('• Art Deco tour'), findsOneWidget);
+      expect(find.text('Monday, June 1st'), findsOneWidget);
+
+      await tester.tap(find.text('Add 2 items'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Added 2 items to the itinerary'), findsOneWidget);
+      expect(_dayPlanCard('Beach walk'), findsOneWidget);
+      final docs = await stored();
+      expect(docs.map((d) => d['status']).toSet(), {'approved'});
+      expect(docs.map((d) => d['source']).toSet(), {'ai'});
+      expect(docs.map((d) => d['sourceDestination']).toSet(), {'Miami'});
+    });
+
+    testWidgets('a member suggests: labels say Suggest and the items await approval',
+        (tester) async {
+      await pump(tester, uid: 'alex-uid');
+      expect(find.text('Suggest for itinerary'), findsOneWidget);
+
+      await tapAdd(tester);
+      expect(find.text('Suggest 2 items?'), findsOneWidget);
+      await tester.tap(find.text('Suggest 2 items'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Suggested 2 items for admin approval'), findsOneWidget);
+      expect(_suggestionCard('Beach walk'), findsOneWidget);
+      expect(_dayPlanCard('Beach walk'), findsNothing);
+      expect((await stored()).map((d) => d['status']).toSet(), {'suggested'});
+    });
+
+    testWidgets('cancelling the preview writes nothing', (tester) async {
+      await pump(tester);
+      await tapAdd(tester);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(await stored(), isEmpty);
+      expect(tester.widget<OutlinedButton>(addButton).onPressed, isNotNull);
+    });
+
+    testWidgets('a duplicate is skipped and reported; once all are in the button is disabled',
+        (tester) async {
+      await pump(tester, seed: seedDuplicate);
+      await tapAdd(tester);
+      expect(find.text('Add 1 item?'), findsOneWidget);
+      expect(find.text('1 already in the itinerary will be skipped.'), findsOneWidget);
+
+      await tester.tap(find.text('Add 1 item'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Added 1 item to the itinerary (1 skipped as duplicates)'), findsOneWidget);
+      expect(await stored(), hasLength(2));
+      expect(find.text('Already in itinerary'), findsOneWidget);
+      expect(tester.widget<OutlinedButton>(addButton).onPressed, isNull);
+    });
+
+    testWidgets('an undated plan with no schedule asks for a start date', (tester) async {
+      await pump(tester, dated: false);
+      await tapAdd(tester);
+      expect(find.text('When does this plan start?'), findsOneWidget);
+
+      await tester.tap(find.text('OK'));
+      await pumpDialog(tester);
+      await tester.tap(find.text('Add 2 items'));
+      await tester.pumpAndSettle();
+
+      final now = DateTime.now();
+      expect((await stored()).map((d) => d['day']).toSet(), {
+        scheduleDayKey(DateTime(now.year, now.month, now.day)),
+        scheduleDayKey(DateTime(now.year, now.month, now.day + 1)),
+      });
+    });
+
+    testWidgets('cancelling the start-date picker writes nothing', (tester) async {
+      await pump(tester, dated: false);
+      await tapAdd(tester);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add 2 items?'), findsNothing);
+      expect(await stored(), isEmpty);
+    });
+
+    testWidgets('an undated plan counts from the first day on the schedule, with no prompt',
+        (tester) async {
+      await pump(tester,
+          dated: false,
+          seed: (admin) => admin.addItem('nyc',
+              date: DateTime(2026, 7, 10), type: ScheduleItemType.activity, title: 'Hike'));
+      await tapAdd(tester);
+      expect(find.text('When does this plan start?'), findsNothing);
+      await tester.tap(find.text('Add 2 items'));
+      await tester.pumpAndSettle();
+
+      expect((await stored()).map((d) => d['day']).toSet(), {'2026-07-10', '2026-07-11'});
+    });
+
+    testWidgets('adding a plan does not re-request suggestions', (tester) async {
+      final requests = <http.Request>[];
+      await pump(tester, requests: requests);
+      expect(requests, hasLength(1));
+
+      await tapAdd(tester);
+      await tester.tap(find.text('Add 2 items'));
+      await tester.pumpAndSettle();
+
+      expect(requests, hasLength(1));
+      expect(find.text('Miami'), findsOneWidget);
+    });
+
+    testWidgets('a failed write shows a generic error and re-enables the button', (tester) async {
+      await pump(tester,
+          makeService: (f, u) => _HookedService(f, u, (_) => throw StateError('secret detail')));
+      await tapAdd(tester);
+      await tester.tap(find.text('Add 2 items'));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't add the plan. Try again."), findsOneWidget);
+      expect(find.textContaining('secret detail'), findsNothing);
+      expect(tester.widget<OutlinedButton>(addButton).onPressed, isNotNull);
+    });
+
+    testWidgets('the button shows a spinner and is disabled while the write is pending',
+        (tester) async {
+      final gate = Completer<void>();
+      await pump(tester, makeService: (f, u) => _HookedService(f, u, (_) => gate.future));
+      await tapAdd(tester);
+      await tester.tap(find.text('Add 2 items'));
+      await tester.pump();
+
+      expect(tester.widget<OutlinedButton>(addButton).onPressed, isNull);
+      expect(find.descendant(of: addButton, matching: find.byType(CircularProgressIndicator)),
+          findsOneWidget);
+
+      gate.complete();
+      await tester.pumpAndSettle();
     });
   });
 

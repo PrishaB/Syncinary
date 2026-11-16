@@ -3,11 +3,14 @@ import '../models/group.dart';
 import '../models/schedule.dart';
 import '../models/trip_location.dart';
 import '../services/place_service.dart';
+import '../models/recommendation.dart';
 import '../services/recommendation_service.dart';
+import '../services/recommendation_to_schedule.dart';
 import '../services/schedule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/confirmation_dialog.dart';
 import '../widgets/gradient_app_bar.dart';
+import '../widgets/itinerary_preview_dialog.dart';
 import 'groups/group_preferences_page.dart';
 import '../widgets/trip_location_picker.dart';
 import '../widgets/suggestions_section.dart';
@@ -121,6 +124,63 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('Couldn\'t $action: $e')));
+  }
+
+  /// Maps [rec]'s plan for [dest] onto the schedule, previews it, then writes
+  /// it in one batch. An undated plan counts from the first day on the
+  /// schedule, or from a date the user picks when there is none.
+  Future<void> _addRecommendation(
+    Destination dest,
+    Recommendation rec,
+    List<ScheduleDay> days,
+    List<ScheduleItem> items,
+  ) async {
+    final suggest = !_isAdmin;
+    var mapping = scheduleItemsFor(rec, dest.id, tripStart: days.firstOrNull?.date, existing: items);
+    if (mapping is ScheduleMappingNeedsStartDate) {
+      final now = DateTime.now();
+      final start = await showDatePicker(
+        context: context,
+        initialDate: now,
+        firstDate: DateTime(now.year - 1),
+        lastDate: DateTime(now.year + 3),
+        helpText: 'When does this plan start?',
+      );
+      if (start == null || !mounted) return;
+      mapping = scheduleItemsFor(rec, dest.id, tripStart: start, existing: items);
+    }
+    if (mapping is! ScheduleMappingReady || mapping.items.isEmpty) return;
+    final ready = mapping;
+    final confirmed = await showItineraryPreview(
+      context,
+      items: ready.items,
+      skipped: ready.skippedDuplicates,
+      suggest: suggest,
+      formatDay: formatScheduleDay,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _service.addItems(
+        _groupId,
+        ready.items,
+        status: suggest ? ScheduleItemStatus.suggested : ScheduleItemStatus.approved,
+        sourceDestination: dest.name,
+      );
+      if (!mounted) return;
+      setState(() => _selectedDayKey = ready.items.first.dayKey);
+      final n = ready.items.length;
+      final skipped = ready.skippedDuplicates;
+      final noun = n == 1 ? 'item' : 'items';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            '${suggest ? 'Suggested $n $noun for admin approval' : 'Added $n $noun to the itinerary'}'
+            '${skipped > 0 ? ' ($skipped skipped as duplicates)' : ''}'),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Couldn't add the plan. Try again.")));
+    }
   }
 
   Future<void> _deleteDay(ScheduleDay day) async {
@@ -356,6 +416,9 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
                     // Null until the first snapshot, so the advisor's one
                     // initial request already includes the schedule.
                     items: itemsSnapshot.hasData ? items : null,
+                    days: days,
+                    isAdmin: isAdmin,
+                    onAdd: (dest, rec) => _addRecommendation(dest, rec, days, items),
                   );
                   final dayPlan = _DayPlanPanel(
                     days: days,
@@ -560,17 +623,24 @@ BoxDecoration _innerCard() => BoxDecoration(
 
 /// Sends the group's planned flights, hotels and activities as the request's
 /// travel results, so suggestions build on what is already scheduled. The
-/// advisor refetches only when those items change.
+/// advisor refetches only when those items change. Items it added itself
+/// (`isFromAi`) are left out, so adding a plan doesn't replace the suggestion.
 class _AdvisorPanel extends StatelessWidget {
   const _AdvisorPanel({
     super.key,
     required this.service,
     required this.groupId,
     required this.items,
+    required this.days,
+    required this.isAdmin,
+    required this.onAdd,
   });
 
   final RecommendationService service;
   final String groupId;
+  final List<ScheduleDay> days;
+  final bool isAdmin;
+  final Future<void> Function(Destination, Recommendation) onAdd;
 
   /// Null while the schedule is still loading.
   final List<ScheduleItem>? items;
@@ -586,9 +656,21 @@ class _AdvisorPanel extends StatelessWidget {
           service: service,
           searchContext: items == null
               ? null
-              : SearchContext(groupId: groupId, travelResults: scheduleItemsAsTravelResults(items)),
+              : SearchContext(
+                  groupId: groupId,
+                  travelResults: scheduleItemsAsTravelResults(items.where((i) => !i.isFromAi).toList()),
+                ),
           embedded: true,
           heading: 'Ideas for this trip',
+          itineraryAction: ItineraryAction(
+            label: isAdmin ? 'Add to itinerary' : 'Suggest for itinerary',
+            isAlreadyAdded: (dest, rec) {
+              final mapping =
+                  scheduleItemsFor(rec, dest.id, tripStart: days.firstOrNull?.date, existing: items ?? const []);
+              return mapping is ScheduleMappingReady && mapping.items.isEmpty;
+            },
+            onAdd: onAdd,
+          ),
         ),
       ],
     );
