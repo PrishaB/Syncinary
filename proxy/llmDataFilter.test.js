@@ -79,7 +79,7 @@ function serialized(payload) {
 
 // --- Permission ---
 
-test('denies a requester who is not a group member', () => {
+test('[104-3] denies a requester who is not a group member', () => {
   const result = buildRecommendationPayload({ requestingUserId: 'stranger', groupId: 'g1' }, baseRawData());
   assert.equal(result.allowed, false);
   assert.equal(result.reason, 'not_a_member');
@@ -143,7 +143,7 @@ test('allowlist field constants stay narrow (no PII beyond preferences)', () => 
 
 // --- Scoping ---
 
-test('excludes an unrelated user who is not a member of the target group', () => {
+test('[104-3] excludes an unrelated user who is not a member of the target group', () => {
   const rawData = baseRawData({
     users: { ...baseRawData().users, u3: baseUser({ displayName: 'Eve', preferences: { activities: ['LEAK_unrelated_activity'] } }) },
   });
