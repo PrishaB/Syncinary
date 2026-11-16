@@ -73,9 +73,13 @@ service cloud.firestore {
       }
       match /scheduleItems/{itemId} {
         allow read, delete: if isMember();
-        allow create: if isMember() && request.resource.data.addedBy == request.auth.uid;
-        allow update: if isMember() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['day', 'title', 'details']);
+        // Only admins may add an item straight onto the itinerary.
+        allow create: if isMember() && request.resource.data.addedBy == request.auth.uid &&
+          (request.resource.data.status != 'approved' || isAdmin());
+        // Members edit content; only admins change status (approving a suggestion).
+        allow update: if isMember() && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['day', 'title', 'details']) ||
+          (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])));
       }
     }
 
