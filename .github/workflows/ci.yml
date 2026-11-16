@@ -70,6 +70,9 @@ jobs:
       - name: Run tests with coverage
         run: flutter test --coverage
 
+      - name: Test web Google sign-in
+        run: flutter test --platform chrome test/google_sign_in_test.dart
+
       - name: Upload coverage
         uses: actions/upload-artifact@v7
         with:
