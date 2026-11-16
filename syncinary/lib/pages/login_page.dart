@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/group_service.dart';
+import '../services/google_auth_service.dart';
+import '../widgets/google_sign_in_button.dart';
 import '../theme/app_theme.dart';
 import 'groups/my_groups_page.dart';
 import 'signup_page.dart';
@@ -13,11 +16,13 @@ import 'package:package_info_plus/package_info_plus.dart';
 /// Uses the "Midnight Voyage" design system.
 /// ─────────────────────────────────────────────────────────
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.auth, this.groupService});
+  const LoginPage({super.key, this.auth, this.groupService, this.firestore});
 
   /// Optional [FirebaseAuth] instance for dependency injection (testing).
   /// Falls back to [FirebaseAuth.instance] when null.
   final FirebaseAuth? auth;
+
+  final FirebaseFirestore? firestore;
 
   /// Passed through to [MyGroupsPage] on successful sign-in, so tests can
   /// supply a fake instead of the real Firestore/Auth singletons.
@@ -27,7 +32,8 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -44,7 +50,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   void initState() {
     super.initState();
 
-    
     _loadAppVersion();
 
     _fadeController = AnimationController(
@@ -55,13 +60,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       parent: _fadeController,
       curve: Curves.easeOut,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+          CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
+        );
     _fadeController.forward();
   }
 
@@ -86,7 +88,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   // ── Firebase sign-in ────────────────────────────────────
   Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isLoading || !_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
@@ -96,21 +98,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     try {
       final credential = await (widget.auth ?? FirebaseAuth.instance)
           .signInWithEmailAndPassword(
-        email: _emailController.text.trim().toLowerCase(),
-        password: _passwordController.text,
-      );
+            email: _emailController.text.trim().toLowerCase(),
+            password: _passwordController.text,
+          );
       final user = credential.user;
       if (user != null) await _ensureUserProfile(user);
 
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => user?.emailVerified == true
-            ? MyGroupsPage(service: widget.groupService)
-            : VerifyEmailPage(
-                auth: widget.auth,
-                groupService: widget.groupService,
-              )),
+        MaterialPageRoute(
+          builder: (_) => user?.emailVerified == true
+              ? MyGroupsPage(service: widget.groupService)
+              : VerifyEmailPage(
+                  auth: widget.auth,
+                  groupService: widget.groupService,
+                ),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -127,13 +131,50 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final user = await GoogleAuthService(
+        auth: widget.auth,
+        firestore: widget.firestore,
+      ).signIn();
+      if (!mounted || user == null) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => user.emailVerified
+              ? MyGroupsPage(service: widget.groupService)
+              : VerifyEmailPage(
+                  auth: widget.auth,
+                  groupService: widget.groupService,
+                ),
+        ),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (mounted) {
+        setState(() => _errorMessage = googleSignInError(error.code));
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _errorMessage = googleSignInError('unknown'));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   /// Backfills the `users/{uid}` profile doc for accounts created before it
   /// existed (e.g. seeded directly in the Firebase Auth console) — without
   /// it, the Group flow can't find this account when someone invites them
   /// by email. Leaves an existing doc untouched.
   Future<void> _ensureUserProfile(User user) async {
     try {
-      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final ref = (widget.firestore ?? FirebaseFirestore.instance)
+          .collection('users')
+          .doc(user.uid);
       final doc = await ref.get();
       if (doc.exists) return;
       final email = (user.email ?? '').trim().toLowerCase();
@@ -153,16 +194,25 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   void _signUp() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const SignUpPage()),
+      MaterialPageRoute(
+        builder: (_) => SignUpPage(
+          auth: widget.auth,
+          firestore: widget.firestore,
+          groupService: widget.groupService,
+        ),
+      ),
     );
   }
 
   // ── Firebase password reset ─────────────────────────────
   Future<void> _resetPassword() async {
+    if (_isLoading) return;
     final email = _emailController.text.trim();
-    if (email.isEmpty || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+    if (email.isEmpty ||
+        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
       setState(() {
-        _errorMessage = 'Please enter a valid email address to reset your password.';
+        _errorMessage =
+            'Please enter a valid email address to reset your password.';
       });
       return;
     }
@@ -173,8 +223,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      await (widget.auth ?? FirebaseAuth.instance)
-          .sendPasswordResetEmail(email: email);
+      await (widget.auth ?? FirebaseAuth.instance).sendPasswordResetEmail(
+        email: email,
+      );
 
       if (!mounted) return;
 
@@ -183,7 +234,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           content: const Text('Password reset link sent! Check your email.'),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -311,7 +364,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
         // App name with gradient text
         ShaderMask(
-          shaderCallback: (bounds) => AppColors.brandGradient.createShader(bounds),
+          shaderCallback: (bounds) =>
+              AppColors.brandGradient.createShader(bounds),
           child: const Text(
             'Syncinary',
             style: TextStyle(
@@ -365,6 +419,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 const SizedBox(height: 16),
               ],
 
+              if (kIsWeb)
+                GoogleSignInButton(
+                  onPressed: _isLoading ? null : _signInWithGoogle,
+                ),
+
               // ── Email field ────────────────────
               TextFormField(
                 controller: _emailController,
@@ -379,7 +438,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter your email';
                   }
-                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim())) {
+                  if (!RegExp(
+                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                  ).hasMatch(value.trim())) {
                     return 'Please enter a valid email';
                   }
                   return null;
@@ -393,21 +454,24 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.done,
                 style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
-                  label: 'Password',
-                  prefixIcon: Icons.lock_outline_rounded,
-                ).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                      color: AppColors.textMuted,
-                      size: 20,
+                decoration:
+                    AppDecorations.inputDecoration(
+                      label: 'Password',
+                      prefixIcon: Icons.lock_outline_rounded,
+                    ).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          color: AppColors.textMuted,
+                          size: 20,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                  ),
-                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your password';
@@ -427,7 +491,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 child: TextButton(
                   onPressed: _isLoading ? null : _resetPassword,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -470,17 +537,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       decoration: BoxDecoration(
         color: AppColors.error.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.error,
-            size: 20,
-          ),
+          Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
