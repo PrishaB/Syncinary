@@ -67,7 +67,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(OnboardingPage), findsOneWidget);
-    expect(find.text('Onboarding 1'), findsOneWidget);
+    expect(find.text('Bring everyone along'), findsOneWidget);
     expect(find.byType(VerifyEmailPage, skipOffstage: false), findsNothing);
     expect(
       Navigator.of(tester.element(find.byType(OnboardingPage))).canPop(),
