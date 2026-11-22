@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/page_body.dart';
 import '../../models/group.dart';
 import '../../services/group_service.dart';
 import '../../theme/app_theme.dart';
@@ -25,7 +26,9 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
   void _openGroup(Group group) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => GroupDetailPage(group: group, service: _service)),
+      MaterialPageRoute(
+        builder: (_) => GroupDetailPage(group: group, service: _service),
+      ),
     );
   }
 
@@ -35,46 +38,53 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
       context: context,
       builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: AppDecorations.glassCard(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('New Group', style: AppTextStyles.title),
-              const SizedBox(height: 18),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
-                  label: 'Group name',
-                  prefixIcon: Icons.group_outlined,
+        constraints: const BoxConstraints(maxWidth: 480),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: AppDecorations.glassCard(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('New Group', style: AppTextStyles.title),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  style: AppTextStyles.body,
+                  decoration: AppDecorations.inputDecoration(
+                    label: 'Group name',
+                    prefixIcon: Icons.group_outlined,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: Text('Cancel',
-                          style: AppTextStyles.button
-                              .copyWith(color: AppColors.textSecondary)),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: Text(
+                          'Cancel',
+                          style: AppTextStyles.button.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GradientButton(
-                      onPressed: () => Navigator.of(dialogContext)
-                          .pop(controller.text.trim()),
-                      label: 'Create',
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GradientButton(
+                        onPressed: () => Navigator.of(
+                          dialogContext,
+                        ).pop(controller.text.trim()),
+                        label: 'Create',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -118,7 +128,6 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: GradientAppBar(
         title: 'My Groups',
         actions: [
@@ -129,7 +138,10 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
               await _service.auth.signOut();
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => LoginPage(auth: _service.auth, groupService: _service)),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        LoginPage(auth: _service.auth, groupService: _service),
+                  ),
                   (route) => false,
                 );
               }
@@ -137,83 +149,115 @@ class _MyGroupsPageState extends State<MyGroupsPage> {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 100, 20, 24),
-            child: StreamBuilder<List<Group>>(
-              stream: _service.myGroupsStream(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('Something went wrong loading your groups.',
-                        style: AppTextStyles.body.copyWith(color: AppColors.error)),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final groups = snapshot.data!;
-
-                return Column(
-                  children: [
-                    Expanded(
-                      child: groups.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No groups yet.\nCreate or join one to get started.',
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.subtitle
-                                    .copyWith(color: AppColors.textMuted),
-                              ),
-                            )
-                          : ListView.separated(
-                              itemCount: groups.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: 12),
-                              itemBuilder: (_, i) {
-                                final group = groups[i];
-                                final role = _service.roleOf(group);
-                                return _GroupTile(
-                                  group: group,
-                                  role: role,
-                                  leaveMode: _leaveMode,
-                                  onTap: _leaveMode ? null : () => _openGroup(group),
-                                  onRemove:
-                                      _leaveMode ? () => _confirmLeave(group) : null,
-                                );
-                              },
-                            ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_leaveMode)
-                      SizedBox(
-                        width: double.infinity,
-                        child: _SecondaryPillButton(
-                          label: 'Cancel',
-                          onTap: _toggleLeaveMode,
-                        ),
-                      )
-                    else ...[
-                      _SecondaryPillButton(
-                        label: 'Add Group',
-                        onTap: _busy ? null : _addGroup,
-                      ),
-                      const SizedBox(height: 10),
-                      _SecondaryPillButton(
-                        label: 'Join Group',
-                        onTap: _busy ? null : _joinGroup,
-                      ),
-                      const SizedBox(height: 10),
-                      _SecondaryPillButton(
-                        label: 'Leave Group',
-                        onTap: groups.isEmpty ? null : _toggleLeaveMode,
-                      ),
-                    ],
-                  ],
+      body: PageBody(
+        maxWidth: 880,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+          child: StreamBuilder<List<Group>>(
+            stream: _service.myGroupsStream(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    'Something went wrong loading your groups.',
+                    style: AppTextStyles.body.copyWith(color: AppColors.error),
+                  ),
                 );
-              },
-            ),
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final groups = snapshot.data!;
+
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Your next adventure starts here.',
+                          style: AppTextStyles.headline,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Keep your people, plans, and shared costs together.',
+                          style: AppTextStyles.subtitle,
+                        ),
+                        const SizedBox(height: 24),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: _leaveMode
+                              ? [
+                                  OutlinedButton(
+                                    onPressed: _toggleLeaveMode,
+                                    child: const Text('Cancel'),
+                                  ),
+                                ]
+                              : [
+                                  GradientButton(
+                                    label: 'Add Group',
+                                    icon: Icons.add_rounded,
+                                    onPressed: _busy ? null : _addGroup,
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: _busy ? null : _joinGroup,
+                                    icon: const Icon(Icons.group_add_outlined),
+                                    label: const Text('Join Group'),
+                                  ),
+                                  TextButton(
+                                    onPressed: groups.isEmpty || _busy
+                                        ? null
+                                        : _toggleLeaveMode,
+                                    child: const Text('Leave Group'),
+                                  ),
+                                ],
+                        ),
+                        const SizedBox(height: 28),
+                      ],
+                    ),
+                  ),
+                  if (groups.isEmpty)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.travel_explore_rounded,
+                            size: 56,
+                            color: AppColors.accentEnd,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'No groups yet.\nCreate or join one to get started.',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.subtitle,
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    SliverList.separated(
+                      itemCount: groups.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) {
+                        final group = groups[i];
+                        return _GroupTile(
+                          group: group,
+                          role: _service.roleOf(group),
+                          leaveMode: _leaveMode,
+                          onTap: _leaveMode ? null : () => _openGroup(group),
+                          onRemove: _leaveMode
+                              ? () => _confirmLeave(group)
+                              : null,
+                        );
+                      },
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -255,17 +299,24 @@ class _GroupTile extends StatelessWidget {
                   gradient: AppColors.brandGradient,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.group_rounded, color: Colors.white, size: 22),
+                child: const Icon(
+                  Icons.group_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(group.name, style: AppTextStyles.title.copyWith(fontSize: 17)),
+                    Text(
+                      group.name,
+                      style: AppTextStyles.title.copyWith(fontSize: 17),
+                    ),
                     const SizedBox(height: 4),
                     Text(
-                      role == GroupRole.admin ? 'Admin' : 'User',
+                      '${group.members.length} ${group.members.length == 1 ? 'member' : 'members'} · ${role == GroupRole.admin ? 'Admin' : 'Member'}',
                       style: AppTextStyles.caption,
                     ),
                   ],
@@ -277,46 +328,11 @@ class _GroupTile extends StatelessWidget {
                   icon: const Icon(Icons.close_rounded, color: AppColors.error),
                 )
               else
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textMuted,
+                ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SecondaryPillButton extends StatelessWidget {
-  const _SecondaryPillButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final disabled = onTap == null;
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: AppColors.surfaceLight.withValues(alpha: disabled ? 0.5 : 1),
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              label,
-              style: AppTextStyles.button.copyWith(
-                color: disabled ? AppColors.textMuted : AppColors.textPrimary,
-                fontSize: 15,
-              ),
-            ),
           ),
         ),
       ),

@@ -10,40 +10,40 @@ class AppColors {
   AppColors._();
 
   // ── Core palette ──────────────────────────────────────
-  static const Color background      = Color(0xFF0F1123);   // deep navy
-  static const Color surface         = Color(0xFF1A1D36);   // card / panel
-  static const Color surfaceLight    = Color(0xFF242849);   // elevated surface
-  static const Color border          = Color(0xFF2E3358);   // subtle borders
+  static const Color background = Color(0xFF101622); // deep navy
+  static const Color surface = Color(0xFF192231); // card / panel
+  static const Color surfaceLight = Color(0xFF222E40); // elevated surface
+  static const Color border = Color(0xFF354359); // subtle borders
 
   // ── Brand accent (gradient endpoints) ─────────────────
-  static const Color accentStart     = Color(0xFF6C63FF);   // vivid indigo
-  static const Color accentEnd       = Color(0xFF3DD6F5);   // cyan
-  static const Color accentMid       = Color(0xFF8B5CF6);   // purple mid-tone
+  static const Color accentStart = Color(0xFF95B1FF); // readable blue accent
+  static const Color accentEnd = Color(0xFFACC5FF); // light blue
+  static const Color accentMid = Color(0xFF95B1FF); // companion accent
 
   // ── Semantic ──────────────────────────────────────────
-  static const Color success         = Color(0xFF22C55E);
-  static const Color warning         = Color(0xFFFBBF24);
-  static const Color error           = Color(0xFFEF4444);
+  static const Color success = Color(0xFF75D6AE);
+  static const Color warning = Color(0xFFEFC475);
+  static const Color error = Color(0xFFFF949B);
 
   // ── Text ──────────────────────────────────────────────
-  static const Color textPrimary     = Color(0xFFF0F0FF);
-  static const Color textSecondary   = Color(0xFF9CA3C5);
-  static const Color textMuted       = Color(0xFF5C6299);
+  static const Color textPrimary = Color(0xFFF2F5FA);
+  static const Color textSecondary = Color(0xFFB9C5D6);
+  static const Color textMuted = Color(0xFF9CAEC5);
 
   // ── Misc ──────────────────────────────────────────────
-  static const Color shimmer         = Color(0x1AFFFFFF);   // 10 % white
-  static const Color shadow          = Color(0x40000000);   // 25 % black
+  static const Color shimmer = Color(0x1AFFFFFF); // 10 % white
+  static const Color shadow = Color(0x40000000); // 25 % black
 
   /// Branded gradient used on buttons, app-bars, etc.
   static const LinearGradient brandGradient = LinearGradient(
-    colors: [accentStart, accentEnd],
+    colors: [Color(0xFF4059B5), Color(0xFF315B96)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   /// Subtle background gradient for scaffolds.
   static const LinearGradient backgroundGradient = LinearGradient(
-    colors: [Color(0xFF0F1123), Color(0xFF161938)],
+    colors: [Color(0xFF101622), Color(0xFF151E2D)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
@@ -82,6 +82,7 @@ class AppTextStyles {
   static const TextStyle body = TextStyle(
     fontFamily: _fontFamily,
     fontSize: 14,
+    height: 1.5,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
   );
@@ -89,6 +90,7 @@ class AppTextStyles {
   static const TextStyle caption = TextStyle(
     fontFamily: _fontFamily,
     fontSize: 12,
+    height: 1.4,
     fontWeight: FontWeight.w400,
     color: AppColors.textMuted,
   );
@@ -115,80 +117,25 @@ class AppTextStyles {
 class AppDecorations {
   AppDecorations._();
 
-  /// Glassmorphic card surface.
+  /// Solid card surface with a subtle border.
   static BoxDecoration glassCard({double radius = 16}) => BoxDecoration(
-    color: AppColors.surface.withValues(alpha: 0.85),
+    color: AppColors.surface,
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: AppColors.border, width: 1),
-    boxShadow: const [
-      BoxShadow(color: AppColors.shadow, blurRadius: 24, offset: Offset(0, 8)),
-    ],
   );
 
-  /// Input field decoration (consistent across all text fields).
+  /// Field states and spacing come from the shared Material theme.
   static InputDecoration inputDecoration({
     required String label,
     IconData? prefixIcon,
     IconData? suffixIcon,
-  }) =>
-      InputDecoration(
-        labelText: label,
-        labelStyle: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-        floatingLabelStyle: AppTextStyles.caption.copyWith(color: AppColors.accentEnd),
-        prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, color: AppColors.accentEnd, size: 20)
-            : null,
-        suffixIcon: suffixIcon != null
-            ? Icon(suffixIcon, color: AppColors.textMuted, size: 20)
-            : null,
-        filled: true,
-        fillColor: AppColors.surfaceLight,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border, width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.accentEnd, width: 1.5),
-        ),
-      );
-
-  /// Primary gradient button style.
-  static ButtonStyle primaryButton = ButtonStyle(
-    padding: WidgetStateProperty.all(
-      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-    ),
-    shape: WidgetStateProperty.all(
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    ),
-    elevation: WidgetStateProperty.all(0),
-    backgroundColor: WidgetStateProperty.all(Colors.transparent),
-    foregroundColor: WidgetStateProperty.all(AppColors.textPrimary),
-    textStyle: WidgetStateProperty.all(AppTextStyles.button),
-  );
-
-  /// Secondary (outline) button style.
-  static ButtonStyle secondaryButton = ButtonStyle(
-    padding: WidgetStateProperty.all(
-      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-    ),
-    shape: WidgetStateProperty.all(
-      RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.border),
-      ),
-    ),
-    elevation: WidgetStateProperty.all(0),
-    backgroundColor: WidgetStateProperty.all(Colors.transparent),
-    foregroundColor: WidgetStateProperty.all(AppColors.textSecondary),
-    textStyle: WidgetStateProperty.all(AppTextStyles.button),
+  }) => InputDecoration(
+    labelText: label,
+    prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, size: 20),
+    suffixIcon: suffixIcon == null ? null : Icon(suffixIcon, size: 20),
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// Helper widget: Gradient-filled button
-// ─────────────────────────────────────────────────────────
 class GradientButton extends StatelessWidget {
   const GradientButton({
     super.key,
@@ -205,153 +152,103 @@ class GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+    final enabled = onPressed != null && !isLoading;
+    return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: onPressed != null ? AppColors.brandGradient : null,
-        color: onPressed == null ? AppColors.surfaceLight : null,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: onPressed != null
-            ? [
-                BoxShadow(
-                  color: AppColors.accentStart.withValues(alpha: 0.35),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
+        gradient: enabled || isLoading ? AppColors.brandGradient : null,
+        color: enabled || isLoading ? null : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            child: isLoading
-                ? const SizedBox(
-                    height: 22,
-                    child: _ThreeDotsLoading(),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (icon != null) ...[
-                        Icon(icon, color: AppColors.textPrimary, size: 20),
-                        const SizedBox(width: 10),
-                      ],
-                      Flexible(
-                        child: Text(
-                          label,
-                          style: AppTextStyles.button,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
+      child: ElevatedButton(
+        onPressed: enabled ? onPressed : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          disabledBackgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          disabledForegroundColor: AppColors.textMuted,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
         ),
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                  semanticsLabel: 'Loading',
+                ),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 20),
+                    const SizedBox(width: 10),
+                  ],
+                  Flexible(child: Text(label, textAlign: TextAlign.center)),
+                ],
+              ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// Animated three-dot loading indicator
-// ─────────────────────────────────────────────────────────
-class _ThreeDotsLoading extends StatefulWidget {
-  const _ThreeDotsLoading();
-
-  @override
-  State<_ThreeDotsLoading> createState() => _ThreeDotsLoadingState();
-}
-
-class _ThreeDotsLoadingState extends State<_ThreeDotsLoading>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, _) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(3, (index) {
-            // Stagger each dot by ~0.2 of the animation cycle
-            final delay = index * 0.2;
-            final t = (_controller.value - delay) % 1.0;
-            // Bounce: scale up then back down in the first half of each dot's cycle
-            final scale = t < 0.5
-                ? 0.5 + (t * 2.0) * 0.5   // 0.5 → 1.0
-                : 0.5 + ((1.0 - t) * 2.0) * 0.5; // 1.0 → 0.5
-            final opacity = scale; // tie opacity to scale for a pulsing effect
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: Opacity(
-                opacity: opacity.clamp(0.3, 1.0),
-                child: Transform.scale(
-                  scale: scale,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.textPrimary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// MaterialApp ThemeData (plug into main.dart)
-// ─────────────────────────────────────────────────────────
 ThemeData buildAppTheme() {
+  final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
+  OutlineInputBorder inputBorder(Color color, [double width = 1]) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: color, width: width),
+      );
+  const scheme = ColorScheme.dark(
+    primary: AppColors.accentStart,
+    onPrimary: AppColors.background,
+    primaryContainer: AppColors.surfaceLight,
+    onPrimaryContainer: AppColors.textPrimary,
+    secondary: AppColors.accentEnd,
+    onSecondary: AppColors.background,
+    secondaryContainer: AppColors.surfaceLight,
+    onSecondaryContainer: AppColors.textPrimary,
+    surface: AppColors.surface,
+    onSurface: AppColors.textPrimary,
+    onSurfaceVariant: AppColors.textSecondary,
+    surfaceContainerHighest: AppColors.surfaceLight,
+    outline: AppColors.border,
+    outlineVariant: AppColors.border,
+    error: AppColors.error,
+    onError: AppColors.background,
+  );
+  final buttonStyle = ElevatedButton.styleFrom(
+    minimumSize: const Size(48, 48),
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    shape: shape,
+    elevation: 0,
+    textStyle: AppTextStyles.button,
+    foregroundColor: AppColors.background,
+    backgroundColor: AppColors.accentStart,
+    disabledBackgroundColor: AppColors.surfaceLight,
+    disabledForegroundColor: AppColors.textMuted,
+  );
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     scaffoldBackgroundColor: AppColors.background,
-    colorScheme: ColorScheme.dark(
-      primary: AppColors.accentStart,
-      secondary: AppColors.accentEnd,
-      surface: AppColors.surface,
-      error: AppColors.error,
-    ),
+    colorScheme: scheme,
     appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.background,
+      foregroundColor: AppColors.textPrimary,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: true,
+      centerTitle: false,
       titleTextStyle: AppTextStyles.title,
-      iconTheme: IconThemeData(color: AppColors.textMuted),
+      iconTheme: IconThemeData(color: AppColors.textSecondary),
     ),
     cardTheme: CardThemeData(
       color: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -361,27 +258,86 @@ ThemeData buildAppTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surfaceLight,
-      labelStyle: AppTextStyles.caption,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.border),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+      floatingLabelStyle: const TextStyle(color: AppColors.accentEnd),
+      prefixIconColor: AppColors.textSecondary,
+      suffixIconColor: AppColors.textSecondary,
+      errorMaxLines: 3,
+      border: inputBorder(AppColors.border),
+      enabledBorder: inputBorder(AppColors.border),
+      disabledBorder: inputBorder(AppColors.border),
+      focusedBorder: inputBorder(AppColors.accentStart, 2),
+      errorBorder: inputBorder(AppColors.error),
+      focusedErrorBorder: inputBorder(AppColors.error, 2),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(style: buttonStyle),
+    filledButtonTheme: FilledButtonThemeData(style: buttonStyle),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        foregroundColor: AppColors.textPrimary,
+        side: const BorderSide(color: AppColors.border),
+        shape: shape,
+        textStyle: AppTextStyles.button,
       ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        foregroundColor: AppColors.accentEnd,
+        shape: shape,
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
+      constraints: const BoxConstraints(maxWidth: 520),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      titleTextStyle: AppTextStyles.title,
+      contentTextStyle: AppTextStyles.body,
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
+      constraints: BoxConstraints(maxWidth: 640),
+      showDragHandle: true,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: AppColors.surfaceLight,
+      contentTextStyle: AppTextStyles.body,
+      actionTextColor: AppColors.accentEnd,
+      shape: shape,
+    ),
+    dividerTheme: const DividerThemeData(color: AppColors.border, thickness: 1),
+    chipTheme: ChipThemeData(
+      backgroundColor: AppColors.surfaceLight,
+      selectedColor: AppColors.accentStart.withValues(alpha: 0.18),
+      labelStyle: AppTextStyles.body,
+      side: const BorderSide(color: AppColors.border),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
     datePickerTheme: DatePickerThemeData(
       backgroundColor: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
       headerBackgroundColor: AppColors.surfaceLight,
       headerForegroundColor: AppColors.textPrimary,
-      dayForegroundColor: WidgetStateProperty.all(AppColors.textPrimary),
-      todayForegroundColor: WidgetStateProperty.all(AppColors.accentEnd),
-      todayBorder: const BorderSide(color: AppColors.accentEnd),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
-    textTheme: const TextTheme(
-      headlineLarge: AppTextStyles.headline,
-      titleLarge: AppTextStyles.title,
-      titleMedium: AppTextStyles.subtitle,
-      bodyMedium: AppTextStyles.body,
-      labelSmall: AppTextStyles.caption,
-    ),
+    textTheme: ThemeData.dark().textTheme
+        .apply(
+          bodyColor: AppColors.textPrimary,
+          displayColor: AppColors.textPrimary,
+        )
+        .copyWith(
+          headlineLarge: AppTextStyles.headline,
+          titleLarge: AppTextStyles.title,
+          titleMedium: AppTextStyles.subtitle,
+          bodyMedium: AppTextStyles.body,
+          bodySmall: AppTextStyles.caption,
+          labelSmall: AppTextStyles.caption,
+        ),
   );
 }

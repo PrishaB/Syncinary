@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/page_body.dart';
 import '../models/group.dart';
 import '../models/schedule.dart';
 import '../models/trip_location.dart';
@@ -28,12 +29,30 @@ import 'trip_map_page.dart';
 /// Firestore rules enforce the same split.
 /// Panels stack below [_wideBreakpoint], add panel first, so the part
 /// that does something stays on top at phone width.
-const double _wideBreakpoint = 760;
+const double _wideBreakpoint = 1120;
 
-const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const _weekdays = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
 const _months = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 /// "Monday, May 3rd"
@@ -41,7 +60,12 @@ String formatScheduleDay(DateTime date) {
   final d = date.day;
   final suffix = (d >= 11 && d <= 13)
       ? 'th'
-      : switch (d % 10) { 1 => 'st', 2 => 'nd', 3 => 'rd', _ => 'th' };
+      : switch (d % 10) {
+          1 => 'st',
+          2 => 'nd',
+          3 => 'rd',
+          _ => 'th',
+        };
   return '${_weekdays[date.weekday - 1]}, ${_months[date.month - 1]} $d$suffix';
 }
 
@@ -53,8 +77,8 @@ class ScheduleBuilderPage extends StatefulWidget {
     ScheduleService? service,
     this.placeService,
     RecommendationService? recommendationService,
-  })  : _service = service,
-        _recommendationService = recommendationService;
+  }) : _service = service,
+       _recommendationService = recommendationService;
 
   final Group group;
   final ScheduleService? _service;
@@ -113,20 +137,23 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
     if (item.addedBy.isEmpty) return null;
     final verb = item.isSuggestion ? 'Suggested' : 'Added';
     if (item.addedBy == _service.currentUserId) return '$verb by you';
-    final name = widget.group.memberById(item.addedBy)?.username ?? 'a former member';
+    final name =
+        widget.group.memberById(item.addedBy)?.username ?? 'a former member';
     return '$verb by $name';
   }
 
   void _showError(String action, Object e) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Couldn\'t $action: $e')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Couldn\'t $action: $e')));
   }
 
   Future<void> _deleteDay(ScheduleDay day) async {
     final confirmed = await showConfirmationDialog(
       context,
-      message: 'Remove ${formatScheduleDay(day.date)} and everything planned on it?',
+      message:
+          'Remove ${formatScheduleDay(day.date)} and everything planned on it?',
       confirmLabel: 'Remove',
     );
     if (!confirmed) return;
@@ -152,9 +179,7 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
     );
   }
 
-  Future<void> _addSelectedFlight(
-    Map<String, dynamic> offer,
-  ) async {
+  Future<void> _addSelectedFlight(Map<String, dynamic> offer) async {
     try {
       final flights = offer['flights'] as List<dynamic>? ?? [];
 
@@ -174,15 +199,13 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
       final departureTime = departure?['time']?.toString();
       final arrivalTime = arrival?['time']?.toString();
 
-      if (departureTime == null ||
-          DateTime.tryParse(departureTime) == null) {
+      if (departureTime == null || DateTime.tryParse(departureTime) == null) {
         throw Exception('Flight departure date is missing or invalid.');
       }
 
       final date = DateTime.parse(departureTime);
       final airline = first['airline']?.toString() ?? 'Unknown airline';
-      final flightNumber =
-          first['flight_number']?.toString() ?? '';
+      final flightNumber = first['flight_number']?.toString() ?? '';
 
       final price = offer['price']?.toString() ?? 'N/A';
       final stops = flights.length - 1;
@@ -225,7 +248,7 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
         ),
       );
     } catch (e) {
-  rethrow;
+      rethrow;
     }
   }
 
@@ -234,35 +257,53 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   /// onto the itinerary; a member's becomes a suggestion.
   Future<void> _addItem(ScheduleItemType type, ScheduleDay? selectedDay) async {
     final suggest = !_isAdmin;
-    final result = await _showItemDialog(context,
-        type: type,
-        suggest: suggest,
-        placeService: widget.placeService,
-        initialDate: selectedDay?.date ?? DateTime.now(),
-        search: switch (type) {
-          ScheduleItemType.flight =>
-            (label: 'Search flights', onTap: () => _openSearch(SearchType.flights)),
-          ScheduleItemType.hotel =>
-            (label: 'Search hotels', onTap: () => _openSearch(SearchType.hotels)),
-          ScheduleItemType.activity => null,
-        });
+    final result = await _showItemDialog(
+      context,
+      type: type,
+      suggest: suggest,
+      placeService: widget.placeService,
+      initialDate: selectedDay?.date ?? DateTime.now(),
+      search: switch (type) {
+        ScheduleItemType.flight => (
+          label: 'Search flights',
+          onTap: () => _openSearch(SearchType.flights),
+        ),
+        ScheduleItemType.hotel => (
+          label: 'Search hotels',
+          onTap: () => _openSearch(SearchType.hotels),
+        ),
+        ScheduleItemType.activity => null,
+      },
+    );
     if (result == null) return;
     try {
-      await _service.addItem(_groupId,
-          date: result.date,
-          type: type,
-          title: result.title,
-          details: result.details,
-          location: result.location,
-          status: suggest ? ScheduleItemStatus.suggested : ScheduleItemStatus.approved);
+      await _service.addItem(
+        _groupId,
+        date: result.date,
+        type: type,
+        title: result.title,
+        details: result.details,
+        location: result.location,
+        status: suggest
+            ? ScheduleItemStatus.suggested
+            : ScheduleItemStatus.approved,
+      );
       if (!mounted) return;
       setState(() => _selectedDayKey = scheduleDayKey(result.date));
       if (suggest) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Suggestion sent — the trip admin will approve or reject it.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Suggestion sent — the trip admin will approve or reject it.',
+            ),
+          ),
+        );
       }
     } catch (e) {
-      _showError('${suggest ? 'suggest' : 'add'} the ${_typeInfo(type).noun}', e);
+      _showError(
+        '${suggest ? 'suggest' : 'add'} the ${_typeInfo(type).noun}',
+        e,
+      );
     }
   }
 
@@ -277,7 +318,10 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
 
   /// Rejecting (admin) and withdrawing (the member who suggested it) both
   /// delete the suggestion.
-  Future<void> _discardSuggestion(ScheduleItem item, {required bool reject}) async {
+  Future<void> _discardSuggestion(
+    ScheduleItem item, {
+    required bool reject,
+  }) async {
     final confirmed = await showConfirmationDialog(
       context,
       message: reject
@@ -294,20 +338,29 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   }
 
   Future<void> _editItem(ScheduleItem item, DateTime currentDate) async {
-    final result = await _showItemDialog(context,
-        type: item.type,
-        initialDate: currentDate,
-        initialTitle: item.title,
-        initialDetails: item.details,
-        initialLocation: item.location,
-        placeService: widget.placeService);
+    final result = await _showItemDialog(
+      context,
+      type: item.type,
+      initialDate: currentDate,
+      initialTitle: item.title,
+      initialDetails: item.details,
+      initialLocation: item.location,
+      placeService: widget.placeService,
+    );
     if (result == null) return;
     try {
-      await _service.updateItem(_groupId, item.id,
-          date: result.date, title: result.title, details: result.details,
-          location: result.locationChanged ? result.location : null,
-          clearLocation: result.locationChanged && result.location == null);
-      if (mounted) setState(() => _selectedDayKey = scheduleDayKey(result.date));
+      await _service.updateItem(
+        _groupId,
+        item.id,
+        date: result.date,
+        title: result.title,
+        details: result.details,
+        location: result.locationChanged ? result.location : null,
+        clearLocation: result.locationChanged && result.location == null,
+      );
+      if (mounted) {
+        setState(() => _selectedDayKey = scheduleDayKey(result.date));
+      }
     } catch (e) {
       _showError('save the change', e);
     }
@@ -330,148 +383,157 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: const GradientAppBar(title: 'Schedule Builder'),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: SafeArea(
-          child: StreamBuilder<List<ScheduleDay>>(
-            stream: _service.daysStream(_groupId),
-            builder: (context, daysSnapshot) {
-              return StreamBuilder<List<ScheduleItem>>(
-                stream: _service.itemsStream(_groupId),
-                builder: (context, itemsSnapshot) {
-                  final days = daysSnapshot.data ?? const <ScheduleDay>[];
-                  final items = itemsSnapshot.data ?? const <ScheduleItem>[];
+      body: PageBody(
+        maxWidth: 1440,
+        child: StreamBuilder<List<ScheduleDay>>(
+          stream: _service.daysStream(_groupId),
+          builder: (context, daysSnapshot) {
+            return StreamBuilder<List<ScheduleItem>>(
+              stream: _service.itemsStream(_groupId),
+              builder: (context, itemsSnapshot) {
+                final days = daysSnapshot.data ?? const <ScheduleDay>[];
+                final items = itemsSnapshot.data ?? const <ScheduleItem>[];
 
-                  final selectedDay = _selectedDay(days);
-                  final isAdmin = _isAdmin;
-                  final itinerary = items.where((i) => !i.isSuggestion).toList();
-                  final suggestions = items.where((i) => i.isSuggestion).toList();
+                final selectedDay = _selectedDay(days);
+                final isAdmin = _isAdmin;
+                final itinerary = items.where((i) => !i.isSuggestion).toList();
+                final suggestions = items.where((i) => i.isSuggestion).toList();
 
-                  final advisor = _AdvisorPanel(
-                    key: _advisorKey,
-                    service: _recommendationService,
-                    groupId: _groupId,
-                    // Null until the first snapshot, so the advisor's one
-                    // initial request already includes the schedule.
-                    items: itemsSnapshot.hasData ? items : null,
-                  );
-                  final dayPlan = _DayPlanPanel(
-                    days: days,
-                    selectedDay: selectedDay,
-                    items: itinerary,
-                    attribution: _attribution,
-                    onSelectDay: _selectDay,
-                    // Removing a day removes its itinerary items, so admin only.
-                    onDeleteDay: isAdmin ? _deleteDay : null,
-                    onEditItem: isAdmin ? (item) => _editItem(item, selectedDay!.date) : null,
-                    onDeleteItem: isAdmin ? _deleteItem : null,
-                  );
-                  final addPanel = _AddToTripPanel(
-                    suggest: !isAdmin,
-                    onAdd: (type) => _addItem(type, selectedDay),
-                  );
-                  final suggestionsPanel = _SuggestionsPanel(
-                    suggestions: suggestions,
-                    attribution: _attribution,
-                    onApprove: isAdmin ? _approveItem : null,
-                    onReject: isAdmin
-                        ? (item) => _discardSuggestion(item, reject: true)
-                        : null,
-                    // A member can take back their own pending suggestion.
-                    currentUserId: _service.currentUserId,
-                    onWithdraw: isAdmin
-                        ? null
-                        : (item) => _discardSuggestion(item, reject: false),
-                  );
-                  final preferencesLink = Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton.icon(
-                      onPressed: _openGroupPreferences,
-                      icon: const Icon(Icons.bar_chart_rounded),
-                      label: const Text('Group Preferences'),
-                    ),
-                  );
-                  final mapView = Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => TripMapPage(
+                final advisor = _AdvisorPanel(
+                  key: _advisorKey,
+                  service: _recommendationService,
+                  groupId: _groupId,
+                  // Null until the first snapshot, so the advisor's one
+                  // initial request already includes the schedule.
+                  items: itemsSnapshot.hasData ? items : null,
+                );
+                final dayPlan = _DayPlanPanel(
+                  days: days,
+                  selectedDay: selectedDay,
+                  items: itinerary,
+                  attribution: _attribution,
+                  onSelectDay: _selectDay,
+                  // Removing a day removes its itinerary items, so admin only.
+                  onDeleteDay: isAdmin ? _deleteDay : null,
+                  onEditItem: isAdmin
+                      ? (item) => _editItem(item, selectedDay!.date)
+                      : null,
+                  onDeleteItem: isAdmin ? _deleteItem : null,
+                );
+                final addPanel = _AddToTripPanel(
+                  suggest: !isAdmin,
+                  onAdd: (type) => _addItem(type, selectedDay),
+                );
+                final suggestionsPanel = _SuggestionsPanel(
+                  suggestions: suggestions,
+                  attribution: _attribution,
+                  onApprove: isAdmin ? _approveItem : null,
+                  onReject: isAdmin
+                      ? (item) => _discardSuggestion(item, reject: true)
+                      : null,
+                  // A member can take back their own pending suggestion.
+                  currentUserId: _service.currentUserId,
+                  onWithdraw: isAdmin
+                      ? null
+                      : (item) => _discardSuggestion(item, reject: false),
+                );
+                final preferencesLink = Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: _openGroupPreferences,
+                    icon: const Icon(Icons.bar_chart_rounded),
+                    label: const Text('Group Preferences'),
+                  ),
+                );
+                final mapView = Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TripMapPage(
                           group: widget.group,
                           service: _service,
                           placeService: widget.placeService,
-                        )),
+                        ),
                       ),
-                      icon: const Icon(Icons.map_outlined, color: AppColors.accentEnd),
-                      label: Text('Map View',
-                          style: AppTextStyles.body.copyWith(color: AppColors.accentEnd)),
                     ),
-                  );
+                    icon: const Icon(
+                      Icons.map_outlined,
+                      color: AppColors.accentEnd,
+                    ),
+                    label: Text(
+                      'Map View',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.accentEnd,
+                      ),
+                    ),
+                  ),
+                );
 
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      const padding = EdgeInsets.fromLTRB(24, 88, 24, 32);
-                      if (constraints.maxWidth >= _wideBreakpoint) {
-                        return SingleChildScrollView(
-                          padding: padding,
-                          child: Column(
-                            children: [
-                              preferencesLink,
-                              const SizedBox(height: 16),
-                              IntrinsicHeight(
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Expanded(child: advisor),
-                                    const SizedBox(width: 16),
-                                    Expanded(child: dayPlan),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
-                                          addPanel,
-                                          const SizedBox(height: 16),
-                                          suggestionsPanel,
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              mapView,
-                            ],
-                          ),
-                        );
-                      }
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    const padding = EdgeInsets.fromLTRB(20, 24, 20, 32);
+                    if (constraints.maxWidth >=
+                        _wideBreakpoint *
+                            MediaQuery.textScalerOf(context).scale(1)) {
                       return SingleChildScrollView(
                         padding: padding,
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             preferencesLink,
                             const SizedBox(height: 16),
-                            addPanel,
-                            const SizedBox(height: 20),
-                            suggestionsPanel,
-                            const SizedBox(height: 20),
-                            dayPlan,
-                            const SizedBox(height: 20),
-                            advisor,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: advisor),
+                                const SizedBox(width: 16),
+                                Expanded(child: dayPlan),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      addPanel,
+                                      const SizedBox(height: 16),
+                                      suggestionsPanel,
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 12),
                             mapView,
                           ],
                         ),
                       );
-                    },
-                  );
-                },
-              );
-            },
-          ),
+                    }
+                    return SingleChildScrollView(
+                      padding: padding,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          preferencesLink,
+                          const SizedBox(height: 16),
+                          addPanel,
+                          const SizedBox(height: 20),
+                          suggestionsPanel,
+                          const SizedBox(height: 20),
+                          dayPlan,
+                          const SizedBox(height: 20),
+                          advisor,
+                          const SizedBox(height: 12),
+                          mapView,
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       ),
     );
@@ -490,32 +552,33 @@ class _ScheduleBuilderPageState extends State<ScheduleBuilderPage> {
   IconData icon,
   String titleLabel,
   String detailsLabel,
-}) _typeInfo(ScheduleItemType type) => switch (type) {
-      ScheduleItemType.flight => (
-          noun: 'flight',
-          heading: 'Flights',
-          emptyText: 'No flights added yet.',
-          icon: Icons.flight_rounded,
-          titleLabel: 'Flight (e.g. UA 123, ORD → JFK)',
-          detailsLabel: 'Details (e.g. departs 8:05 AM)',
-        ),
-      ScheduleItemType.hotel => (
-          noun: 'hotel',
-          heading: 'Stay',
-          emptyText: 'No hotel added yet.',
-          icon: Icons.hotel_rounded,
-          titleLabel: 'Hotel name',
-          detailsLabel: 'Details (e.g. 1 bed)',
-        ),
-      ScheduleItemType.activity => (
-          noun: 'activity',
-          heading: 'Activities',
-          emptyText: 'No activities planned yet.',
-          icon: Icons.local_activity_rounded,
-          titleLabel: 'Activity',
-          detailsLabel: 'Details (e.g. time, tickets)',
-        ),
-    };
+})
+_typeInfo(ScheduleItemType type) => switch (type) {
+  ScheduleItemType.flight => (
+    noun: 'flight',
+    heading: 'Flights',
+    emptyText: 'No flights added yet.',
+    icon: Icons.flight_rounded,
+    titleLabel: 'Flight (e.g. UA 123, ORD → JFK)',
+    detailsLabel: 'Details (e.g. departs 8:05 AM)',
+  ),
+  ScheduleItemType.hotel => (
+    noun: 'hotel',
+    heading: 'Stay',
+    emptyText: 'No hotel added yet.',
+    icon: Icons.hotel_rounded,
+    titleLabel: 'Hotel name',
+    detailsLabel: 'Details (e.g. 1 bed)',
+  ),
+  ScheduleItemType.activity => (
+    noun: 'activity',
+    heading: 'Activities',
+    emptyText: 'No activities planned yet.',
+    icon: Icons.local_activity_rounded,
+    titleLabel: 'Activity',
+    detailsLabel: 'Details (e.g. time, tickets)',
+  ),
+};
 
 String _capitalized(String s) => s[0].toUpperCase() + s.substring(1);
 
@@ -541,7 +604,11 @@ class _Panel extends StatelessWidget {
           Text(title, style: AppTextStyles.title, textAlign: TextAlign.center),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(subtitle!, style: AppTextStyles.caption, textAlign: TextAlign.center),
+            Text(
+              subtitle!,
+              style: AppTextStyles.caption,
+              textAlign: TextAlign.center,
+            ),
           ],
           const SizedBox(height: 16),
           ...children,
@@ -553,10 +620,10 @@ class _Panel extends StatelessWidget {
 
 /// A rounded inner card, used for day-plan entries and add buttons.
 BoxDecoration _innerCard() => BoxDecoration(
-      color: AppColors.surfaceLight,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.border),
-    );
+  color: AppColors.surfaceLight,
+  borderRadius: BorderRadius.circular(14),
+  border: Border.all(color: AppColors.border),
+);
 
 /// Sends the group's planned flights, hotels and activities as the request's
 /// travel results, so suggestions build on what is already scheduled. The
@@ -586,7 +653,10 @@ class _AdvisorPanel extends StatelessWidget {
           service: service,
           searchContext: items == null
               ? null
-              : SearchContext(groupId: groupId, travelResults: scheduleItemsAsTravelResults(items)),
+              : SearchContext(
+                  groupId: groupId,
+                  travelResults: scheduleItemsAsTravelResults(items),
+                ),
           embedded: true,
           heading: 'Ideas for this trip',
         ),
@@ -599,13 +669,17 @@ class _AdvisorPanel extends StatelessWidget {
 /// (`type`, `name`, `departureTime`), earliest day first so the client's
 /// result cap keeps the start of the trip.
 @visibleForTesting
-List<Map<String, String>> scheduleItemsAsTravelResults(List<ScheduleItem> items) {
+List<Map<String, String>> scheduleItemsAsTravelResults(
+  List<ScheduleItem> items,
+) {
   final sorted = [...items]..sort((a, b) => a.day.compareTo(b.day));
   return [
     for (final item in sorted)
       {
         'type': scheduleItemTypeToString(item.type),
-        'name': item.details.isEmpty ? item.title : '${item.title} (${item.details})',
+        'name': item.details.isEmpty
+            ? item.title
+            : '${item.title} (${item.details})',
         'departureTime': item.day,
       },
   ];
@@ -642,9 +716,11 @@ class _DayPlanPanel extends StatelessWidget {
       return _Panel(
         title: 'Day Plan',
         children: [
-          Text('Nothing planned yet. Add a flight, hotel, or activity to start the schedule.',
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-              textAlign: TextAlign.center),
+          Text(
+            'Nothing planned yet. Add a flight, hotel, or activity to start the schedule.',
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
         ],
       );
     }
@@ -667,7 +743,10 @@ class _DayPlanPanel extends StatelessWidget {
                     isExpanded: true,
                     dropdownColor: AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    icon: const Icon(Icons.expand_more_rounded, color: AppColors.accentEnd),
+                    icon: const Icon(
+                      Icons.expand_more_rounded,
+                      color: AppColors.accentEnd,
+                    ),
                     style: AppTextStyles.body,
                     items: [
                       for (final d in days)
@@ -675,12 +754,17 @@ class _DayPlanPanel extends StatelessWidget {
                           value: d.key,
                           child: Row(
                             children: [
-                              const Icon(Icons.calendar_today_rounded,
-                                  size: 16, color: AppColors.accentEnd),
+                              const Icon(
+                                Icons.calendar_today_rounded,
+                                size: 16,
+                                color: AppColors.accentEnd,
+                              ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Text(formatScheduleDay(d.date),
-                                    overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  formatScheduleDay(d.date),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
@@ -698,8 +782,11 @@ class _DayPlanPanel extends StatelessWidget {
             if (onDeleteDay case final onDeleteDay?)
               IconButton(
                 tooltip: 'Remove day',
-                icon: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.textMuted, size: 20),
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.textMuted,
+                  size: 20,
+                ),
                 onPressed: () => onDeleteDay(day),
               ),
           ],
@@ -722,14 +809,21 @@ class _DayPlanPanel extends StatelessWidget {
         Icon(info.icon, size: 18, color: AppColors.accentEnd),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(info.heading,
-              style: AppTextStyles.subtitle.copyWith(color: AppColors.textPrimary)),
+          child: Text(
+            info.heading,
+            style: AppTextStyles.subtitle.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
         ),
       ],
     );
   }
 
-  List<Widget> _sectionBody(ScheduleItemType type, List<ScheduleItem> sectionItems) {
+  List<Widget> _sectionBody(
+    ScheduleItemType type,
+    List<ScheduleItem> sectionItems,
+  ) {
     if (sectionItems.isEmpty) {
       return [
         Container(
@@ -784,7 +878,10 @@ class _SuggestionsPanel extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: _innerCard(),
-            child: const Text('No suggestions pending.', style: AppTextStyles.caption),
+            child: const Text(
+              'No suggestions pending.',
+              style: AppTextStyles.caption,
+            ),
           ),
         for (final item in sorted)
           _SuggestionCard(
@@ -827,7 +924,8 @@ class _AddToTripPanel extends StatelessWidget {
         for (final type in _order)
           _AddTile(
             icon: _typeInfo(type).icon,
-            label: '${suggest ? 'Suggest' : 'Add'} ${_capitalized(_typeInfo(type).noun)}',
+            label:
+                '${suggest ? 'Suggest' : 'Add'} ${_capitalized(_typeInfo(type).noun)}',
             onTap: () => onAdd(type),
           ),
       ],
@@ -856,11 +954,19 @@ class _ItemText extends StatelessWidget {
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.textMuted),
+              const Icon(
+                Icons.person_outline_rounded,
+                size: 14,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(width: 4),
               Expanded(
-                child: Text(attribution!,
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+                child: Text(
+                  attribution!,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ),
             ],
           ),
@@ -889,23 +995,38 @@ class _ScheduleItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.fromLTRB(14, 10, onEdit == null && onDelete == null ? 14 : 4, 10),
+      padding: EdgeInsets.fromLTRB(
+        14,
+        10,
+        onEdit == null && onDelete == null ? 14 : 4,
+        10,
+      ),
       decoration: _innerCard(),
       child: Row(
         children: [
           Icon(_typeInfo(item.type).icon, color: AppColors.accentEnd, size: 20),
           const SizedBox(width: 12),
-          Expanded(child: _ItemText(item: item, attribution: attribution)),
+          Expanded(
+            child: _ItemText(item: item, attribution: attribution),
+          ),
           if (onEdit != null)
             IconButton(
               tooltip: 'Edit',
-              icon: const Icon(Icons.edit_outlined, color: AppColors.textMuted, size: 18),
+              icon: const Icon(
+                Icons.edit_outlined,
+                color: AppColors.textMuted,
+                size: 18,
+              ),
               onPressed: onEdit,
             ),
           if (onDelete != null)
             IconButton(
               tooltip: 'Remove',
-              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+              icon: const Icon(
+                Icons.close_rounded,
+                color: AppColors.textMuted,
+                size: 18,
+              ),
               onPressed: onDelete,
             ),
         ],
@@ -934,7 +1055,8 @@ class _SuggestionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = DateTime.tryParse(item.day);
-    final hasActions = onApprove != null || onReject != null || onWithdraw != null;
+    final hasActions =
+        onApprove != null || onReject != null || onWithdraw != null;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: EdgeInsets.fromLTRB(14, 10, hasActions ? 4 : 14, 10),
@@ -948,8 +1070,12 @@ class _SuggestionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (date != null) ...[
-                  Text(formatScheduleDay(date),
-                      style: AppTextStyles.caption.copyWith(color: AppColors.accentEnd)),
+                  Text(
+                    formatScheduleDay(date),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.accentEnd,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                 ],
                 _ItemText(item: item, attribution: attribution),
@@ -959,19 +1085,31 @@ class _SuggestionCard extends StatelessWidget {
           if (onApprove != null)
             IconButton(
               tooltip: 'Approve',
-              icon: const Icon(Icons.check_rounded, color: AppColors.accentEnd, size: 20),
+              icon: const Icon(
+                Icons.check_rounded,
+                color: AppColors.accentEnd,
+                size: 20,
+              ),
               onPressed: onApprove,
             ),
           if (onReject != null)
             IconButton(
               tooltip: 'Reject',
-              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+              icon: const Icon(
+                Icons.close_rounded,
+                color: AppColors.textMuted,
+                size: 18,
+              ),
               onPressed: onReject,
             ),
           if (onWithdraw != null)
             IconButton(
               tooltip: 'Withdraw',
-              icon: const Icon(Icons.undo_rounded, color: AppColors.textMuted, size: 18),
+              icon: const Icon(
+                Icons.undo_rounded,
+                color: AppColors.textMuted,
+                size: 18,
+              ),
               onPressed: onWithdraw,
             ),
         ],
@@ -981,7 +1119,11 @@ class _SuggestionCard extends StatelessWidget {
 }
 
 class _AddTile extends StatelessWidget {
-  const _AddTile({required this.icon, required this.label, required this.onTap});
+  const _AddTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -1021,15 +1163,29 @@ class _AddTile extends StatelessWidget {
 // Keep label metrics and paint style fixed while focus changes to avoid the
 // animated label repaint path implicated in the reported TextPainter assertion.
 InputDecoration _itemInputDecoration(String label, {IconData? icon}) {
-  final labelStyle = AppTextStyles.caption.copyWith(color: AppColors.textSecondary);
-  return AppDecorations.inputDecoration(label: label, prefixIcon: icon).copyWith(
+  final labelStyle = AppTextStyles.caption.copyWith(
+    color: AppColors.textSecondary,
+  );
+  return AppDecorations.inputDecoration(
+    label: label,
+    prefixIcon: icon,
+  ).copyWith(
     floatingLabelBehavior: FloatingLabelBehavior.always,
     labelStyle: labelStyle,
     floatingLabelStyle: labelStyle,
   );
 }
 
-Future<({DateTime date, String title, String details, TripLocation? location, bool locationChanged})?> _showItemDialog(
+Future<
+  ({
+    DateTime date,
+    String title,
+    String details,
+    TripLocation? location,
+    bool locationChanged,
+  })?
+>
+_showItemDialog(
   BuildContext context, {
   required ScheduleItemType type,
   required DateTime initialDate,
@@ -1048,7 +1204,15 @@ Future<({DateTime date, String title, String details, TripLocation? location, bo
   var location = initialLocation;
   var locationChanged = false;
 
-  return showDialog<({DateTime date, String title, String details, TripLocation? location, bool locationChanged})>(
+  return showDialog<
+    ({
+      DateTime date,
+      String title,
+      String details,
+      TripLocation? location,
+      bool locationChanged,
+    })
+  >(
     context: context,
     builder: (dialogContext) => Dialog(
       backgroundColor: Colors.transparent,
@@ -1058,111 +1222,148 @@ Future<({DateTime date, String title, String details, TripLocation? location, bo
         builder: (context, setDialogState) => Container(
           padding: const EdgeInsets.all(24),
           decoration: AppDecorations.glassCard(),
-          child: SingleChildScrollView(child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('${isEdit ? 'Edit' : suggest ? 'Suggest' : 'Add'} ${_capitalized(info.noun)}',
-                  style: AppTextStyles.title),
-              const SizedBox(height: 18),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  key: const ValueKey('item-date'),
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () async {
-                    final now = DateTime.now();
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: date,
-                      firstDate: DateTime(now.year - 1),
-                      lastDate: DateTime(now.year + 3),
-                    );
-                    if (picked != null) setDialogState(() => date = picked);
-                  },
-                  child: Ink(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: _innerCard(),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today_rounded,
-                            color: AppColors.accentEnd, size: 18),
-                        const SizedBox(width: 12),
-                        Expanded(child: Text(formatScheduleDay(date), style: AppTextStyles.body)),
-                        const Icon(Icons.edit_calendar_rounded,
-                            color: AppColors.textMuted, size: 18),
-                      ],
-                    ),
-                  ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${isEdit
+                      ? 'Edit'
+                      : suggest
+                      ? 'Suggest'
+                      : 'Add'} ${_capitalized(info.noun)}',
+                  style: AppTextStyles.title,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: titleController,
-                autofocus: true,
-                style: AppTextStyles.body,
-                decoration: _itemInputDecoration(info.titleLabel, icon: info.icon),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: detailsController,
-                style: AppTextStyles.body,
-                decoration: _itemInputDecoration(info.detailsLabel),
-              ),
-              TripLocationField(
-                location: location,
-                query: () => titleController.text,
-                service: placeService,
-                onChanged: (value) => setDialogState(() {
-                  location = value;
-                  locationChanged = true;
-                }),
-              ),
-              if (search != null) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      search.onTap();
+                const SizedBox(height: 18),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    key: const ValueKey('item-date'),
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: date,
+                        firstDate: DateTime(now.year - 1),
+                        lastDate: DateTime(now.year + 3),
+                      );
+                      if (picked != null) setDialogState(() => date = picked);
                     },
-                    icon: const Icon(Icons.search_rounded, color: AppColors.accentEnd, size: 18),
-                    label: Text(search.label,
-                        style: AppTextStyles.body.copyWith(color: AppColors.accentEnd)),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: Text('Cancel',
-                          style: AppTextStyles.button.copyWith(color: AppColors.textSecondary)),
+                    child: Ink(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: _innerCard(),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            color: AppColors.accentEnd,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              formatScheduleDay(date),
+                              style: AppTextStyles.body,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.edit_calendar_rounded,
+                            color: AppColors.textMuted,
+                            size: 18,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GradientButton(
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: titleController,
+                  autofocus: true,
+                  style: AppTextStyles.body,
+                  decoration: _itemInputDecoration(
+                    info.titleLabel,
+                    icon: info.icon,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: detailsController,
+                  style: AppTextStyles.body,
+                  decoration: _itemInputDecoration(info.detailsLabel),
+                ),
+                TripLocationField(
+                  location: location,
+                  query: () => titleController.text,
+                  service: placeService,
+                  onChanged: (value) => setDialogState(() {
+                    location = value;
+                    locationChanged = true;
+                  }),
+                ),
+                if (search != null) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
                       onPressed: () {
-                        final title = titleController.text.trim();
-                        if (title.isEmpty) return;
-                        Navigator.of(dialogContext).pop((
-                          date: date,
-                          title: title,
-                          details: detailsController.text.trim(),
-                          location: location,
-                          locationChanged: locationChanged,
-                        ));
+                        Navigator.of(dialogContext).pop();
+                        search.onTap();
                       },
-                      label: suggest ? 'Suggest' : 'Save',
+                      icon: const Icon(
+                        Icons.search_rounded,
+                        color: AppColors.accentEnd,
+                        size: 18,
+                      ),
+                      label: Text(
+                        search.label,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.accentEnd,
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ],
-          )),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: Text(
+                          'Cancel',
+                          style: AppTextStyles.button.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GradientButton(
+                        onPressed: () {
+                          final title = titleController.text.trim();
+                          if (title.isEmpty) return;
+                          Navigator.of(dialogContext).pop((
+                            date: date,
+                            title: title,
+                            details: detailsController.text.trim(),
+                            location: location,
+                            locationChanged: locationChanged,
+                          ));
+                        },
+                        label: suggest ? 'Suggest' : 'Save',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     ),

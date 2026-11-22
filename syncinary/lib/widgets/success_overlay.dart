@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// A brief brand-gradient confirmation panel — mirrors the wireframe's
-/// "[Trip name] successfully deleted" / "[User name] successfully deleted"
-/// full-panel success states. Auto-dismisses itself.
+/// A brief success confirmation that dismisses itself.
 Future<void> showSuccessOverlay(BuildContext context, String message) {
   return showDialog<void>(
     context: context,
@@ -17,31 +15,28 @@ Future<void> showSuccessOverlay(BuildContext context, String message) {
       });
       return Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 36),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
-          decoration: BoxDecoration(
-            gradient: AppColors.brandGradient,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.accentStart.withValues(alpha: 0.4),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 40),
-              const SizedBox(height: 16),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.title.copyWith(color: Colors.white),
-              ),
-            ],
+        constraints: const BoxConstraints(maxWidth: 480),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+            decoration: AppDecorations.glassCard(radius: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.success,
+                  size: 40,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.title.copyWith(color: Colors.white),
+                ),
+              ],
+            ),
           ),
         ),
       );

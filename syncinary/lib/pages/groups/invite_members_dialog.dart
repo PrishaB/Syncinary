@@ -5,11 +5,16 @@ import '../../services/group_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/success_overlay.dart';
 
-Future<void> showInviteMembersDialog(BuildContext context, Group group, GroupService service) {
+Future<void> showInviteMembersDialog(
+  BuildContext context,
+  Group group,
+  GroupService service,
+) {
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.6),
-    builder: (dialogContext) => _InviteMembersDialog(group: group, service: service),
+    builder: (dialogContext) =>
+        _InviteMembersDialog(group: group, service: service),
   );
 }
 
@@ -35,7 +40,8 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
     super.dispose();
   }
 
-  String get _inviteLink => 'syncinary.app/join/${widget.group.inviteCode ?? widget.group.id}';
+  String get _inviteLink =>
+      'syncinary.app/join/${widget.group.inviteCode ?? widget.group.id}';
 
   Future<void> _sendInvite() async {
     final email = _emailController.text.trim();
@@ -45,7 +51,11 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
       _error = null;
     });
     try {
-      await widget.service.inviteMemberByEmail(widget.group, email, _inviteRole);
+      await widget.service.inviteMemberByEmail(
+        widget.group,
+        email,
+        _inviteRole,
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
       await showSuccessOverlay(context, 'Invite sent to $email');
@@ -61,136 +71,139 @@ class _InviteMembersDialogState extends State<_InviteMembersDialog> {
   Future<void> _copyLink() async {
     await Clipboard.setData(ClipboardData(text: _inviteLink));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invite link copied')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Invite link copied')));
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: AppColors.brandGradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accentStart.withValues(alpha: 0.4),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Invite Members', style: AppTextStyles.title.copyWith(color: Colors.white)),
-            const SizedBox(height: 18),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              style: AppTextStyles.body.copyWith(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Add User by Email',
-                hintStyle: const TextStyle(color: Colors.white70),
-                prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.15),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
+      constraints: const BoxConstraints(maxWidth: 480),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: AppDecorations.glassCard(radius: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Invite Members',
+                style: AppTextStyles.title.copyWith(color: Colors.white),
               ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(_error!,
-                    style: AppTextStyles.caption.copyWith(color: Colors.white)),
-              ),
-            ],
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _inviteLink,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption.copyWith(color: Colors.white),
-                          ),
-                        ),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: _copyLink,
-                          icon: const Icon(Icons.copy_rounded, color: Colors.white, size: 18),
-                        ),
-                      ],
-                    ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: AppTextStyles.body.copyWith(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Add User by Email',
+                  hintStyle: const TextStyle(color: AppColors.textSecondary),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: AppColors.textSecondary,
                   ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                  filled: true,
+                  fillColor: AppColors.surfaceLight,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<GroupRole>(
-                      value: _inviteRole,
-                      dropdownColor: AppColors.surface,
-                      icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-                      style: AppTextStyles.body.copyWith(color: Colors.white),
-                      items: const [
-                        DropdownMenuItem(value: GroupRole.user, child: Text('User')),
-                        DropdownMenuItem(value: GroupRole.admin, child: Text('Admin')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) setState(() => _inviteRole = value);
-                      },
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _error!,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.error,
                     ),
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.accentStart,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
                 ),
-                onPressed: _busy ? null : _sendInvite,
-                child: Text('Send Invite',
-                    style: AppTextStyles.button.copyWith(color: AppColors.accentStart)),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _inviteLink,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _copyLink,
+                      tooltip: 'Copy invite link',
+                      icon: const Icon(Icons.copy_rounded, size: 20),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: AppTextStyles.button.copyWith(color: Colors.white70)),
-            ),
-          ],
+              const SizedBox(height: 16),
+              DropdownButtonFormField<GroupRole>(
+                initialValue: _inviteRole,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Member role'),
+                dropdownColor: AppColors.surface,
+                items: const [
+                  DropdownMenuItem(value: GroupRole.user, child: Text('User')),
+                  DropdownMenuItem(
+                    value: GroupRole.admin,
+                    child: Text('Admin'),
+                  ),
+                ],
+                onChanged: _busy
+                    ? null
+                    : (value) {
+                        if (value != null) setState(() => _inviteRole = value);
+                      },
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: AppColors.accentStart,
+                    foregroundColor: AppColors.background,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _busy ? null : _sendInvite,
+                  child: const Text('Send Invite'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.button.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

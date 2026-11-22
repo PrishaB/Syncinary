@@ -243,30 +243,36 @@ class _TripMapPageState extends State<TripMapPage> {
                 );
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(day),
-                  initialValue: day ?? '',
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Show itinerary',
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: '',
-                      child: Text('Entire trip'),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                    for (final value in days)
-                      DropdownMenuItem(value: value, child: Text(value)),
-                  ],
-                  onChanged: (value) => setState(() {
-                    _day = value == '' ? null : value;
-                    _selectedId = null;
-                  }),
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(day),
+                      initialValue: day ?? '',
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Show itinerary',
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('Entire trip'),
+                        ),
+                        for (final value in days)
+                          DropdownMenuItem(value: value, child: Text(value)),
+                      ],
+                      onChanged: (value) => setState(() {
+                        _day = value == '' ? null : value;
+                        _selectedId = null;
+                      }),
+                    ),
+                  ),
                 ),
               ),
               Expanded(
