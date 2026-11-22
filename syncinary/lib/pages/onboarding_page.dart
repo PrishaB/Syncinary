@@ -15,7 +15,30 @@ class OnboardingPage extends StatefulWidget {
 }
 
 class _OnboardingPageState extends State<OnboardingPage> {
-  static const _slideCount = 3;
+  static const _slides = [
+    (
+      icon: Icons.groups_outlined,
+      title: 'Bring everyone along',
+      body:
+          'Create a travel group and invite your people. '
+          'Keep every plan in one shared space.',
+    ),
+    (
+      icon: Icons.map_outlined,
+      title: 'Make a plan together',
+      body:
+          'Build your daily itinerary, compare flights and hotels, '
+          'and share ideas with the group.',
+    ),
+    (
+      icon: Icons.payments_outlined,
+      title: 'Share the adventure',
+      body:
+          'Track trip expenses and split costs, '
+          'so everyone knows their share.',
+    ),
+  ];
+  static int get _slideCount => _slides.length;
   int _currentSlide = 0;
 
   void _next() {
@@ -62,21 +85,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
-                                Icons.image_outlined,
+                              Icon(
+                                _slides[_currentSlide].icon,
                                 size: 80,
                                 color: AppColors.accentEnd,
                               ),
                               const SizedBox(height: 32),
                               Text(
-                                'Onboarding ${_currentSlide + 1}',
+                                _slides[_currentSlide].title,
                                 textAlign: TextAlign.center,
                                 style: AppTextStyles.headline,
                               ),
                               const SizedBox(height: 16),
-                              const Text(
-                                'Placeholder text for this onboarding screen. '
-                                'More content will be added here soon.',
+                              Text(
+                                _slides[_currentSlide].body,
                                 textAlign: TextAlign.center,
                                 style: AppTextStyles.body,
                               ),
