@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'settings_panel.dart';
 
-/// Shared translucent gradient app bar used across the app's screens.
-/// Extracted from the duplicated `flexibleSpace` blocks in
-/// `itinerary_builder.dart` / `flight_search.dart` so new screens
-/// (and those two, eventually) share one definition.
+/// Shared app bar with a quiet surface and consistent account controls.
 class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   const GradientAppBar({
     super.key,
@@ -26,21 +23,10 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      centerTitle: true,
+      centerTitle: false,
       leading: leading,
       actions: [...?actions, const SettingsButton()],
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.surface.withValues(alpha: 0.95),
-              AppColors.surface.withValues(alpha: 0.80),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-      ),
+      shape: const Border(bottom: BorderSide(color: AppColors.border)),
       title: titleWidget ?? Text(title ?? '', style: AppTextStyles.title),
     );
   }

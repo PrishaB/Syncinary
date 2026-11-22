@@ -9,11 +9,12 @@ import 'groups/my_groups_page.dart';
 import 'amadeus_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/settings_panel.dart';
+import '../widgets/page_body.dart';
 import '../services/airport_service.dart';
 import '../widgets/airport_search_field.dart';
- 
+
 enum SearchType { flights, hotels }
- 
+
 class itinerary_builder extends StatefulWidget {
   const itinerary_builder({
     super.key,
@@ -28,7 +29,7 @@ class itinerary_builder extends StatefulWidget {
   @override
   State<itinerary_builder> createState() => _itineraryState();
 }
- 
+
 class _itineraryState extends State<itinerary_builder> {
   final TextEditingController _startController = TextEditingController();
   final TextEditingController _endController = TextEditingController();
@@ -41,20 +42,20 @@ class _itineraryState extends State<itinerary_builder> {
     _endController.dispose();
     super.dispose();
   }
- 
+
   int currentDisplay = 0;
   DateTime? _departureDate;
   DateTime? _returnDate;
   int _passengers = 1;
   late SearchType _searchType = widget.initialSearchType;
   bool _loading = false;
- 
+
   void updateDisplay(int display) {
     setState(() {
       currentDisplay = display;
     });
   }
- 
+
   @override
   Widget build(BuildContext context) {
     // ── Step labels & icons for the nav bar ──
@@ -64,7 +65,7 @@ class _itineraryState extends State<itinerary_builder> {
       _StepInfo(Icons.calendar_month_rounded, 'Dates', 2),
       _StepInfo(Icons.group_rounded, 'Travelers', 3),
     ];
- 
+
     final List<Widget> screens = [
       // ── Screen 0: Origin ──
       _buildStepBody(
@@ -89,7 +90,7 @@ class _itineraryState extends State<itinerary_builder> {
           ],
         ),
       ),
- 
+
       // ── Screen 1: Destination ──
       _buildStepBody(
         icon: Icons.flight_land_rounded,
@@ -102,7 +103,8 @@ class _itineraryState extends State<itinerary_builder> {
               key: const ValueKey('destination-airport'),
               controller: _endController,
               label: 'Arrival airport',
-              onSelected: (airport) => setState(() => _destinationAirport = airport),
+              onSelected: (airport) =>
+                  setState(() => _destinationAirport = airport),
             ),
             const SizedBox(height: 28),
             GradientButton(
@@ -113,7 +115,7 @@ class _itineraryState extends State<itinerary_builder> {
           ],
         ),
       ),
- 
+
       // ── Screen 2: Dates ──
       _buildStepBody(
         icon: Icons.calendar_month_rounded,
@@ -175,7 +177,7 @@ class _itineraryState extends State<itinerary_builder> {
           ],
         ),
       ),
- 
+
       //Enter # travellers and want to search for hotel or flight
       _buildStepBody(
         icon: Icons.group_rounded,
@@ -194,29 +196,42 @@ class _itineraryState extends State<itinerary_builder> {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.border),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Icon(Icons.person_outline_rounded,
-                      color: AppColors.textMuted, size: 20),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      '$_passengers ${_passengers == 1 ? 'passenger' : 'passengers'}',
-                      style: AppTextStyles.body,
-                    ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person_outline_rounded,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '$_passengers ${_passengers == 1 ? 'passenger' : 'passengers'}',
+                          style: AppTextStyles.body,
+                        ),
+                      ),
+                    ],
                   ),
-                  _StepperButton(
-                    icon: Icons.remove_rounded,
-                    onTap: _passengers > 1
-                        ? () => setState(() => _passengers--)
-                        : null,
-                  ),
-                  const SizedBox(width: 10),
-                  _StepperButton(
-                    icon: Icons.add_rounded,
-                    onTap: _passengers < 9
-                        ? () => setState(() => _passengers++)
-                        : null,
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _StepperButton(
+                        icon: Icons.remove_rounded,
+                        onTap: _passengers > 1
+                            ? () => setState(() => _passengers--)
+                            : null,
+                      ),
+                      const SizedBox(width: 16),
+                      _StepperButton(
+                        icon: Icons.add_rounded,
+                        onTap: _passengers < 9
+                            ? () => setState(() => _passengers++)
+                            : null,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -267,39 +282,34 @@ class _itineraryState extends State<itinerary_builder> {
         ),
       ),
     ];
- 
+
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        centerTitle: true,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.surface.withValues(alpha: 0.95),
-                AppColors.surface.withValues(alpha: 0.80),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+        title: const Text('Plan a trip'),
+        shape: const Border(bottom: BorderSide(color: AppColors.border)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(64),
+          child: SizedBox(
+            height: 64,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: steps
+                    .map(
+                      (step) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _NavChip(
+                          icon: step.icon,
+                          label: step.label,
+                          isActive: currentDisplay == step.index,
+                          onTap: () => updateDisplay(step.index),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
             ),
-          ),
-        ),
-        title: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: steps.map((step) {
-              final isActive = currentDisplay == step.index;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _NavChip(
-                  icon: step.icon,
-                  label: step.label,
-                  isActive: isActive,
-                  onTap: () => updateDisplay(step.index),
-                ),
-              );
-            }).toList(),
           ),
         ),
         actions: [
@@ -330,9 +340,8 @@ class _itineraryState extends State<itinerary_builder> {
           const SizedBox(width: 8),
         ],
       ),
- 
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+
+      body: PageBody(
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 350),
           switchInCurve: Curves.easeOutCubic,
@@ -345,7 +354,7 @@ class _itineraryState extends State<itinerary_builder> {
       ),
     );
   }
- 
+
   /// Builds the shared layout wrapper for each step screen.
   Widget _buildStepBody({
     required IconData icon,
@@ -355,7 +364,7 @@ class _itineraryState extends State<itinerary_builder> {
   }) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
           child: Column(
@@ -370,7 +379,7 @@ class _itineraryState extends State<itinerary_builder> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accentStart.withValues(alpha: 0.35),
+                      color: AppColors.accentStart.withValues(alpha: 0.1),
                       blurRadius: 28,
                       offset: const Offset(0, 8),
                     ),
@@ -379,13 +388,21 @@ class _itineraryState extends State<itinerary_builder> {
                 child: Icon(icon, color: Colors.white, size: 32),
               ),
               const SizedBox(height: 28),
-              Text(heading, style: AppTextStyles.headline, textAlign: TextAlign.center),
+              Text(
+                heading,
+                style: AppTextStyles.headline,
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 8),
-              Text(subtitle, style: AppTextStyles.subtitle, textAlign: TextAlign.center),
+              Text(
+                subtitle,
+                style: AppTextStyles.subtitle,
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 36),
               // Glass card
               Container(
-                padding: const EdgeInsets.all(28),
+                padding: const EdgeInsets.all(20),
                 decoration: AppDecorations.glassCard(),
                 child: child,
               ),
@@ -395,7 +412,7 @@ class _itineraryState extends State<itinerary_builder> {
       ),
     );
   }
- 
+
   /// Formats a DateTime as the YYYY-MM-DD string SerpApi expects.
   String _formatDate(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
@@ -403,7 +420,7 @@ class _itineraryState extends State<itinerary_builder> {
     final d = date.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
   }
- 
+
   Future<void> _handleSearch() async {
     if (_startController.text.isEmpty ||
         _endController.text.isEmpty ||
@@ -415,9 +432,7 @@ class _itineraryState extends State<itinerary_builder> {
     if (_searchType == SearchType.hotels) {
       if (_returnDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a check-out date.'),
-          ),
+          const SnackBar(content: Text('Please select a check-out date.')),
         );
         return;
       }
@@ -442,44 +457,47 @@ class _itineraryState extends State<itinerary_builder> {
       setState(() => _loading = false);
 
       if (errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
         return;
       }
 
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => HotelSearch(
-            initialResults: results,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => HotelSearch(initialResults: results)),
       );
 
       return;
     }
- 
+
     if (_originAirport == null || _destinationAirport == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Select a departure and arrival airport from the suggestions.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Select a departure and arrival airport from the suggestions.',
+          ),
+        ),
+      );
       return;
     }
     if (_originAirport!.code == _destinationAirport!.code) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Choose different departure and arrival airports.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Choose different departure and arrival airports.'),
+        ),
+      );
       return;
     }
     setState(() => _loading = true);
- 
+
     final origin = _originAirport!.code;
     final destination = _destinationAirport!.code;
     final departureDateStr = _formatDate(_departureDate!);
-    final returnDateStr =
-        _returnDate != null ? _formatDate(_returnDate!) : null;
- 
+    final returnDateStr = _returnDate != null
+        ? _formatDate(_returnDate!)
+        : null;
+
     List<dynamic> results = const [];
     String? errorMessage;
     try {
@@ -493,17 +511,17 @@ class _itineraryState extends State<itinerary_builder> {
     } catch (e) {
       errorMessage = 'Flight search failed: $e';
     }
- 
+
     if (!mounted) return;
     setState(() => _loading = false);
- 
+
     if (errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
       return;
     }
- 
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -523,18 +541,18 @@ class _itineraryState extends State<itinerary_builder> {
     );
   }
 }
- 
+
 // ─────────────────────────────────────────────────────────
 // Private helpers (no logic — pure presentation)
 // ─────────────────────────────────────────────────────────
- 
+
 class _StepInfo {
   _StepInfo(this.icon, this.label, this.index);
   final IconData icon;
   final String label;
   final int index;
 }
- 
+
 /// A pill-shaped nav chip for the app bar.
 class _NavChip extends StatelessWidget {
   const _NavChip({
@@ -543,50 +561,37 @@ class _NavChip extends StatelessWidget {
     required this.isActive,
     required this.onTap,
   });
- 
+
   final IconData icon;
   final String label;
   final bool isActive;
   final VoidCallback onTap;
- 
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: isActive ? AppColors.brandGradient : null,
-          color: isActive ? null : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-          border: isActive
-              ? null
-              : Border.all(color: AppColors.border, width: 1),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isActive ? Colors.white : AppColors.textMuted,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppTextStyles.navLabel.copyWith(
-                color: isActive ? Colors.white : AppColors.textMuted,
-              ),
-            ),
-          ],
+    return Semantics(
+      selected: isActive,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: isActive
+              ? AppColors.accentEnd
+              : AppColors.textSecondary,
+          backgroundColor: isActive
+              ? AppColors.surfaceLight
+              : Colors.transparent,
+          side: BorderSide(
+            color: isActive ? AppColors.accentStart : AppColors.border,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
         ),
       ),
     );
   }
 }
- 
+
 ///a tappable tile used for the departure/return date pickers.
 class _DatePickerTile extends StatelessWidget {
   const _DatePickerTile({
@@ -595,12 +600,12 @@ class _DatePickerTile extends StatelessWidget {
     required this.isSet,
     required this.onTap,
   });
- 
+
   final IconData icon;
   final String label;
   final bool isSet;
   final VoidCallback onTap;
- 
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -635,38 +640,25 @@ class _DatePickerTile extends StatelessWidget {
     );
   }
 }
- 
+
 ///small circular +/- button used by the passenger stepper
 class _StepperButton extends StatelessWidget {
   const _StepperButton({required this.icon, required this.onTap});
- 
+
   final IconData icon;
   final VoidCallback? onTap;
- 
+
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          gradient: enabled ? AppColors.brandGradient : null,
-          color: enabled ? null : AppColors.surface,
-          shape: BoxShape.circle,
-          border: enabled ? null : Border.all(color: AppColors.border),
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: enabled ? Colors.white : AppColors.textMuted,
-        ),
-      ),
+    return IconButton.outlined(
+      onPressed: onTap,
+      tooltip: icon == Icons.add_rounded ? 'Add passenger' : 'Remove passenger',
+      icon: Icon(icon, size: 20),
+      style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
     );
   }
 }
- 
+
 ///one half of the flights/hotels segmented toggl
 class _TypeToggleButton extends StatelessWidget {
   const _TypeToggleButton({
@@ -675,38 +667,33 @@ class _TypeToggleButton extends StatelessWidget {
     required this.isActive,
     required this.onTap,
   });
- 
+
   final IconData icon;
   final String label;
   final bool isActive;
   final VoidCallback onTap;
- 
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          gradient: isActive ? AppColors.brandGradient : null,
-          borderRadius: BorderRadius.circular(11),
+    return Semantics(
+      selected: isActive,
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          backgroundColor: isActive
+              ? AppColors.accentStart.withValues(alpha: 0.18)
+              : Colors.transparent,
+          foregroundColor: isActive
+              ? AppColors.accentEnd
+              : AppColors.textSecondary,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isActive ? Colors.white : AppColors.textMuted,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: AppTextStyles.navLabel.copyWith(
-                color: isActive ? Colors.white : AppColors.textMuted,
-              ),
-            ),
+            Icon(icon, size: 20),
+            const SizedBox(height: 6),
+            Text(label, textAlign: TextAlign.center),
           ],
         ),
       ),

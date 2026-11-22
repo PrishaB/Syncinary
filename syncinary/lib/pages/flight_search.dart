@@ -1,11 +1,12 @@
 // TODO: rename snake_case types, then drop this ignore (follow-up to #117).
 // ignore_for_file: camel_case_types
 import 'package:flutter/material.dart';
+import '../widgets/page_body.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/suggestions_section.dart';
-import '../widgets/settings_panel.dart';
+import '../widgets/gradient_app_bar.dart';
 import 'amadeus_service.dart';
 
 class flight_search extends StatefulWidget {
@@ -64,14 +65,12 @@ class _flightSearchState extends State<flight_search> {
     setState(() => _busy = true);
 
     try {
-      await widget.onFlightSelected!(
-        Map<String, dynamic>.from(offer),
-      );
+      await widget.onFlightSelected!(Map<String, dynamic>.from(offer));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add flight: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not add flight: $e')));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -144,50 +143,62 @@ class _flightSearchState extends State<flight_search> {
   void _showBookingSheet(List<dynamic> bookingOptions) {
     showModalBottomSheet(
       context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxWidth: 640,
+        maxHeight: MediaQuery.sizeOf(context).height * .85,
+      ),
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
         if (bookingOptions.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'No booking options returned.',
-                  style: AppTextStyles.subtitle,
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'No booking options returned.',
+                      style: AppTextStyles.subtitle,
+                    ),
+                    const SizedBox(height: 16),
+                    GradientButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      label: 'Close',
+                      icon: Icons.close_rounded,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                GradientButton(
-                  onPressed: () => Navigator.pop(sheetContext),
-                  label: 'Close',
-                  icon: Icons.close_rounded,
-                ),
-              ],
+              ),
             ),
           );
         }
 
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Book this flight', style: AppTextStyles.title),
-                const SizedBox(height: 16),
-                ...bookingOptions.map(
-                  (raw) => _BookingOptionTile(
-                    option: raw,
-                    origin: widget.origin,
-                    destination: widget.destination,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Book this flight', style: AppTextStyles.title),
+                  const SizedBox(height: 16),
+                  ...bookingOptions.map(
+                    (raw) => _BookingOptionTile(
+                      option: raw,
+                      origin: widget.origin,
+                      destination: widget.destination,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-              ],
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
         );
@@ -203,97 +214,70 @@ class _flightSearchState extends State<flight_search> {
     final results = widget.initialResults;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        actions: const [SettingsButton()],
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.surface.withValues(alpha: 0.95),
-                AppColors.surface.withValues(alpha: 0.80),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-        ),
-        title: Text(widget.title, style: AppTextStyles.title),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+      appBar: GradientAppBar(title: widget.title),
+      body: PageBody(
+        maxWidth: 880,
         child: Stack(
           children: [
-            Column(
-              children: [
-                // Suggestions sit above the flight list (or the empty message)
-                // and load independently, so a slow/failed recommendation never
-                // blocks the flights the user already searched for.
-                if (showSuggestions)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 100, 16, 0),
+            ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+              itemCount:
+                  (results.isEmpty ? 1 : results.length) +
+                  (showSuggestions ? 1 : 0),
+              itemBuilder: (_, index) {
+                if (showSuggestions && index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
                     child: SuggestionsSection(
                       service: service,
                       searchContext: searchCtx,
                     ),
+                  );
+                }
+                if (results.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 64),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.flight_outlined,
+                          size: 56,
+                          color: AppColors.accentEnd,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No flights found.',
+                          style: AppTextStyles.subtitle,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Try another route or travel dates.',
+                          style: AppTextStyles.body,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                final offer = results[index - (showSuggestions ? 1 : 0)];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _FlightCard(
+                    offer: offer,
+                    isLoading: _busy,
+                    buttonLabel: _isRoundTripOutbound
+                        ? 'Select Outbound'
+                        : widget.isReturnLeg
+                        ? 'Select Return'
+                        : 'Select Flight',
+                    onSelect: () => _handleOfferTap(offer),
+                    onAddToItinerary:
+                        widget.onFlightSelected == null || offer is! Map
+                        ? null
+                        : () => _addFlightToItinerary(offer),
                   ),
-                Expanded(
-                  child: results.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.flight_outlined,
-                                size: 64,
-                                color: AppColors.textMuted.withValues(
-                                  alpha: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No flights found.',
-                                style: AppTextStyles.subtitle.copyWith(
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                       : ListView.builder(
-                           padding: EdgeInsets.fromLTRB(
-                             16,
-                             showSuggestions ? 12 : 100,
-                             16,
-                             24,
-                           ),
-                           itemCount: results.length,
-                           itemBuilder: (_, i) {
-                             final offer = results[i];
-                             return Padding(
-                               padding: const EdgeInsets.only(bottom: 16),
-                               child: _FlightCard(
-                                 offer: offer,
-                                 isLoading: _busy,
-                                 buttonLabel: _isRoundTripOutbound
-                                     ? 'Select Outbound'
-                                     : widget.isReturnLeg
-                                         ? 'Select Return'
-                                         : 'Select Flight',
-                                 onSelect: () => _handleOfferTap(offer),
-                                 onAddToItinerary: widget.onFlightSelected == null || offer is! Map
-                                     ? null
-                                     : () => _addFlightToItinerary(offer),
-                               ),
-                             );
-                           },
-                         ),
-                ),
-              ],
+                );
+              },
             ),
             if (_busy)
               Container(
@@ -379,24 +363,34 @@ class _FlightCard extends StatelessWidget {
                   gradient: AppColors.brandGradient,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.flight_rounded,
-                    color: Colors.white, size: 22),
+                child: const Icon(
+                  Icons.flight_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(airline,
-                    style: AppTextStyles.title.copyWith(fontSize: 16)),
+                child: Text(
+                  airline,
+                  style: AppTextStyles.title.copyWith(fontSize: 16),
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 6),
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.accentStart.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(stopLabel,
-                    style: AppTextStyles.caption.copyWith(
-                        color: AppColors.accentEnd)),
+                child: Text(
+                  stopLabel,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.accentEnd,
+                  ),
+                ),
               ),
             ],
           ),
@@ -408,8 +402,10 @@ class _FlightCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(departureTime,
-                        style: AppTextStyles.title.copyWith(fontSize: 18)),
+                    Text(
+                      departureTime,
+                      style: AppTextStyles.title.copyWith(fontSize: 18),
+                    ),
                     const SizedBox(height: 4),
                     Text(origin, style: AppTextStyles.subtitle),
                   ],
@@ -423,16 +419,33 @@ class _FlightCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.circle, size: 7,
-                            color: AppColors.accentStart),
-                        Expanded(child: Container(
-                            height: 1, color: AppColors.textMuted)),
-                        Icon(Icons.flight_rounded, size: 18,
-                            color: AppColors.accentEnd),
-                        Expanded(child: Container(
-                            height: 1, color: AppColors.textMuted)),
-                        Icon(Icons.circle, size: 7,
-                            color: AppColors.accentStart),
+                        Icon(
+                          Icons.circle,
+                          size: 7,
+                          color: AppColors.accentStart,
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        Icon(
+                          Icons.flight_rounded,
+                          size: 18,
+                          color: AppColors.accentEnd,
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        Icon(
+                          Icons.circle,
+                          size: 7,
+                          color: AppColors.accentStart,
+                        ),
                       ],
                     ),
                   ],
@@ -443,8 +456,10 @@ class _FlightCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(arrivalTime,
-                        style: AppTextStyles.title.copyWith(fontSize: 18)),
+                    Text(
+                      arrivalTime,
+                      style: AppTextStyles.title.copyWith(fontSize: 18),
+                    ),
                     const SizedBox(height: 4),
                     Text(destination, style: AppTextStyles.subtitle),
                   ],
@@ -458,9 +473,13 @@ class _FlightCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('\$$price',
-                  style: AppTextStyles.title.copyWith(
-                      fontSize: 22, color: AppColors.accentEnd)),
+              Text(
+                '\$$price',
+                style: AppTextStyles.title.copyWith(
+                  fontSize: 22,
+                  color: AppColors.accentEnd,
+                ),
+              ),
               const SizedBox(height: 4),
               Text('Listed price', style: AppTextStyles.caption),
             ],
@@ -476,7 +495,9 @@ class _FlightCard extends StatelessWidget {
                   foregroundColor: AppColors.accentEnd,
                   side: const BorderSide(color: AppColors.accentEnd),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 14),
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

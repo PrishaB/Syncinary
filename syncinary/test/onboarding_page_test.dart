@@ -34,10 +34,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.state(find.byType(OnboardingPage)), same(originalState));
-      expect(find.text('Onboarding 2'), findsOneWidget);
+      expect(find.text('Make a plan together'), findsOneWidget);
       expect(find.bySemanticsLabel('Slide 2 of 3'), findsOneWidget);
       await tapArrow(tester, 'Next slide');
-      expect(find.text('Onboarding 3'), findsOneWidget);
+      expect(find.text('Share the adventure'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -60,11 +60,11 @@ void main() {
         tester.state(find.byType(OnboardingPage)),
         isNot(same(originalState)),
       );
-      expect(find.text('Onboarding 1'), findsOneWidget);
+      expect(find.text('Bring everyone along'), findsOneWidget);
       expect(find.bySemanticsLabel('Slide 1 of 3'), findsOneWidget);
       expect(find.byType(MyGroupsPage), findsNothing);
       await tapArrow(tester, 'Next slide');
-      expect(find.text('Onboarding 2'), findsOneWidget);
+      expect(find.text('Make a plan together'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -74,8 +74,8 @@ void main() {
   ) async {
     await pumpOnboarding(tester);
 
-    expect(find.text('Onboarding 1'), findsOneWidget);
-    expect(find.textContaining('Placeholder text'), findsOneWidget);
+    expect(find.text('Bring everyone along'), findsOneWidget);
+    expect(find.textContaining('Placeholder text'), findsNothing);
     expect(find.byTooltip('Next slide'), findsOneWidget);
     expect(find.byTooltip('Go to main screen'), findsNothing);
     expect(
@@ -94,17 +94,26 @@ void main() {
       await pumpOnboarding(tester);
 
       for (var slide = 1; slide <= 3; slide++) {
-        expect(find.text('Onboarding $slide'), findsOneWidget);
+        expect(
+          find.text(
+            [
+              'Bring everyone along',
+              'Make a plan together',
+              'Share the adventure',
+            ][slide - 1],
+          ),
+          findsOneWidget,
+        );
         expect(find.bySemanticsLabel('Slide $slide of 3'), findsOneWidget);
         expect(find.byType(MyGroupsPage), findsNothing);
-        expect(find.textContaining('Placeholder text'), findsOneWidget);
+        expect(find.textContaining('Placeholder text'), findsNothing);
         expect(find.byType(ErrorWidget), findsNothing);
         expect(tester.takeException(), isNull);
         if (slide < 3) await tapArrow(tester, 'Next slide');
       }
 
-      expect(find.text('Onboarding 1'), findsNothing);
-      expect(find.text('Onboarding 2'), findsNothing);
+      expect(find.text('Bring everyone along'), findsNothing);
+      expect(find.text('Make a plan together'), findsNothing);
       expect(find.byTooltip('Next slide'), findsNothing);
       expect(find.byTooltip('Go to main screen'), findsOneWidget);
     },
@@ -118,12 +127,12 @@ void main() {
     await tapArrow(tester, 'Next slide');
     await tapArrow(tester, 'Previous slide');
 
-    expect(find.text('Onboarding 2'), findsOneWidget);
+    expect(find.text('Make a plan together'), findsOneWidget);
     expect(find.byTooltip('Next slide'), findsOneWidget);
     expect(find.byTooltip('Go to main screen'), findsNothing);
 
     await tapArrow(tester, 'Previous slide');
-    expect(find.text('Onboarding 1'), findsOneWidget);
+    expect(find.text('Bring everyone along'), findsOneWidget);
     expect(
       tester
           .widget<IconButton>(
@@ -181,7 +190,7 @@ void main() {
 
     await tapArrow(tester, 'Next slide');
     await tapArrow(tester, 'Next slide');
-    expect(find.text('Onboarding 3'), findsOneWidget);
+    expect(find.text('Share the adventure'), findsOneWidget);
     expect(find.byTooltip('Go to main screen').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

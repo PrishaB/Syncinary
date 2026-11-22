@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/page_body.dart';
 import '../../models/group.dart';
 import '../../services/group_service.dart';
 import '../../services/user_preferences_service.dart';
@@ -31,13 +32,17 @@ class GroupDetailPage extends StatefulWidget {
 
 class _GroupDetailPageState extends State<GroupDetailPage> {
   late final GroupService _service = widget._service ?? GroupService();
-  late final Stream<Group?> _groupStream = _service.groupStream(widget.group.id);
+  late final Stream<Group?> _groupStream = _service.groupStream(
+    widget.group.id,
+  );
   bool _busy = false;
   bool _deleting = false;
   bool _closing = false;
 
   void _closeDeletedGroup() {
-    if (!mounted || _closing || ModalRoute.of(context)?.isCurrent != true) return;
+    if (!mounted || _closing || ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
     final navigator = Navigator.of(context);
     if (!navigator.canPop()) return;
     _closing = true;
@@ -50,43 +55,52 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       context: context,
       builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: AppDecorations.glassCard(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Rename Group', style: AppTextStyles.title),
-              const SizedBox(height: 18),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(label: 'Group name'),
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: Text('Cancel',
-                          style: AppTextStyles.button
-                              .copyWith(color: AppColors.textSecondary)),
-                    ),
+        constraints: const BoxConstraints(maxWidth: 480),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: AppDecorations.glassCard(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Rename Group', style: AppTextStyles.title),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  style: AppTextStyles.body,
+                  decoration: AppDecorations.inputDecoration(
+                    label: 'Group name',
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GradientButton(
-                      onPressed: () =>
-                          Navigator.of(dialogContext).pop(controller.text.trim()),
-                      label: 'Save',
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: Text(
+                          'Cancel',
+                          style: AppTextStyles.button.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GradientButton(
+                        onPressed: () => Navigator.of(
+                          dialogContext,
+                        ).pop(controller.text.trim()),
+                        label: 'Save',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -111,7 +125,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     try {
       await _service.removeMember(group, member);
       if (!mounted) return;
-      await showSuccessOverlay(context, '${member.username} successfully removed');
+      await showSuccessOverlay(
+        context,
+        '${member.username} successfully removed',
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -123,7 +140,9 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       message: 'Confirm deletion of "${group.name}"?',
       confirmLabel: 'Delete',
     );
-    if (!confirmed || !mounted || ModalRoute.of(context)?.isCurrent != true) return;
+    if (!confirmed || !mounted || ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
     setState(() {
       _busy = true;
       _deleting = true;
@@ -136,7 +155,9 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     } catch (_) {
       if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not delete trip. Please try again.')),
+        const SnackBar(
+          content: Text('Could not delete trip. Please try again.'),
+        ),
       );
     } finally {
       if (mounted) {
@@ -161,15 +182,17 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   }
 
   void _trackCosts(Group group) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => TripExpensesPage(group: group)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TripExpensesPage(group: group)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: GradientAppBar(
-        title: '',
+        title: 'Trip Overview',
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: AppColors.textMuted),
@@ -178,7 +201,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
               await _service.auth.signOut();
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => LoginPage(auth: _service.auth, groupService: _service)),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        LoginPage(auth: _service.auth, groupService: _service),
+                  ),
                   (route) => false,
                 );
               }
@@ -186,183 +212,210 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: SafeArea(
-          child: StreamBuilder<Group?>(
-            stream: _groupStream,
-            initialData: widget.group,
-            builder: (context, snapshot) {
-              final group = snapshot.data;
-              if (group == null) {
-                // Local deletion owns navigation until its success dialog closes.
-                // Firestore can report the missing group before the write completes.
-                if (!_deleting) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!_deleting) _closeDeletedGroup();
-                  });
-                }
-                return const Center(child: CircularProgressIndicator());
+      body: PageBody(
+        maxWidth: 880,
+        child: StreamBuilder<Group?>(
+          stream: _groupStream,
+          initialData: widget.group,
+          builder: (context, snapshot) {
+            final group = snapshot.data;
+            if (group == null) {
+              // Local deletion owns navigation until its success dialog closes.
+              // Firestore can report the missing group before the write completes.
+              if (!_deleting) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!_deleting) _closeDeletedGroup();
+                });
               }
+              return const Center(child: CircularProgressIndicator());
+            }
 
-              final isAdmin = _service.isAdmin(group);
+            final isAdmin = _service.isAdmin(group);
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 88, 24, 32),
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: isAdmin
-                          ? () => ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Photo upload — coming soon')),
-                              )
-                          : null,
-                      child: Container(
-                        width: 84,
-                        height: 84,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.brandGradient,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accentStart.withValues(alpha: 0.35),
-                              blurRadius: 28,
-                              offset: const Offset(0, 8),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+              child: Column(
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      gradient: AppColors.brandGradient,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.group_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: isAdmin ? () => _renameGroup(group) : null,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            group.name,
+                            style: AppTextStyles.headline,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        if (isAdmin) ...[
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.edit_outlined,
+                            color: AppColors.textMuted,
+                            size: 20,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Group User Status: ${isAdmin ? 'Admin' : 'User'}',
+                    style: AppTextStyles.subtitle,
+                  ),
+                  const SizedBox(height: 28),
+
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      GradientButton(
+                        onPressed: () => _planItinerary(group),
+                        label: 'Plan Itinerary',
+                        icon: Icons.map_outlined,
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            showInviteMembersDialog(context, group, _service),
+                        icon: const Icon(Icons.person_add_alt_1_rounded),
+                        label: const Text('Invite Members'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _trackCosts(group),
+                        icon: const Icon(Icons.payments_outlined),
+                        label: const Text('Track Costs'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => UserPreferencesPage(
+                              service: widget.preferencesService,
                             ),
-                          ],
-                        ),
-                        child: const Icon(Icons.group_rounded, color: Colors.white, size: 36),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    if (isAdmin)
-                      Text('Add/Change photo',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-                    const SizedBox(height: 14),
-                    GestureDetector(
-                      onTap: isAdmin ? () => _renameGroup(group) : null,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(group.name, style: AppTextStyles.headline),
-                          if (isAdmin) ...[
-                            const SizedBox(width: 8),
-                            const Icon(Icons.edit_outlined,
-                                color: AppColors.textMuted, size: 20),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Group User Status: ${isAdmin ? 'Admin' : 'User'}',
-                      style: AppTextStyles.subtitle,
-                    ),
-                    const SizedBox(height: 28),
-
-                    GradientButton(
-                      onPressed: () => showInviteMembersDialog(context, group, _service),
-                      label: 'Invite Members',
-                      icon: Icons.person_add_alt_1_rounded,
-                    ),
-                    const SizedBox(height: 12),
-                    GradientButton(
-                      onPressed: () => _planItinerary(group),
-                      label: 'Plan Itinerary',
-                      icon: Icons.map_outlined,
-                    ),
-                    const SizedBox(height: 12),
-                    GradientButton(
-                      onPressed: () => _trackCosts(group),
-                      label: 'Track Costs',
-                      icon: Icons.payments_outlined,
-                    ),
-                    const SizedBox(height: 12),
-                    GradientButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => UserPreferencesPage(
-                            service: widget.preferencesService,
                           ),
                         ),
-                      ),
-                      label: 'Set Preferences',
-                      icon: Icons.tune_rounded,
-                    ),
-
-                    const SizedBox(height: 32),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Current Group Members', style: AppTextStyles.title),
-                    ),
-                    const SizedBox(height: 14),
-                    ...group.members.map((member) {
-                      final isSelf = member.id == _service.currentUserId;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                          decoration: AppDecorations.glassCard(),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  isSelf ? '${member.username} (you)' : member.username,
-                                  style: AppTextStyles.body,
-                                ),
-                              ),
-                              Text(
-                                member.role == GroupRole.admin ? 'Admin' : 'User',
-                                style: AppTextStyles.caption,
-                              ),
-                              if (isAdmin && !isSelf) ...[
-                                const SizedBox(width: 10),
-                                TextButton(
-                                  onPressed:
-                                      _busy ? null : () => _removeMember(group, member),
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  child: Text('Remove',
-                                      style: AppTextStyles.caption
-                                          .copyWith(color: AppColors.error)),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-
-                    if (isAdmin) ...[
-                      const SizedBox(height: 28),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextButton(
-                            onPressed: _busy ? null : () => _deleteGroup(group),
-                            child: Text('Delete Trip?',
-                                style: AppTextStyles.body.copyWith(color: AppColors.error)),
-                          ),
-                          TextButton(
-                            onPressed: group.members.length < 2 || _busy
-                                ? null
-                                : () => showTransferAdminDialog(context, group, _service),
-                            child: Text('Transfer Admin Status',
-                                style:
-                                    AppTextStyles.body.copyWith(color: AppColors.accentEnd)),
-                          ),
-                        ],
+                        icon: const Icon(Icons.tune_rounded),
+                        label: const Text('Set Preferences'),
                       ),
                     ],
+                  ),
+
+                  const SizedBox(height: 32),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Current Group Members',
+                      style: AppTextStyles.title,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ...group.members.map((member) {
+                    final isSelf = member.id == _service.currentUserId;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
+                        decoration: AppDecorations.glassCard(),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                isSelf
+                                    ? '${member.username} (you)'
+                                    : member.username,
+                                style: AppTextStyles.body,
+                              ),
+                            ),
+                            Text(
+                              member.role == GroupRole.admin ? 'Admin' : 'User',
+                              style: AppTextStyles.caption,
+                            ),
+                            if (isAdmin && !isSelf) ...[
+                              const SizedBox(width: 10),
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _removeMember(group, member),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  'Remove',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+
+                  if (isAdmin) ...[
+                    const SizedBox(height: 28),
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: 16,
+                      runSpacing: 8,
+                      children: [
+                        TextButton(
+                          onPressed: _busy ? null : () => _deleteGroup(group),
+                          child: Text(
+                            'Delete Trip?',
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: group.members.length < 2 || _busy
+                              ? null
+                              : () => showTransferAdminDialog(
+                                  context,
+                                  group,
+                                  _service,
+                                ),
+                          child: Text(
+                            'Transfer Admin Status',
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.accentEnd,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
-              );
-            },
-          ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

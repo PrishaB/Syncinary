@@ -27,7 +27,8 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -44,7 +45,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   void initState() {
     super.initState();
 
-    
     _loadAppVersion();
 
     _fadeController = AnimationController(
@@ -55,13 +55,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       parent: _fadeController,
       curve: Curves.easeOut,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+          CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
+        );
     _fadeController.forward();
   }
 
@@ -96,21 +93,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     try {
       final credential = await (widget.auth ?? FirebaseAuth.instance)
           .signInWithEmailAndPassword(
-        email: _emailController.text.trim().toLowerCase(),
-        password: _passwordController.text,
-      );
+            email: _emailController.text.trim().toLowerCase(),
+            password: _passwordController.text,
+          );
       final user = credential.user;
       if (user != null) await _ensureUserProfile(user);
 
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => user?.emailVerified == true
-            ? MyGroupsPage(service: widget.groupService)
-            : VerifyEmailPage(
-                auth: widget.auth,
-                groupService: widget.groupService,
-              )),
+        MaterialPageRoute(
+          builder: (_) => user?.emailVerified == true
+              ? MyGroupsPage(service: widget.groupService)
+              : VerifyEmailPage(
+                  auth: widget.auth,
+                  groupService: widget.groupService,
+                ),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -152,17 +151,19 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   void _signUp() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const SignUpPage()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const SignUpPage()));
   }
 
   // ── Firebase password reset ─────────────────────────────
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
-    if (email.isEmpty || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+    if (email.isEmpty ||
+        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
       setState(() {
-        _errorMessage = 'Please enter a valid email address to reset your password.';
+        _errorMessage =
+            'Please enter a valid email address to reset your password.';
       });
       return;
     }
@@ -173,17 +174,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     });
 
     try {
-      await (widget.auth ?? FirebaseAuth.instance)
-          .sendPasswordResetEmail(email: email);
+      await (widget.auth ?? FirebaseAuth.instance).sendPasswordResetEmail(
+        email: email,
+      );
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Password reset link sent! Check your email.'),
+          content: const Text(
+            'Password reset link sent! Check your email.',
+            style: TextStyle(color: AppColors.background),
+          ),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -236,8 +243,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   // ── UI ──────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -246,7 +251,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
@@ -256,10 +261,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     children: [
                       // ── Logo / branding ────────────────
                       _buildBranding(),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 28),
 
                       // ── Login card ─────────────────────
-                      _buildLoginCard(size),
+                      _buildLoginCard(),
 
                       // VERSION TRACKING
                       const SizedBox(height: 16),
@@ -295,9 +300,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             gradient: AppColors.brandGradient,
             boxShadow: [
               BoxShadow(
-                color: AppColors.accentStart.withValues(alpha: 0.4),
+                color: AppColors.accentStart.withValues(alpha: 0.12),
                 blurRadius: 32,
-                spreadRadius: 4,
+                spreadRadius: 0,
               ),
             ],
           ),
@@ -310,16 +315,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         const SizedBox(height: 24),
 
         // App name with gradient text
-        ShaderMask(
-          shaderCallback: (bounds) => AppColors.brandGradient.createShader(bounds),
-          child: const Text(
-            'Syncinary',
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: -1,
-            ),
+        const Text(
+          'Syncinary',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            letterSpacing: -1,
           ),
         ),
         const SizedBox(height: 8),
@@ -334,9 +336,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildLoginCard(Size size) {
+  Widget _buildLoginCard() {
     return Container(
-      width: size.width > 420 ? 400 : double.infinity,
+      width: double.infinity,
+      constraints: const BoxConstraints(maxWidth: 440),
       decoration: AppDecorations.glassCard(radius: 20),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -379,7 +382,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter your email';
                   }
-                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim())) {
+                  if (!RegExp(
+                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                  ).hasMatch(value.trim())) {
                     return 'Please enter a valid email';
                   }
                   return null;
@@ -393,21 +398,24 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.done,
                 style: AppTextStyles.body,
-                decoration: AppDecorations.inputDecoration(
-                  label: 'Password',
-                  prefixIcon: Icons.lock_outline_rounded,
-                ).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                      color: AppColors.textMuted,
-                      size: 20,
+                decoration:
+                    AppDecorations.inputDecoration(
+                      label: 'Password',
+                      prefixIcon: Icons.lock_outline_rounded,
+                    ).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          color: AppColors.textMuted,
+                          size: 20,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                  ),
-                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your password';
@@ -427,7 +435,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 child: TextButton(
                   onPressed: _isLoading ? null : _resetPassword,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -452,10 +463,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
               const SizedBox(height: 20),
 
-              GradientButton(
+              OutlinedButton(
                 onPressed: _isLoading ? null : _signUp,
-                label: 'Sign Up',
-                isLoading: _isLoading,
+                child: const Text('Sign Up'),
               ),
             ],
           ),
@@ -470,17 +480,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       decoration: BoxDecoration(
         color: AppColors.error.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.error,
-            size: 20,
-          ),
+          Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

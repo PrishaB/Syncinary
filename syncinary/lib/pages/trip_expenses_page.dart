@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/page_body.dart';
 import '../models/expense.dart';
 import '../models/expense_split.dart';
 import '../models/group.dart';
@@ -11,7 +12,7 @@ import '../widgets/gradient_app_bar.dart';
 /// Three-panel "Cost Splitter" layout: itemized expenses, a total + add-expense
 /// form, and each member's allocated costs. Expenses default to personal, with
 /// equal and custom percentage splits. Panels stack below [_wideBreakpoint].
-const double _wideBreakpoint = 760;
+const double _wideBreakpoint = 1120;
 
 class TripExpensesPage extends StatefulWidget {
   const TripExpensesPage({
@@ -106,95 +107,89 @@ class _TripExpensesPageState extends State<TripExpensesPage> {
         widget.group.memberById(currentUserId)?.role == GroupRole.admin;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: const GradientAppBar(title: 'Cost Splitter'),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: SafeArea(
-          child: StreamBuilder<List<Expense>>(
-            stream: _expenses,
-            builder: (context, snapshot) {
-              final expenses = snapshot.data ?? const <Expense>[];
-              final total = expenses.fold<double>(
-                0,
-                (sum, e) => sum + e.amount,
-              );
-              final members = widget.group.members;
+      body: PageBody(
+        maxWidth: 1440,
+        child: StreamBuilder<List<Expense>>(
+          stream: _expenses,
+          builder: (context, snapshot) {
+            final expenses = snapshot.data ?? const <Expense>[];
+            final total = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+            final members = widget.group.members;
 
-              // Use the same cent allocation as the percentage preview.
-              final totalsByMember = <String, double>{
-                for (final m in members) m.id: 0,
-              };
-              for (final expense in expenses) {
-                for (final share
-                    in expense.split.amountsFor(expense.amount).entries) {
-                  totalsByMember[share.key] =
-                      (totalsByMember[share.key] ?? 0) + share.value;
-                }
+            // Use the same cent allocation as the percentage preview.
+            final totalsByMember = <String, double>{
+              for (final m in members) m.id: 0,
+            };
+            for (final expense in expenses) {
+              for (final share
+                  in expense.split.amountsFor(expense.amount).entries) {
+                totalsByMember[share.key] =
+                    (totalsByMember[share.key] ?? 0) + share.value;
               }
+            }
 
-              final breakdown = _ItemizedBreakdown(
-                expenses: expenses,
-                currentUserId: currentUserId,
-                isAdmin: isAdmin,
-                onDelete: _deleteExpense,
-                members: members,
-              );
-              final addForm = _AddExpenseForm(
-                total: total,
-                nameController: _nameController,
-                amountController: _amountController,
-                error: _formError,
-                busy: _busy,
-                onAdd: _addExpense,
-                split: _split,
-                members: members,
-                currentUserId: currentUserId,
-                onSplitChanged: (split) => setState(() => _split = split),
-              );
-              final splitPanel = _PerPersonPanel(
-                members: members,
-                total: total,
-                totalsByMember: totalsByMember,
-              );
+            final breakdown = _ItemizedBreakdown(
+              expenses: expenses,
+              currentUserId: currentUserId,
+              isAdmin: isAdmin,
+              onDelete: _deleteExpense,
+              members: members,
+            );
+            final addForm = _AddExpenseForm(
+              total: total,
+              nameController: _nameController,
+              amountController: _amountController,
+              error: _formError,
+              busy: _busy,
+              onAdd: _addExpense,
+              split: _split,
+              members: members,
+              currentUserId: currentUserId,
+              onSplitChanged: (split) => setState(() => _split = split),
+            );
+            final splitPanel = _PerPersonPanel(
+              members: members,
+              total: total,
+              totalsByMember: totalsByMember,
+            );
 
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final padding = const EdgeInsets.fromLTRB(24, 88, 24, 32);
-                  if (constraints.maxWidth >= _wideBreakpoint) {
-                    return SingleChildScrollView(
-                      padding: padding,
-                      child: IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: breakdown),
-                            const SizedBox(width: 16),
-                            Expanded(child: addForm),
-                            const SizedBox(width: 16),
-                            Expanded(child: splitPanel),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final padding = const EdgeInsets.fromLTRB(20, 24, 20, 32);
+                if (constraints.maxWidth >=
+                    _wideBreakpoint *
+                        MediaQuery.textScalerOf(context).scale(1)) {
                   return SingleChildScrollView(
                     padding: padding,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        breakdown,
-                        const SizedBox(height: 20),
-                        addForm,
-                        const SizedBox(height: 20),
-                        splitPanel,
+                        Expanded(child: breakdown),
+                        const SizedBox(width: 16),
+                        Expanded(child: addForm),
+                        const SizedBox(width: 16),
+                        Expanded(child: splitPanel),
                       ],
                     ),
                   );
-                },
-              );
-            },
-          ),
+                }
+                return SingleChildScrollView(
+                  padding: padding,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      breakdown,
+                      const SizedBox(height: 20),
+                      addForm,
+                      const SizedBox(height: 20),
+                      splitPanel,
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
     );

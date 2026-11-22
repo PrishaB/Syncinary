@@ -547,6 +547,7 @@ void main() {
     expect(find.text('No hotel added yet.'), findsOneWidget);
 
     // ── Removing the selected day falls back to the first remaining one ──
+    await tester.ensureVisible(find.byTooltip('Remove day'));
     await tester.tap(find.byTooltip('Remove day'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove').last);
@@ -568,6 +569,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Empire State Building'), findsOneWidget);
 
+    await tester.ensureVisible(find.byTooltip('Remove day'));
     await tester.tap(find.byTooltip('Remove day'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove').last);
@@ -581,8 +583,8 @@ void main() {
   });
 
   group('AI Advisor panel', () {
-    for (final width in [500.0, 1000.0]) {
-      final layout = width < 760 ? 'narrow' : 'wide';
+    for (final width in [500.0, 1280.0]) {
+      final layout = width < 1120 ? 'narrow' : 'wide';
 
       testWidgets('shows suggestions for the page group ($layout)', (tester) async {
         final requests = <http.Request>[];
