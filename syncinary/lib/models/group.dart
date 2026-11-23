@@ -50,6 +50,8 @@ class GroupMember {
 ///   createdAt: Timestamp,
 ///   memberIds: [uid, ...],           // kept in sync with members.keys for array-contains queries
 ///   members: { uid: {username, email, role}, ... },
+///   photoUrl: string,                // optional; download URL of the group photo
+///   photoPath: string,               // optional; its Firebase Storage path
 /// }
 /// ```
 class Group {
@@ -58,11 +60,15 @@ class Group {
     required this.name,
     required this.members,
     this.inviteCode,
+    this.photoUrl,
+    this.photoPath,
   });
 
   final String id;
   String name;
   String? inviteCode;
+  String? photoUrl;
+  String? photoPath;
   final List<GroupMember> members;
 
   GroupMember? memberById(String id) {
@@ -79,6 +85,8 @@ class Group {
       id: doc.id,
       name: _stringOrNull(data['name']) ?? '',
       inviteCode: _stringOrNull(data['inviteCode']),
+      photoUrl: _stringOrNull(data['photoUrl']),
+      photoPath: _stringOrNull(data['photoPath']),
       members: rawMembers.entries
           .map((e) => GroupMember.fromMap(e.key, _mapOrEmpty(e.value)))
           .toList(),

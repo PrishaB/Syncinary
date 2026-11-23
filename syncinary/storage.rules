@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function groupDoc(groupId) {
+      return firestore.get(/databases/(default)/documents/groups/$(groupId)).data;
+    }
+    function isMember(groupId) {
+      return request.auth != null && request.auth.uid in groupDoc(groupId).memberIds;
+    }
+    function isAdmin(groupId) {
+      return isMember(groupId) &&
+        groupDoc(groupId).members[request.auth.uid].role == 'admin';
+    }
+
+    // Group photos: groups/{groupId}/photo_<timestamp>, written by
+    // GroupPhotoService. Size and type match its client-side checks.
+    match /groups/{groupId}/{fileName} {
+      allow read: if isMember(groupId);
+      allow create, update: if isAdmin(groupId) &&
+        fileName.matches('photo_[0-9]+') &&
+        request.resource.size > 0 &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
+      allow delete: if isAdmin(groupId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

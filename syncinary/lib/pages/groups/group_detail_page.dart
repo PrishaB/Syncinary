@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/group.dart';
+import '../../services/group_photo_service.dart';
 import '../../services/group_service.dart';
 import '../../services/user_preferences_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/confirmation_dialog.dart';
 import '../../widgets/gradient_app_bar.dart';
+import '../../widgets/group_avatar.dart';
 import '../../widgets/success_overlay.dart';
 import '../schedule_builder_page.dart';
 import '../login_page.dart';
@@ -19,11 +22,15 @@ class GroupDetailPage extends StatefulWidget {
     required this.group,
     GroupService? service,
     this.preferencesService,
+    this.photoService,
+    this.imagePicker,
   }) : _service = service;
 
   final Group group;
   final GroupService? _service;
   final UserPreferencesService? preferencesService;
+  final GroupPhotoService? photoService;
+  final ImagePicker? imagePicker;
 
   @override
   State<GroupDetailPage> createState() => _GroupDetailPageState();
@@ -32,7 +39,11 @@ class GroupDetailPage extends StatefulWidget {
 class _GroupDetailPageState extends State<GroupDetailPage> {
   late final GroupService _service = widget._service ?? GroupService();
   late final Stream<Group?> _groupStream = _service.groupStream(widget.group.id);
+  late final GroupPhotoService _photoService =
+      widget.photoService ?? GroupPhotoService();
+  late final ImagePicker _imagePicker = widget.imagePicker ?? ImagePicker();
   bool _busy = false;
+  bool _uploadingPhoto = false;
   bool _deleting = false;
   bool _closing = false;
 
@@ -97,6 +108,42 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       await _service.renameGroup(group, newName);
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _changePhoto(Group group) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final XFile? file;
+    try {
+      file = await _imagePicker.pickImage(source: ImageSource.gallery);
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not open your photos. Please try again.')),
+      );
+      return;
+    }
+    if (file == null || !mounted) return; // picker cancelled
+    setState(() {
+      _busy = true;
+      _uploadingPhoto = true;
+    });
+    try {
+      await _photoService.uploadGroupPhoto(group, await file.readAsBytes());
+      if (!mounted) return;
+      await showSuccessOverlay(context, 'Group photo updated');
+    } on InvalidImageException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not upload photo. Please try again.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _uploadingPhoto = false;
+        });
+      }
     }
   }
 
@@ -212,31 +259,23 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                 child: Column(
                   children: [
                     GestureDetector(
-                      onTap: isAdmin
-                          ? () => ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Photo upload — coming soon')),
-                              )
-                          : null,
-                      child: Container(
-                        width: 84,
-                        height: 84,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.brandGradient,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accentStart.withValues(alpha: 0.35),
-                              blurRadius: 28,
-                              offset: const Offset(0, 8),
+                      onTap: isAdmin && !_busy ? () => _changePhoto(group) : null,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          GroupAvatar(photoUrl: group.photoUrl, size: 84, glow: true),
+                          if (_uploadingPhoto)
+                            const SizedBox(
+                              width: 84,
+                              height: 84,
+                              child: CircularProgressIndicator(color: Colors.white),
                             ),
-                          ],
-                        ),
-                        child: const Icon(Icons.group_rounded, color: Colors.white, size: 36),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 10),
                     if (isAdmin)
-                      Text('Add/Change photo',
+                      Text(group.photoUrl == null ? 'Add photo' : 'Change photo',
                           style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
                     const SizedBox(height: 14),
                     GestureDetector(
