@@ -82,5 +82,9 @@ access goes in `lib/services/`; each source file's test mirrors its path under
   `LoginPage`, and `SignUpPage` all follow this.
 - **Firestore collections:** `users/{uid}` (`{ email, username, createdAt }`),
   `groups/{groupId}`, `invites`, `inviteCodes` (maps `inviteCode -> groupId`).
+- **Firebase Storage:** group photos at `groups/{groupId}/photo_<micros>`,
+  written by `GroupPhotoService` (URL and path saved on the group doc as
+  `photoUrl` / `photoPath`). Rules are in `storage.rules`; tests use
+  `firebase_storage_mocks`.
 - Flight calls target the proxy at `http://localhost:3000`, hardcoded in
   `AmadeusService`.

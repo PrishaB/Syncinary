@@ -42,6 +42,8 @@ dependencies:
   package_info_plus: ^9.0.0
   flutter_map: ^8.3.2
   latlong2: ^0.9.1
+  firebase_storage: ^13.6.1
+  image_picker: ^1.2.4
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +58,7 @@ dev_dependencies:
   fake_cloud_firestore: ^4.0.0
   firebase_auth_mocks: ^0.15.0
   mock_exceptions: ^0.8.2
+  firebase_storage_mocks: ^0.8.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

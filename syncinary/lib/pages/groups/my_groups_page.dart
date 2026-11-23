@@ -4,6 +4,7 @@ import '../../services/group_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/confirmation_dialog.dart';
 import '../../widgets/gradient_app_bar.dart';
+import '../../widgets/group_avatar.dart';
 import '../login_page.dart';
 import 'group_detail_page.dart';
 import 'join_group_page.dart';
@@ -248,15 +249,7 @@ class _GroupTile extends StatelessWidget {
           decoration: AppDecorations.glassCard(),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  gradient: AppColors.brandGradient,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.group_rounded, color: Colors.white, size: 22),
-              ),
+              GroupAvatar(photoUrl: group.photoUrl, size: 44),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
