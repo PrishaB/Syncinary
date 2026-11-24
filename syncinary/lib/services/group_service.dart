@@ -108,16 +108,24 @@ class GroupService {
   /// Runs in a transaction so a membership change made by someone else
   /// between the read and the write (e.g. a member leaving) can't be
   /// overwritten: Firestore retries [mutate] against the fresh data instead.
-  /// [mutate] may throw to abort without writing anything.
+  ///
+  /// [mutate] may throw to abort without writing anything; the exception
+  /// reaches the caller unchanged. It is caught inside the transaction and
+  /// rethrown only after the transaction ends, because on web cloud_firestore
+  /// wraps any Dart error thrown inside a transaction in a JS error, so
+  /// `on MemberNotFoundException` etc. would never match (BUG-003).
   Future<void> _updateMembers(
     String groupId,
     void Function(
       Map<String, Map<String, dynamic>> members,
       List<String> joinOrder,
     ) mutate,
-  ) {
+  ) async {
     final ref = _groups.doc(groupId);
-    return _firestore.runTransaction((tx) async {
+    Object? failure;
+    StackTrace? failureStack;
+    await _firestore.runTransaction((tx) async {
+      failure = null; // reset if Firestore retries the transaction
       final snap = await tx.get(ref);
       final data = Map<String, dynamic>.from(snap.data() ?? const {});
       final raw = data['members'] as Map<String, dynamic>? ?? const {};
@@ -125,7 +133,13 @@ class GroupService {
         (key, value) => MapEntry(key, Map<String, dynamic>.from(value as Map)),
       );
       final joinOrder = List<String>.from(data['memberIds'] as List? ?? const []);
-      mutate(members, joinOrder);
+      try {
+        mutate(members, joinOrder);
+      } catch (e, st) {
+        failure = e;
+        failureStack = st;
+        return; // no writes, so the transaction changes nothing
+      }
       if (members.isEmpty) {
         tx.delete(ref);
       } else {
@@ -142,6 +156,8 @@ class GroupService {
         tx.set(ref, data);
       }
     });
+    final error = failure;
+    if (error != null) Error.throwWithStackTrace(error, failureStack ?? StackTrace.current);
   }
 
   Future<Group> createGroup(String name) async {

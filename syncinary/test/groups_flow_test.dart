@@ -564,6 +564,62 @@ void main() {
     expect(await rolesOf(firestore, 'bali'), {'me-uid': 'admin', 'jordan-uid': 'user'});
   });
 
+  // BUG-003: on web, cloud_firestore wraps any Dart error thrown inside a
+  // transaction in a JS error, so `on MemberNotFoundException` never matched
+  // and the dialog showed nothing. These run against a fake that wraps errors
+  // the same way.
+
+  testWidgets('[501-7] transfer dialog shows the "no longer in this group" error on a backend '
+      'that wraps transaction errors (web, BUG-003)', (tester) async {
+    final firestore = _WebLikeFirestore();
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    final staleGroup = await seedGroup(firestore, 'bali', {
+      'me-uid': memberData('You', 'admin'),
+      'alex-uid': memberData('Alex Chen', 'user'),
+    });
+    await me.removeMember(staleGroup, staleGroup.memberById('alex-uid')!);
+
+    await pumpPage(
+      tester,
+      Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => showTransferAdminDialog(context, staleGroup, me),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alex Chen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm Selection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Alex Chen is no longer in this group. Choose someone else.'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(await rolesOf(firestore, 'bali'), {'me-uid': 'admin'});
+  });
+
+  test('[501-7] transferAdmin by a demoted admin throws NotAdminException on a backend '
+      'that wraps transaction errors (web, BUG-003)', () async {
+    final firestore = _WebLikeFirestore();
+    final group = await seedGroup(firestore, 'bali', {
+      'me-uid': memberData('You', 'admin'),
+      'alex-uid': memberData('Alex Chen', 'user'),
+    });
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    await firestore.collection('groups').doc('bali').update({'members.me-uid.role': 'user'});
+
+    await expectLater(me.transferAdmin(group, group.memberById('alex-uid')!),
+        throwsA(isA<NotAdminException>()));
+    expect(await rolesOf(firestore, 'bali'), {'me-uid': 'user', 'alex-uid': 'user'});
+  });
+
   test('[501-7] roleOf / isAdmin: admin, user, and non-member (defaults to user)', () async {
     final firestore = FakeFirebaseFirestore();
     final group = await seedGroup(firestore, 'bali', {
@@ -795,3 +851,27 @@ Future<Map<String, String>> rolesOf(FakeFirebaseFirestore firestore, String grou
 
 Future<Iterable<String>> membersOf(FakeFirebaseFirestore firestore, String groupId) async =>
     (await rolesOf(firestore, groupId)).keys;
+
+/// Mimics cloud_firestore on web: a Dart error thrown inside a transaction
+/// handler comes back to the caller wrapped, not as the original exception
+/// (see BUG-003).
+class _WebLikeFirestore extends FakeFirebaseFirestore {
+  @override
+  Future<T> runTransaction<T>(TransactionHandler<T> transactionHandler,
+      {Duration timeout = const Duration(seconds: 30), int maxAttempts = 5}) async {
+    try {
+      return await super.runTransaction(transactionHandler,
+          timeout: timeout, maxAttempts: maxAttempts);
+    } catch (e) {
+      throw _WrappedJsError(e);
+    }
+  }
+}
+
+class _WrappedJsError {
+  _WrappedJsError(this.error);
+  final Object error;
+
+  @override
+  String toString() => 'Error: Dart exception thrown from converted Future.';
+}
