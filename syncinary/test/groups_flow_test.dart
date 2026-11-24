@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:syncinary/models/group.dart';
@@ -9,6 +10,7 @@ import 'package:syncinary/pages/groups/group_detail_page.dart';
 import 'package:syncinary/pages/groups/join_group_page.dart';
 import 'package:syncinary/pages/groups/my_groups_page.dart';
 import 'package:syncinary/pages/groups/transfer_admin_dialog.dart';
+import 'package:syncinary/pages/schedule_builder_page.dart';
 import 'package:syncinary/services/group_service.dart';
 import 'package:syncinary/theme/app_theme.dart';
 
@@ -139,7 +141,8 @@ void main() {
     await tester.tap(find.text('Send Invite'));
     await tester.pumpAndSettle();
     await letOverlayDismiss(tester);
-    expect(find.text('Invite sent to jordan@syncinary.app'), findsNothing); // overlay dismissed
+    expect(find.text('Invite sent. Jordan Lee will see it under Join Group.'),
+        findsNothing); // overlay dismissed
     final pendingInvites = await firestore
         .collection('invites')
         .where('recipientEmail', isEqualTo: 'jordan@syncinary.app')
@@ -265,6 +268,31 @@ void main() {
     expect(members.containsKey('joiner-uid'), isTrue);
     expect(members['joiner-uid']['role'], 'user');
     expect((after.data()!['memberIds'] as List), contains('joiner-uid'));
+  });
+
+  test('[501-2] joinByCode accepts a pasted invite link and uses the code at the end', () async {
+    final firestore = FakeFirebaseFirestore();
+    final admin = await seedService(firestore,
+        uid: 'admin-uid', email: 'admin@syncinary.app', username: 'Admin');
+    final group = await admin.createGroup('Road Trip');
+    final code = group.inviteCode!;
+
+    final links = {
+      'link-uid': 'syncinary.app/join/$code',
+      'https-uid': '  https://syncinary.app/join/${code.toLowerCase()}/  ',
+    };
+    for (final entry in links.entries) {
+      final joiner = await seedService(firestore,
+          uid: entry.key, email: '${entry.key}@syncinary.app', username: entry.key);
+      expect(await joiner.joinByCode(entry.value), isTrue, reason: entry.value);
+    }
+    final outsider = await seedService(firestore,
+        uid: 'outsider-uid', email: 'outsider@syncinary.app', username: 'Outsider');
+    expect(await outsider.joinByCode('syncinary.app/join/NOPE00'), isFalse);
+    expect(await outsider.joinByCode('syncinary.app/join/'), isFalse);
+
+    expect(await rolesOf(firestore, group.id),
+        {'admin-uid': 'admin', 'link-uid': 'user', 'https-uid': 'user'});
   });
 
   test('acceptInvite adds the invitee as a member and removes the invite', () async {
@@ -706,6 +734,148 @@ void main() {
     expect(find.text('Rename Group'), findsNothing);
   });
 
+  testWidgets('[501-10] Any member can open Invite Members; only an admin can pick the Admin role',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final firestore = FakeFirebaseFirestore();
+    final group = await seedGroup(firestore, 'bali', {
+      'me-uid': memberData('You', 'admin'),
+      'alex-uid': memberData('Alex Chen', 'user'),
+    });
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    final alex = await seedService(firestore,
+        uid: 'alex-uid', email: 'alex@syncinary.app', username: 'Alex');
+    await firestore
+        .collection('users')
+        .doc('jordan-uid')
+        .set({'username': 'Jordan Lee', 'email': 'jordan@syncinary.app'});
+
+    // ── Admin: the role picker is there ──
+    await pumpPage(tester, GroupDetailPage(group: group, service: me));
+    await tester.tap(find.text('Invite Members'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DropdownButton<GroupRole>), findsOneWidget);
+
+    // ── User: can still invite, but there is no role picker ──
+    await pumpPage(tester, GroupDetailPage(group: group, service: alex));
+    expect(find.text('Invite Members'), findsOneWidget);
+    await tester.tap(find.text('Invite Members'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DropdownButton<GroupRole>), findsNothing);
+    expect(find.descendant(of: find.byType(Dialog), matching: find.text('Admin')), findsNothing);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Add User by Email'), 'jordan@syncinary.app');
+    await tester.tap(find.text('Send Invite'));
+    await tester.pumpAndSettle();
+    await letOverlayDismiss(tester);
+
+    final invite = (await firestore.collection('invites').get()).docs.single.data();
+    expect(invite['senderUid'], 'alex-uid');
+    expect(invite['role'], 'user');
+  });
+
+  test('[501-10] inviteMemberByEmail refuses an admin-role invite from a regular member',
+      () async {
+    final firestore = FakeFirebaseFirestore();
+    final group = await seedGroup(firestore, 'bali', {
+      'me-uid': memberData('You', 'admin'),
+      'alex-uid': memberData('Alex Chen', 'user'),
+    });
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    final alex = await seedService(firestore,
+        uid: 'alex-uid', email: 'alex@syncinary.app', username: 'Alex');
+    await firestore
+        .collection('users')
+        .doc('jordan-uid')
+        .set({'username': 'Jordan Lee', 'email': 'jordan@syncinary.app'});
+
+    await expectLater(
+      alex.inviteMemberByEmail(group, 'jordan@syncinary.app', GroupRole.admin),
+      throwsA(isA<NotAdminException>()),
+    );
+    expect((await firestore.collection('invites').get()).docs, isEmpty);
+
+    // Checked against the stored group, not the stale copy: once "me" is
+    // demoted, "me" can't send admin invites with the old Group object either.
+    await firestore.collection('groups').doc('bali').update({'members.me-uid.role': 'user'});
+    await expectLater(
+      me.inviteMemberByEmail(group, 'jordan@syncinary.app', GroupRole.admin),
+      throwsA(isA<NotAdminException>()),
+    );
+
+    // A regular member can still invite as a user.
+    expect(await alex.inviteMemberByEmail(group, 'jordan@syncinary.app', GroupRole.user),
+        'Jordan Lee');
+    expect((await firestore.collection('invites').get()).docs.single.data()['role'], 'user');
+  });
+
+  // ── 101-2 / 101-3: creating a group and opening its itinerary ──
+
+  testWidgets('[101-2] Creating a group with an empty or blank name creates nothing',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final firestore = FakeFirebaseFirestore();
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    await pumpPage(tester, MyGroupsPage(service: me));
+
+    for (final name in ['', '   ']) {
+      await tester.tap(find.text('Add Group'));
+      await tester.pumpAndSettle();
+      expect(find.text('New Group'), findsOneWidget);
+      await tester.enterText(find.widgetWithText(TextField, 'Group name'), name);
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Group'), findsNothing, reason: 'dialog closes for "$name"');
+      expect((await firestore.collection('groups').get()).docs, isEmpty, reason: '"$name"');
+      expect((await firestore.collection('inviteCodes').get()).docs, isEmpty, reason: '"$name"');
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('[101-3] Plan Itinerary opens the Schedule Builder for that group and comes back',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final firestore = FakeFirebaseFirestore();
+    final group = await seedGroup(firestore, 'bali', {
+      'me-uid': memberData('You', 'admin'),
+      'alex-uid': memberData('Alex Chen', 'user'),
+    });
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+    // An itinerary item saved for this group, plus one for another group that
+    // must not show up.
+    await me.scheduleService.addDay('bali', DateTime(2026, 5, 3));
+    for (final entry in {'bali': 'Uluwatu Temple', 'other': 'Somewhere Else'}.entries) {
+      await firestore.collection('groups').doc(entry.key).collection('scheduleItems').add({
+        'day': '2026-05-03', 'type': 'activity', 'title': entry.value,
+        'details': '', 'addedBy': 'me-uid', 'createdAt': DateTime(2026, 1, 1),
+      });
+    }
+
+    await pumpPage(tester, GroupDetailPage(group: group, service: me));
+    await tester.tap(find.text('Plan Itinerary'));
+    await tester.pumpAndSettle();
+
+    final schedule = tester.widget<ScheduleBuilderPage>(find.byType(ScheduleBuilderPage));
+    expect(schedule.group.id, 'bali');
+    expect(find.text('Schedule Builder'), findsOneWidget);
+    expect(find.text('Uluwatu Temple'), findsOneWidget);
+    expect(find.text('Somewhere Else'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(ScheduleBuilderPage), findsNothing);
+    expect(find.text('Plan Itinerary'), findsOneWidget);
+  });
+
   // ── 401-6: invite flow end to end ──
 
   testWidgets('[401-6] Invite by email, then accept or decline from Join Group', (tester) async {
@@ -736,6 +906,9 @@ void main() {
 
     // ── Invite → the invitee sees it → accepts → appears in the member list ──
     await inviteFromGroupPage('invitee@syncinary.app');
+    // The confirmation says where to find the invite, not that an email went out.
+    expect(find.text('Invite sent. Invitee will see it under Join Group.'), findsOneWidget);
+    expect(find.textContaining('Invite sent to'), findsNothing);
     await letOverlayDismiss(tester);
     await pumpPage(tester, JoinGroupPage(service: invitee));
     expect(find.text('Admin — Road Trip'), findsOneWidget);
@@ -759,6 +932,38 @@ void main() {
     await pumpPage(tester, GroupDetailPage(group: group, service: admin));
     expect(find.text('Invitee'), findsOneWidget);
     expect(find.text('Decliner'), findsNothing);
+  });
+
+  testWidgets('[401-6] Invite Members shows and copies the invite code, not a link',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform,
+        (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied = (call.arguments as Map)['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    final firestore = FakeFirebaseFirestore();
+    final group = await seedGroup(firestore, 'bali', {'me-uid': memberData('You', 'admin')});
+    final me =
+        await seedService(firestore, uid: 'me-uid', email: 'me@syncinary.app', username: 'You');
+
+    await pumpPage(tester, GroupDetailPage(group: group, service: me));
+    await tester.tap(find.text('Invite Members'));
+    await tester.pumpAndSettle();
+    expect(find.text('Share this code: BALI26'), findsOneWidget);
+    expect(find.textContaining('syncinary.app/join'), findsNothing);
+
+    await tester.tap(find.byTooltip('Copy invite code'));
+    await tester.pumpAndSettle();
+    expect(copied, 'BALI26');
+    expect(find.text('Invite code copied'), findsOneWidget);
   });
 }
 

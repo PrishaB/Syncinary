@@ -216,15 +216,30 @@ class GroupService {
       });
 
   /// Looks the invitee up in `users` by email and creates a pending invite
-  /// for them — they must accept it from the Join Group screen. Throws
-  /// [UserNotFoundException] if nobody has signed up with that email yet.
-  Future<void> inviteMemberByEmail(Group group, String email, GroupRole role) async {
+  /// for them — they must accept it from the Join Group screen. No email is
+  /// sent. Returns the invitee's username (or [email] if their profile has
+  /// none) so the caller can say who was invited.
+  ///
+  /// Any member can invite, but only an admin can invite someone as an
+  /// admin. The admin check reads the group as stored now, not the possibly
+  /// stale [group].
+  ///
+  /// Throws [UserNotFoundException] if nobody has signed up with that email
+  /// yet, or [NotAdminException] if a non-admin asks for [GroupRole.admin].
+  Future<String> inviteMemberByEmail(Group group, String email, GroupRole role) async {
+    if (role == GroupRole.admin) {
+      final current = await _groups.doc(group.id).get();
+      if (!current.exists || !isAdmin(Group.fromDoc(current))) {
+        throw const NotAdminException();
+      }
+    }
     final trimmed = email.trim().toLowerCase();
     final matches = await _users.where('email', isEqualTo: trimmed).limit(1).get();
     if (matches.docs.isEmpty) {
       throw UserNotFoundException(trimmed);
     }
     final recipient = matches.docs.first;
+    final recipientUsername = recipient.data()['username'];
     final senderUsername = await _currentUsername();
 
     await _invites.add({
@@ -238,6 +253,9 @@ class GroupService {
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
     });
+    return recipientUsername is String && recipientUsername.trim().isNotEmpty
+        ? recipientUsername
+        : trimmed;
   }
 
   /// Adds the current user to a group they're not a member of yet, without
@@ -258,8 +276,15 @@ class GroupService {
     });
   }
 
+  /// Joins the group whose invite code is [code]. Also accepts a whole
+  /// invite link (e.g. `syncinary.app/join/ABC123`, which older versions of
+  /// the Invite Members dialog shared) by using the part after the last `/`.
   Future<bool> joinByCode(String code) async {
-    final trimmed = code.trim().toUpperCase();
+    var input = code.trim();
+    while (input.endsWith('/')) {
+      input = input.substring(0, input.length - 1);
+    }
+    final trimmed = input.substring(input.lastIndexOf('/') + 1).trim().toUpperCase();
     if (trimmed.isEmpty) return false;
     final mapping = await _inviteCodes.doc(trimmed).get();
     final groupId = mapping.data()?['groupId'] as String?;
